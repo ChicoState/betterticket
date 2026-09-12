@@ -59,13 +59,14 @@ When a selected application framework cannot start without an application-owned 
 
 ## Safety and Installation Rules
 
-1. Before an install or generator command, show the developer the selected package manager, exact intended command, and packages or images to be added. Use the plan's version policy; otherwise use the current supported stable/LTS line and record the choice in the README.
-2. Do not use unpinned `latest` image tags. Pin Docker images to a major/minor or digest consistent with the plan, and document the update policy.
-3. Use the plan's package manager exclusively. Create and retain its lockfile. Do not mix package managers.
-4. Prefer official registries and first-party images. Inspect generated manifests and lockfiles for unexpected scripts, dependencies, or credentials before proceeding.
-5. Never run a command that could publish, deploy, provision, authenticate, mutate a remote environment, push an image, or upload a release. Create workflow definitions for these operations only when the plan requests them; guard them with explicit release triggers, protected environments, least privileges, and named secret references.
-6. Never request or print secret values. Create `.env.example` only when it lists variable names, purpose, and safe placeholders. Ensure real `.env` files are ignored.
-7. Do not overwrite an existing README or AGENTS file wholesale. Merge or revise the sections controlled by this skill, preserving useful project-specific material and clearly reconciling contradictions.
+1. Prioritize installation and configuration steps that can run in a controlled, consistent environment, such as Docker containers, before making changes to the host system.
+2. Before an install or generator command, show the developer the selected package manager, exact intended command, and packages or images to be added. Use the plan's version policy; otherwise use the current supported stable/LTS line and record the choice in the README.
+3. Do not use unpinned `latest` image tags. Pin Docker images to a major/minor or digest consistent with the plan, and document the update policy.
+4. Use the plan's package manager exclusively. Create and retain its lockfile. Do not mix package managers.
+5. Prefer official registries and first-party images. Inspect generated manifests and lockfiles for unexpected scripts, dependencies, or credentials before proceeding.
+6. Never run a command that could publish, deploy, provision, authenticate, mutate a remote environment, push an image, or upload a release. Create workflow definitions for these operations only when the plan requests them; guard them with explicit release triggers, protected environments, least privileges, and named secret references.
+7. Never request or print secret values. Create `.env.example` only when it lists variable names, purpose, and safe placeholders. Ensure real `.env` files are ignored.
+8. Do not overwrite an existing README or AGENTS file wholesale. Merge or revise the sections controlled by this skill, preserving useful project-specific material and clearly reconciling contradictions.
 
 ## Implementation Workflow
 
@@ -73,6 +74,7 @@ When a selected application framework cannot start without an application-owned 
 
 Create a compact internal checklist from these plan sections:
 
+- configure docker container(s)
 - selected stack and version policy;
 - storage and migration approach;
 - test, test-analysis, static-analysis, and security tools;
@@ -83,7 +85,18 @@ Create a compact internal checklist from these plan sections:
 
 State the implementation boundary and any material assumptions before modifying files. A plan should normally be fully decided; do not silently convert assumptions or open items into implementation choices.
 
-### 2. Establish the Local Toolchain
+### 2. Configure Docker
+
+Create Docker container(s) first so that installation and configuration steps can run in a controlled, consistent environment.
+
+- For local services, use Compose with declared networks, named volumes, health checks, and dependency conditions where supported.
+- For a development container, make source mounting, dependency caching, UID/GID behavior, ports, and manual host prerequisites explicit.
+- For a production image, use a multi-stage build, minimal runtime image, non-root user, `.dockerignore`, explicit port/healthcheck only if an application entrypoint exists, and environment-provided configuration. Never embed a secret.
+- For native desktop/mobile release plans, do not claim Docker replaces native SDKs, signing, or notarization; document those host-only requirements.
+
+Validate Compose syntax and build images where practical. Start only local services and containers, then stop them after smoke tests unless the developer asks to keep them running.
+
+### 3. Establish the Local Toolchain
 
 Create or update only configurations required by the plan:
 
@@ -96,22 +109,11 @@ Create or update only configurations required by the plan:
 
 Keep scripts composable: formatting and static checks should not require Docker; integration and smoke tests should wait for only the services they need. Do not fabricate tests just to make a test command appear green. If no application test exists yet, document that the configured test command currently validates the harness only, and make CI run the meaningful infrastructure checks available now.
 
-### 3. Configure Storage and Local Services
+### 4. Configure Storage and Local Services
 
 Implement only the selected local development services. Use named volumes for persistent local data, health checks that represent genuine readiness, minimal exposed ports, non-secret development credentials or environment-provided values, and a documented reset procedure.
 
 For database tooling, configure connection handling and a migration command without inventing business schema. If the plan requires a service container in CI, ensure its environment and readiness behavior match local Compose closely. Do not run migrations against any remote database.
-
-### 4. Configure Docker
-
-Create Docker assets only when the plan assigns Docker a role.
-
-- For local services, use Compose with declared networks, named volumes, health checks, and dependency conditions where supported.
-- For a development container, make source mounting, dependency caching, UID/GID behavior, ports, and manual host prerequisites explicit.
-- For a production image, use a multi-stage build, minimal runtime image, non-root user, `.dockerignore`, explicit port/healthcheck only if an application entrypoint exists, and environment-provided configuration. Never embed a secret.
-- For native desktop/mobile release plans, do not claim Docker replaces native SDKs, signing, or notarization; document those host-only requirements.
-
-Validate Compose syntax and build images where practical. Start only local services and containers, then stop them after smoke tests unless the developer asks to keep them running.
 
 ### 5. Configure GitHub Actions
 
@@ -162,11 +164,12 @@ Create or update `README.md` at the repository root. It must be concise, accurat
 
 1. project purpose/status and the explicit note that infrastructure is present but production application code may not yet exist;
 2. a repository map covering source/front end, API/backend, scripts, infrastructure/Docker, tests, docs, agents/skills, and CI—mark planned or absent areas accurately rather than inventing paths;
-3. exact manual prerequisites with version policy and links/names of official installers where helpful;
-4. configuration steps, including copying `.env.example` if applicable and how secrets are supplied outside version control;
-5. dependency installation, local service/container startup, checks, smoke tests, and cleanup commands;
-6. the purpose of the CI workflows, required GitHub configuration, and release prerequisites; and
-7. a troubleshooting section for the most likely setup failures (runtime, Docker, port, permission, or missing environment variable) only when relevant.
+3. `## Getting Started` section with step-by-step instructions for a new developer to set up the project locally, including the following:
+  - exact manual step-by-step directions (with links and/or verbatim commands) for all prerequisites with version policy and links/names of official installers where helpful;
+  - configuration steps, including copying `.env.example` if applicable and how secrets are supplied outside version control;
+  - dependency installation, local service/container startup, checks, smoke tests, and cleanup commands;
+  - any required GitHub configuration
+4. a troubleshooting section for the most likely setup failures (runtime, Docker, port, permission, or missing environment variable) only when relevant.
 
 Do not describe unimplemented commands as working. Label planned application commands and explain their dependency on future application code.
 

@@ -23,15 +23,15 @@
 
 ## 3. Selected Technology Stack
 
-| Area | Selected technology | Purpose | Version policy |
-|---|---|---|---|
-| Primary language | TypeScript | Shared language for frontend and API | Supported stable releases |
-| Frontend framework | React | Browser user interface | Current maintained major version |
-| Frontend build tool | Vite | Local development and optimized static builds | Current maintained major version |
-| API framework | Node.js TypeScript API; framework deferred | Authenticated API and business rules | Node.js active LTS; choose maintained framework before implementation |
-| Runtime | Node.js | Runs build tooling and API | Active LTS |
-| Package manager | pnpm | Deterministic JavaScript dependency management | Current maintained major version |
-| Object-storage protocol | S3-compatible API | Store user-uploaded files outside PostgreSQL | Managed provider-compatible version |
+| Area                    | Selected technology | Purpose                                        | Version policy                                       |
+| ----------------------- | ------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| Primary language        | TypeScript          | Shared language for frontend and API           | Supported stable releases                            |
+| Frontend framework      | React               | Browser user interface                         | Current maintained major version                     |
+| Frontend build tool     | Vite                | Local development and optimized static builds  | Current maintained major version                     |
+| API framework           | Fastify             | Authenticated API and business rules           | Node.js active LTS; current maintained Fastify major |
+| Runtime                 | Node.js             | Runs build tooling and API                     | Active LTS                                           |
+| Package manager         | pnpm                | Deterministic JavaScript dependency management | Current maintained major version                     |
+| Object-storage protocol | S3-compatible API   | Store user-uploaded files outside PostgreSQL   | Managed provider-compatible version                  |
 
 ## 4. Storage and Persistence
 
@@ -40,52 +40,52 @@
 - **User files or object storage:** S3-compatible managed object storage; database stores file metadata and object keys only.
 - **Local-development storage:** Containerized PostgreSQL and an S3-compatible service with persistent named volumes.
 - **Production hosting model:** Managed PostgreSQL and managed object storage selected through the eventual hosting provider.
-- **Schema and migration approach:** Select a TypeScript-compatible migration tool during implementation; version migrations in source control and run them once per release.
+- **Schema and migration approach:** Drizzle ORM and Drizzle Kit; version migrations in source control and run them once per release.
 - **Backup, export, or recovery approach:** Enable provider backups; document database restore and object-storage recovery before production launch.
 - **Secrets and connection-string approach:** Runtime environment variables or a provider secret manager; never commit credentials or bucket keys.
 - **Reason this storage fits the access pattern:** PostgreSQL supports account and sharing relationships, while object storage handles uploads efficiently.
 
 ## 5. Testing Tools
 
-| Test layer | Tool or library | Planned scope | Planned execution point |
-|---|---|---|---|
-| Unit | Vitest | Frontend utilities, API business rules, and validation | Local and pull requests |
-| Component | React Testing Library | Important UI states and accessibility-oriented interactions | Local and pull requests |
-| Integration | Vitest plus Testcontainers and PostgreSQL | API, authorization, persistence, and upload-metadata paths | Pull requests |
-| End-to-end | Playwright | Sign-in and the highest-value public and shared-data workflows | Pull requests and release validation |
+| Test layer  | Tool or library                           | Planned scope                                                  | Planned execution point              |
+| ----------- | ----------------------------------------- | -------------------------------------------------------------- | ------------------------------------ |
+| Unit        | Vitest                                    | Frontend utilities, API business rules, and validation         | Local and pull requests              |
+| Component   | React Testing Library                     | Important UI states and accessibility-oriented interactions    | Local and pull requests              |
+| Integration | Vitest plus Testcontainers and PostgreSQL | API, authorization, persistence, and upload-metadata paths     | Pull requests                        |
+| End-to-end  | Playwright                                | Sign-in and the highest-value public and shared-data workflows | Pull requests and release validation |
 
 ## 6. Test Analysis
 
-| Capability | Tool | Planned policy |
-|---|---|---|
-| Coverage | Vitest V8 coverage | Publish frontend and API coverage artifacts from pull requests |
-| Coverage threshold or regression rule | Vitest coverage thresholds | Set a modest initial project floor before branch protection; reject decreases below it |
-| Mutation testing | None initially | Reconsider focused Stryker checks only for critical business-rule modules |
-| Flaky-test or duration analysis | GitHub Actions test timing | Review slow or unstable tests from CI output |
-| Reporting | GitHub Actions artifacts and check summaries | Retain coverage, Playwright traces, screenshots, and logs on failure |
+| Capability                            | Tool                                         | Planned policy                                                                                                      |
+| ------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Coverage                              | Vitest V8 coverage                           | Publish frontend and API coverage artifacts from pull requests                                                      |
+| Coverage threshold or regression rule | Vitest coverage thresholds                   | Start at 50% for lines, functions, branches, and statements; reject decreases below it once application code exists |
+| Mutation testing                      | None initially                               | Reconsider focused Stryker checks only for critical business-rule modules                                           |
+| Flaky-test or duration analysis       | GitHub Actions test timing                   | Review slow or unstable tests from CI output                                                                        |
+| Reporting                             | GitHub Actions artifacts and check summaries | Retain coverage, Playwright traces, screenshots, and logs on failure                                                |
 
 ## 7. Static Analysis and Security
 
-| Check | Tool | Planned enforcement |
-|---|---|---|
-| Formatting | Prettier | Verify on every pull request |
-| Linting | ESLint | Block pull requests on errors |
-| Type checking or compiler warnings | TypeScript compiler | Block pull requests on errors |
-| Anti-pattern or maintainability analysis | ESLint rules | Block established high-signal rules; avoid noisy rules initially |
-| Dependency vulnerability scanning | Dependabot | Create update pull requests; review before merge |
-| Secret scanning | Gitleaks | Block pull requests that contain detected secrets |
-| Static security analysis | CodeQL | Run scheduled and before releases; triage findings before release |
-| Container scanning | Trivy | Scan future API production image before publishing |
+| Check                                    | Tool                | Planned enforcement                                               |
+| ---------------------------------------- | ------------------- | ----------------------------------------------------------------- |
+| Formatting                               | Prettier            | Verify on every pull request                                      |
+| Linting                                  | ESLint              | Block pull requests on errors                                     |
+| Type checking or compiler warnings       | TypeScript compiler | Block pull requests on errors                                     |
+| Anti-pattern or maintainability analysis | ESLint rules        | Block established high-signal rules; avoid noisy rules initially  |
+| Dependency vulnerability scanning        | Dependabot          | Create update pull requests; review before merge                  |
+| Secret scanning                          | Gitleaks            | Block pull requests that contain detected secrets                 |
+| Static security analysis                 | CodeQL              | Run scheduled and before releases; triage findings before release |
+| Container scanning                       | Trivy               | Scan future API production image before publishing                |
 
 ## 8. Development Technologies Requiring Manual Installation
 
 These are developer-workstation prerequisites that will not be supplied by the planned Docker environment.
 
-| Technology | Why it is needed | Required on which machines | Version policy | Planned installation or verification method | Why Docker does not provide it |
-|---|---|---|---|---|---|
-| Git | Source control and GitHub workflow | All developer machines | Supported stable release | Future installation or version check | Host source-control integration remains local |
-| Docker Desktop or Docker Engine with Compose | Run reproducible development services and application containers | All developer machines | Current supported release | Future installation and Compose verification | Docker requires a host engine |
-| Browser | Manual UI checks and Playwright browser support | All developer machines | Current evergreen version | Future browser verification | GUI browser access is host-provided |
+| Technology                                   | Why it is needed                                                 | Required on which machines | Version policy            | Planned installation or verification method  | Why Docker does not provide it                |
+| -------------------------------------------- | ---------------------------------------------------------------- | -------------------------- | ------------------------- | -------------------------------------------- | --------------------------------------------- |
+| Git                                          | Source control and GitHub workflow                               | All developer machines     | Supported stable release  | Future installation or version check         | Host source-control integration remains local |
+| Docker Desktop or Docker Engine with Compose | Run reproducible development services and application containers | All developer machines     | Current supported release | Future installation and Compose verification | Docker requires a host engine                 |
+| Browser                                      | Manual UI checks and Playwright browser support                  | All developer machines     | Current evergreen version | Future browser verification                  | GUI browser access is host-provided           |
 
 ### Host tools intentionally not required
 
@@ -94,9 +94,9 @@ These are developer-workstation prerequisites that will not be supplied by the p
 
 ## 9. Docker Plan
 
-- **Planned Docker role:** Reproducible development environment; production container for the API is recommended.
-- **Future files that would be created during implementation:** `Dockerfile` files, `compose.yml`, `.dockerignore`, and example environment documentation.
-- **Planned images and services:** Frontend development container, Node.js API container, PostgreSQL, and an S3-compatible local object-storage service.
+- **Planned Docker role:** Reproducible development environment; production container for the API is recommended once API source exists.
+- **Files created during infrastructure implementation:** `docker/Dockerfile.toolchain`, `compose.yml`, `.dockerignore`, and example environment documentation. Application Dockerfiles wait for application-owned entrypoints.
+- **Planned images and services:** A Node.js toolchain container, PostgreSQL, and an S3-compatible local object-storage service. Frontend and API containers follow when their application-owned entrypoints exist.
 - **Development container behavior:** Bind-mount source code for live reload; install dependencies in container-managed volumes to avoid host-platform conflicts.
 - **Ports:** Define only documented development ports during implementation; do not expose databases publicly.
 - **Bind mounts and named volumes:** Bind mounts for source; named volumes for dependency caches, PostgreSQL data, and local object-storage data.
@@ -150,18 +150,18 @@ These are developer-workstation prerequisites that will not be supplied by the p
 
 ### GitHub configuration required later
 
-| Name | Type | Purpose |
-|---|---|---|
-| `API_CONTAINER_REGISTRY_TOKEN` | Secret | Authenticate CI to the chosen API container registry |
-| `API_DEPLOY_TOKEN` | Secret | Authorize deployment to the managed API container host |
-| `FRONTEND_DEPLOY_TOKEN` | Secret | Authorize deployment to the managed static web host |
-| `DATABASE_URL` | Production environment secret | API database connection string |
-| `OBJECT_STORAGE_ENDPOINT` | Production environment variable | Object-storage service endpoint |
-| `OBJECT_STORAGE_BUCKET` | Production environment variable | Upload bucket name |
-| `OBJECT_STORAGE_ACCESS_KEY` | Production environment secret | Object-storage access credential |
-| `OBJECT_STORAGE_SECRET_KEY` | Production environment secret | Object-storage secret credential |
-| `AUTH_SECRET` | Production environment secret | Sign or encrypt application session data |
-| Managed hosting accounts | Provider accounts | Supply database, object storage, static hosting, and API container hosting |
+| Name                           | Type                            | Purpose                                                                    |
+| ------------------------------ | ------------------------------- | -------------------------------------------------------------------------- |
+| `API_CONTAINER_REGISTRY_TOKEN` | Secret                          | Authenticate CI to the chosen API container registry                       |
+| `API_DEPLOY_TOKEN`             | Secret                          | Authorize deployment to the managed API container host                     |
+| `FRONTEND_DEPLOY_TOKEN`        | Secret                          | Authorize deployment to the managed static web host                        |
+| `DATABASE_URL`                 | Production environment secret   | API database connection string                                             |
+| `OBJECT_STORAGE_ENDPOINT`      | Production environment variable | Object-storage service endpoint                                            |
+| `OBJECT_STORAGE_BUCKET`        | Production environment variable | Upload bucket name                                                         |
+| `OBJECT_STORAGE_ACCESS_KEY`    | Production environment secret   | Object-storage access credential                                           |
+| `OBJECT_STORAGE_SECRET_KEY`    | Production environment secret   | Object-storage secret credential                                           |
+| `AUTH_SECRET`                  | Production environment secret   | Sign or encrypt application session data                                   |
+| Managed hosting accounts       | Provider accounts               | Supply database, object storage, static hosting, and API container hosting |
 
 ## 11. Planned Repository Artifacts - Not Created by This Skill
 
@@ -178,4 +178,5 @@ These are developer-workstation prerequisites that will not be supplied by the p
 
 - **Assumptions:** Modern-browser support is sufficient; users need accounts and may upload files; one frontend and one API are preferable to microservices.
 - **Decisions still requiring an external account, credential, certificate, or organizational approval:** Static-host, container-host, PostgreSQL, object-storage providers; DNS domain; deployment tokens; storage credentials; and production environment approvers.
-- **Items to confirm before implementation begins:** Primary user task, authorization model, authentication/session design, API framework, exact providers, retention/backups, file limits and allowed types, accessibility requirements, coverage floor, and release ownership.
+- **Implementation choices confirmed:** pnpm workspace with future `apps/web` (React/Vite) and `apps/api` (Fastify) packages; Drizzle ORM/Kit migrations; 50% initial coverage floor. Release deployment configuration is deferred until providers and release ownership are selected.
+- **Items to confirm before product implementation begins:** Primary user task, authorization model, authentication/session design, exact providers, retention/backups, file limits and allowed types, accessibility requirements, and release ownership.

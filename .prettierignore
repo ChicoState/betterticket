@@ -1,0 +1,8 @@
+.agents/
+node_modules/
+.pnpm-store/
+coverage/
+dist/
+playwright-report/
+test-results/
+

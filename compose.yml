@@ -1,0 +1,69 @@
+name: betterticket
+
+services:
+  toolchain:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.toolchain
+    profiles: [tools]
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - pnpm-store:/pnpm/store
+      - node-modules:/workspace/node_modules
+
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-betterticket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-betterticket_local}
+      POSTGRES_DB: ${POSTGRES_DB:-betterticket}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks: [development]
+
+  object-storage:
+    image: chrislusf/seaweedfs:4.23
+    command:
+      [
+        "server",
+        "-s3",
+        "-s3.config=/etc/seaweedfs/s3.json",
+        "-dir=/data",
+        "-master.defaultReplication=000",
+        "-master.volumePreallocate=false",
+        "-volume.max=0"
+      ]
+    environment:
+      AWS_ACCESS_KEY_ID: ${OBJECT_STORAGE_ACCESS_KEY:-betterticket_local}
+      AWS_SECRET_ACCESS_KEY: ${OBJECT_STORAGE_SECRET_KEY:-betterticket_local_secret}
+    ports:
+      - "127.0.0.1:8333:8333"
+    volumes:
+      - object-storage-data:/data
+      - ./docker/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:9333/cluster/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks: [development]
+
+networks:
+  development:
+    driver: bridge
+
+volumes:
+  node-modules:
+  object-storage-data:
+  pnpm-store:
+  postgres-data:

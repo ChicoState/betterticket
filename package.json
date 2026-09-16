@@ -1,0 +1,40 @@
+{
+  "name": "betterticket",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "pnpm": ">=10.34.5 <11"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "coverage": "vitest run --coverage --passWithNoTests",
+    "test:smoke": "bash scripts/smoke.sh",
+    "docker:up": "docker compose up --detach postgres object-storage",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@playwright/test": "^1.0.0",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "drizzle-kit": "^0.31.0",
+    "drizzle-orm": "^0.44.0",
+    "eslint": "^10.0.0",
+    "jsdom": "^27.0.0",
+    "pg": "^8.0.0",
+    "prettier": "^3.0.0",
+    "testcontainers": "^11.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0"
+  }
+}

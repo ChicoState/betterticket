@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "betterticket-local",
+      "credentials": [
+        {
+          "accessKey": "betterticket_local",
+          "secretKey": "betterticket_local_secret"
+        }
+      ],
+      "actions": ["Read", "Write", "List", "Tagging", "Admin"]
+    }
+  ]
+}

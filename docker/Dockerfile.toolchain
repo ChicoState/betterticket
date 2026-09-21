@@ -1,0 +1,8 @@
+FROM node:24.21.0-bookworm-slim
+
+RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
+
+WORKDIR /workspace
+
+CMD ["sleep", "infinity"]
+

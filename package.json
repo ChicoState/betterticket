@@ -31,7 +31,7 @@
     "eslint": "^10.0.0",
     "jsdom": "^27.0.0",
     "pg": "^8.0.0",
-    "prettier": "^3.0.0",
+    "prettier": "^3.9.8",
     "testcontainers": "^11.0.0",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0",

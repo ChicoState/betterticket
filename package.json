@@ -23,7 +23,7 @@
     "@playwright/test": "^1.0.0",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "^16.0.0",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.1",
     "@types/pg": "^8.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "drizzle-kit": "^0.31.0",

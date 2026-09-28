@@ -9,6 +9,22 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_USER: betterticket
+          POSTGRES_PASSWORD: betterticket_ci
+          POSTGRES_DB: betterticket
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U betterticket -d betterticket"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://betterticket:betterticket_ci@localhost:5432/betterticket
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -22,13 +38,17 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm db:migrate
       - run: pnpm test
       - run: pnpm coverage
+      - run: pnpm build
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage
-          path: coverage/
+          path: |
+            coverage/
+            apps/*/coverage/
           if-no-files-found: ignore
 
   infrastructure-smoke:

@@ -1,0 +1,29 @@
+{
+  "name": "@betterticket/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "coverage": "vitest run --coverage",
+    "dev": "vite --host 0.0.0.0",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitest/coverage-v8": "^4.0.0",
+    "jsdom": "^27.0.0",
+    "typescript": "^5.0.0",
+    "vite": "catalog:",
+    "vitest": "^4.0.0"
+  }
+}

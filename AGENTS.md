@@ -2,19 +2,19 @@
 
 ## Status and source of truth
 
-BetterTicket currently has infrastructure only. `infrastructure_plan.md` is the approved source of truth; it records Fastify, a pnpm workspace, Drizzle migrations, a 50% future coverage floor, and deferred provider/release choices. Do not change those decisions without revising the plan through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure plus an anonymous ticket-creation baseline. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 
 | Area           | Location                                                          | Status                               |
 | -------------- | ----------------------------------------------------------------- | ------------------------------------ |
-| Frontend       | `apps/web`                                                        | Not created yet; planned React/Vite. |
-| API            | `apps/api`                                                        | Not created yet; planned Fastify.    |
+| Frontend       | `apps/web`                                                        | React/Vite ticket creation.          |
+| API            | `apps/api`                                                        | Fastify/Drizzle ticket creation.     |
 | Infrastructure | `compose.yml`, `docker/`, `.env.example`                          | Present.                             |
 | Scripts        | `scripts/smoke.sh`                                                | Present; infrastructure-only.        |
-| Tests          | Application test directories                                      | Not created yet.                     |
+| Tests          | Colocated `*.test.ts(x)` files                                    | Unit, component, and DB integration. |
 | CI             | `.github/workflows/pr-checks.yml`, `.github/workflows/codeql.yml` | Present.                             |
-| Docs           | `README.md`, `infrastructure_plan.md`                             | Present.                             |
+| Docs           | `README.md`, `infrastructure_plan.md`, `docs/`                    | Present.                             |
 | Agent skills   | `.agents/skills/`                                                 | Present.                             |
 
 ## Required reading and boundaries
@@ -38,8 +38,10 @@ docker compose --profile tools run --rm toolchain pnpm install --frozen-lockfile
 docker compose --profile tools run --rm toolchain pnpm format:check
 docker compose --profile tools run --rm toolchain pnpm lint
 docker compose --profile tools run --rm toolchain pnpm typecheck
+docker compose --profile tools run --rm toolchain pnpm db:migrate
 docker compose --profile tools run --rm toolchain pnpm test
 docker compose --profile tools run --rm toolchain pnpm coverage
+docker compose --profile tools run --rm toolchain pnpm build
 bash scripts/smoke.sh
 ```
 

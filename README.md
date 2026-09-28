@@ -1,17 +1,18 @@
 # BetterTicket
 
-BetterTicket is a future public, multi-user web application. This repository currently provides its development infrastructure only; no production frontend, API, authentication, database schema, or product workflows have been implemented.
+BetterTicket is a public ticketing web application. The first product slice supports anonymous ticket creation through a React frontend and Fastify API, with tickets stored in PostgreSQL. Authentication and technician workflows are not implemented yet.
 
 ## Repository map
 
 | Location                    | Purpose                                                              |
 | --------------------------- | -------------------------------------------------------------------- |
-| `apps/web`                  | Planned React/Vite frontend; not created yet.                        |
-| `apps/api`                  | Planned Fastify API; not created yet.                                |
+| `apps/web`                  | React/Vite ticket-creation frontend and component tests.             |
+| `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.      |
 | `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services. |
 | `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                |
 | `.github/workflows/`        | Pull-request checks and scheduled CodeQL analysis.                   |
 | `.agents/skills/`           | Repository-specific Codex skills.                                    |
+| `docs/`                     | Product specs, implementation plans, and architecture decisions.     |
 | `infrastructure_plan.md`    | Approved infrastructure decisions and deferred product decisions.    |
 
 ## Getting started
@@ -38,7 +39,14 @@ BetterTicket is a future public, multi-user web application. This repository cur
    docker compose up --detach postgres object-storage
    ```
 
-5. Run the available quality checks in the toolchain container, then the host Docker smoke test:
+5. Apply the versioned PostgreSQL migrations, then start the frontend and API in the pinned toolchain. Vite serves the application at `http://localhost:5173` and proxies `/api` to Fastify on port 3000:
+
+   ```sh
+   docker compose --profile tools run --rm toolchain pnpm db:migrate
+   docker compose --profile tools run --rm --service-ports toolchain pnpm dev
+   ```
+
+6. Run the quality checks in the toolchain container, then the host Docker smoke test. PostgreSQL must be running because the API suite includes a real persistence test:
 
    ```sh
    docker compose --profile tools run --rm toolchain pnpm format:check
@@ -46,12 +54,11 @@ BetterTicket is a future public, multi-user web application. This repository cur
    docker compose --profile tools run --rm toolchain pnpm typecheck
    docker compose --profile tools run --rm toolchain pnpm test
    docker compose --profile tools run --rm toolchain pnpm coverage
+   docker compose --profile tools run --rm toolchain pnpm build
    bash scripts/smoke.sh
    ```
 
-   With no application tests yet, Vitest validates the configured harness and exits successfully with no test files. Coverage thresholds take effect once application source is added.
-
-6. Stop the long-lived local services when finished:
+7. Stop the long-lived local services when finished:
 
    ```sh
    docker compose down
@@ -59,11 +66,15 @@ BetterTicket is a future public, multi-user web application. This repository cur
 
    To discard their local data as well, use `docker compose down --volumes`.
 
+## Ticket creation baseline
+
+Anonymous visitors can submit a title, issue description, setup details, and optional additional information. `POST /api/tickets` validates the request, rejects unknown fields, and stores the ticket with a generated UUID, `OPEN` status, and timestamps. See [the feature spec](docs/specs/ticket-creation.md) and [ADR-001](docs/decisions/001-anonymous-ticket-creation.md) for scope and rationale.
+
 ## Tooling and CI
 
-The root package is a pnpm workspace reserved for future `apps/web` and `apps/api` packages. React/Vite and Fastify are recorded in the workspace catalog but no application packages or entrypoints exist yet. Drizzle ORM/Kit is available for the future PostgreSQL migration workflow; no business schema or migrations exist.
+The pnpm workspace contains React/Vite and Fastify packages. Drizzle schema files are the database source of truth, and generated SQL migrations are committed under `apps/api/drizzle`.
 
-Pull requests run locked installation, formatting, linting, type checking, the empty test harness, coverage, Compose validation, the infrastructure smoke test, and Gitleaks. CodeQL runs weekly and on manual dispatch. Dependabot tracks npm, Docker, and GitHub Actions updates. Playwright, API integration, application builds, Trivy scanning, deployment, and release workflows begin only after application code and provider choices exist.
+Pull requests run locked installation, formatting, linting, type checking, migrations against PostgreSQL, unit/component/integration tests, coverage, application builds, Compose validation, the infrastructure smoke test, and Gitleaks. CodeQL runs weekly and on manual dispatch. Dependabot tracks npm, Docker, and GitHub Actions updates. Playwright, Trivy scanning, deployment, and release workflows remain deferred.
 
 Docker image tags are deliberately pinned. Dependabot proposes updates; review and test them before merging.
 
@@ -76,4 +87,6 @@ Before enabling a release workflow, select the static host, API container host, 
 - If Docker cannot connect, start Docker Desktop and rerun `docker compose config --quiet`.
 - If ports 5432 or 8333 are occupied, stop the conflicting local service or change the loopback mapping in `compose.yml`.
 - If Docker reports a bind-mount permission issue, grant Docker Desktop access to this repository and rerun the command.
+- If tests report that the `tickets` relation does not exist, run `docker compose --profile tools run --rm toolchain pnpm db:migrate`.
+- If ports 3000 or 5173 are occupied, stop the conflicting application before running the development command.
 - If a locked install fails after changing dependencies, regenerate `pnpm-lock.yaml` from the toolchain with `docker compose --profile tools run --rm toolchain pnpm install`, review the diff, then rerun with `--frozen-lockfile`.

@@ -15,7 +15,7 @@
 ## 2. Connectivity and Application Shape
 
 - **Connectivity model:** Multi-user web-enabled.
-- **Accounts and authentication:** Required; implementation must select an account and secure session mechanism before development.
+- **Accounts and authentication:** Required for the eventual multi-user application. ADR-001 permits anonymous ticket creation only for the issue #30 baseline; account ownership, secure sessions, and all protected ticket operations remain deferred until explicitly designed.
 - **Backend required:** Yes; a TypeScript API owns authorization, data access, upload authorization, and business rules.
 - **Cross-device persistence:** Hosted data is available after sign-in from any supported browser.
 - **Interaction between accounts:** Confirmed shared or exchanged data; detailed permissions remain to be defined.
@@ -163,14 +163,14 @@ These are developer-workstation prerequisites that will not be supplied by the p
 | `AUTH_SECRET`                  | Production environment secret   | Sign or encrypt application session data                                   |
 | Managed hosting accounts       | Provider accounts               | Supply database, object storage, static hosting, and API container hosting |
 
-## 11. Planned Repository Artifacts - Not Created by This Skill
+## 11. Repository Artifact Status
 
-- [ ] Application manifests and pnpm lockfile.
-- [ ] React/Vite frontend and Node.js API source directories.
-- [ ] Test and coverage configuration.
-- [ ] Prettier, ESLint, TypeScript, Gitleaks, and CodeQL configuration where needed.
-- [ ] `Dockerfile` files, `compose.yml`, and `.dockerignore`.
-- [ ] `.github/workflows/pr-checks.yml`.
+- [x] Application manifests and pnpm lockfile.
+- [x] React/Vite frontend and Node.js API source directories.
+- [x] Test and coverage configuration.
+- [x] Prettier, ESLint, TypeScript, Gitleaks, and CodeQL configuration where needed.
+- [x] Toolchain `Dockerfile`, `compose.yml`, and `.dockerignore`; application production Dockerfiles remain deferred.
+- [x] `.github/workflows/pr-checks.yml`.
 - [ ] `.github/workflows/release.yml`.
 - [ ] Provider deployment and environment configuration.
 
@@ -179,4 +179,4 @@ These are developer-workstation prerequisites that will not be supplied by the p
 - **Assumptions:** Modern-browser support is sufficient; users need accounts and may upload files; one frontend and one API are preferable to microservices.
 - **Decisions still requiring an external account, credential, certificate, or organizational approval:** Static-host, container-host, PostgreSQL, object-storage providers; DNS domain; deployment tokens; storage credentials; and production environment approvers.
 - **Implementation choices confirmed:** pnpm workspace with future `apps/web` (React/Vite) and `apps/api` (Fastify) packages; Drizzle ORM/Kit migrations; 50% initial coverage floor. Release deployment configuration is deferred until providers and release ownership are selected.
-- **Items to confirm before product implementation begins:** Primary user task, authorization model, authentication/session design, exact providers, retention/backups, file limits and allowed types, accessibility requirements, and release ownership.
+- **Items to confirm before expanding product implementation:** Authorization model, authentication/session design, anonymous-ticket ownership migration, exact providers, retention/backups, file limits and allowed types, accessibility requirements beyond the WCAG 2.1 AA baseline, and release ownership.

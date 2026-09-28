@@ -7,6 +7,12 @@ services:
       dockerfile: docker/Dockerfile.toolchain
     profiles: [tools]
     working_dir: /workspace
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-betterticket}:${POSTGRES_PASSWORD:-betterticket_local}@postgres:5432/${POSTGRES_DB:-betterticket}
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:5173:5173"
+    networks: [development]
     volumes:
       - .:/workspace
       - pnpm-store:/pnpm/store

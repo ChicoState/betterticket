@@ -21,9 +21,9 @@
   "devDependencies": {
     "@eslint/js": "^10.0.0",
     "@playwright/test": "^1.0.0",
-    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "^16.0.0",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.1",
     "@types/pg": "^8.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "drizzle-kit": "^0.31.0",
@@ -31,9 +31,9 @@
     "eslint": "^10.0.0",
     "jsdom": "^27.0.0",
     "pg": "^8.0.0",
-    "prettier": "^3.0.0",
+    "prettier": "^3.9.8",
     "testcontainers": "^11.0.0",
-    "typescript": "^5.0.0",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.0.0",
     "vitest": "^4.0.0"
   }

@@ -1,0 +1,16 @@
+## AI Agent Reasoning
+
+### Context
+Implement issue #30 as the first extensible ticket-creation baseline.
+
+### Decisions Made
+- Anonymous creation is intentionally allowed for this baseline and documented in ADR 001 so authentication can be layered on later.
+- Ticket persistence is isolated behind a repository interface so fields and storage behavior can evolve without coupling the HTTP route to PostgreSQL.
+- Vite was aligned to version 8 because the plugin-react version on current main declares Vite 8 as its supported peer.
+
+### Trade-offs
+- The initial schema stays intentionally small while preserving clear extension points for future ticket fields and ownership.
+
+### References
+- GitHub issue #30
+- docs/decisions/001-anonymous-ticket-creation.md

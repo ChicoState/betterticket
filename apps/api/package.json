@@ -21,7 +21,7 @@
     "@types/node": "^24.0.0",
     "@types/pg": "^8.0.0",
     "@vitest/coverage-v8": "^4.0.0",
-    "drizzle-kit": "^0.31.0",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "vitest": "^4.0.0"

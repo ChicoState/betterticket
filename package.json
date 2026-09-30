@@ -41,7 +41,7 @@
     "testcontainers": "^11.0.0",
     "tsx": "^4.0.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.0.0",
+    "typescript-eslint": "^8.70.1",
     "vitest": "^4.0.0"
   }
 }

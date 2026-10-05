@@ -64,6 +64,25 @@ export const ticketResponseSchema = {
   }
 } as const;
 
+export const ticketListLimit = 100;
+
+export interface TicketList {
+  tickets: Ticket[];
+}
+
+export const ticketListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["tickets"],
+  properties: {
+    tickets: {
+      type: "array",
+      maxItems: ticketListLimit,
+      items: ticketResponseSchema
+    }
+  }
+} as const;
+
 export const apiErrorResponseSchema = {
   type: "object",
   additionalProperties: false,

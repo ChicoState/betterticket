@@ -42,7 +42,7 @@ export function buildApp({ ticketRepository, logger = true }: BuildAppOptions) {
     return reply.status(500).send({
       error: {
         code: "INTERNAL_ERROR",
-        message: "The ticket could not be created"
+        message: "The ticket request could not be completed"
       }
     });
   });

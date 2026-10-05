@@ -33,3 +33,52 @@ export async function createTicket(input: CreateTicketInput): Promise<CreatedTic
 
   return body;
 }
+
+export interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  setup: string;
+  additionalInformation: string | null;
+  status: string;
+  createdAt: string;
+}
+
+function isTicket(value: unknown): value is Ticket {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const ticket = value as Record<string, unknown>;
+
+  return (
+    typeof ticket.id === "string" &&
+    typeof ticket.title === "string" &&
+    typeof ticket.description === "string" &&
+    typeof ticket.setup === "string" &&
+    (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
+    typeof ticket.status === "string" &&
+    typeof ticket.createdAt === "string"
+  );
+}
+
+export async function listTickets(): Promise<Ticket[]> {
+  const response = await fetch("/api/tickets");
+
+  if (!response.ok) {
+    throw new Error("Ticket listing failed");
+  }
+
+  const body: unknown = await response.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("tickets" in body) ||
+    !Array.isArray(body.tickets) ||
+    !body.tickets.every(isTicket)
+  ) {
+    throw new Error("Ticket listing returned an invalid response");
+  }
+
+  return body.tickets;
+}

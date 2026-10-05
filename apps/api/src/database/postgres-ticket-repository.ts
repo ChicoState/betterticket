@@ -1,3 +1,4 @@
+import { desc } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { tickets } from "./schema.js";
@@ -26,5 +27,13 @@ export class PostgresTicketRepository implements TicketRepository {
     }
 
     return ticket;
+  }
+
+  async listRecent(limit: number): Promise<TicketRecord[]> {
+    return this.database
+      .select()
+      .from(tickets)
+      .orderBy(desc(tickets.createdAt), desc(tickets.id))
+      .limit(limit);
   }
 }

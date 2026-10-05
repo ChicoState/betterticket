@@ -100,7 +100,7 @@ describe("TicketForm", () => {
           JSON.stringify({
             error: {
               code: "INTERNAL_ERROR",
-              message: "The ticket could not be created"
+              message: "The ticket request could not be completed"
             }
           }),
           { status: 500, headers: { "content-type": "application/json" } }

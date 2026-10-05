@@ -44,4 +44,26 @@ describe("PostgresTicketRepository", () => {
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
   });
+
+  it("lists the most recently created tickets first up to the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = (title: string, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    await database
+      .insert(tickets)
+      .values([
+        ticket("Oldest", "2026-09-27T12:00:00.000Z"),
+        ticket("Newest", "2026-09-29T12:00:00.000Z"),
+        ticket("Middle", "2026-09-28T12:00:00.000Z")
+      ]);
+
+    const listed = await repository.listRecent(2);
+
+    expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
+  });
 });

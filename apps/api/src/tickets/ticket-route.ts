@@ -4,14 +4,25 @@ import {
   apiErrorResponseSchema,
   createTicketBodySchema,
   normalizeCreateTicketInput,
+  ticketListLimit,
+  ticketListResponseSchema,
   ticketResponseSchema,
   type CreateTicketInput,
-  type Ticket
+  type Ticket,
+  type TicketList
 } from "./ticket-contract.js";
-import type { TicketRepository } from "./ticket-repository.js";
+import type { TicketRecord, TicketRepository } from "./ticket-repository.js";
 
 interface TicketRoutesOptions {
   ticketRepository: TicketRepository;
+}
+
+function toTicket(ticket: TicketRecord): Ticket {
+  return {
+    ...ticket,
+    createdAt: ticket.createdAt.toISOString(),
+    updatedAt: ticket.updatedAt.toISOString()
+  };
 }
 
 export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
@@ -33,11 +44,24 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     async (request, reply) => {
       const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body));
 
-      return reply.status(201).send({
-        ...ticket,
-        createdAt: ticket.createdAt.toISOString(),
-        updatedAt: ticket.updatedAt.toISOString()
-      });
+      return reply.status(201).send(toTicket(ticket));
+    }
+  );
+
+  app.get<{ Reply: TicketList }>(
+    "/api/tickets",
+    {
+      schema: {
+        response: {
+          200: ticketListResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async () => {
+      const tickets = await ticketRepository.listRecent(ticketListLimit);
+
+      return { tickets: tickets.map(toTicket) };
     }
   );
 };

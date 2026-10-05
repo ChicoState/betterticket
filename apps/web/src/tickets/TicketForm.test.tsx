@@ -50,6 +50,10 @@ describe("TicketForm", () => {
 
     expect(await screen.findByText("Your ticket has been created.")).toBeInTheDocument();
     expect(screen.getByText("cc04d84c")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View ticket" })).toHaveAttribute(
+      "href",
+      "/tickets/cc04d84c-9aee-4d35-8af3-999d861aaed6"
+    );
     expect(fetchMock).toHaveBeenCalledWith("/api/tickets", {
       method: "POST",
       headers: { "content-type": "application/json" },

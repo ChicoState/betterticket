@@ -82,3 +82,27 @@ export async function listTickets(): Promise<Ticket[]> {
 
   return body.tickets;
 }
+
+export function ticketPath(id: string): string {
+  return `/tickets/${encodeURIComponent(id)}`;
+}
+
+export async function getTicket(id: string): Promise<Ticket | null> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(id)}`);
+
+  // A malformed ID is rejected with 400; to a visitor that is the same as a missing ticket.
+  if (response.status === 404 || response.status === 400) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Ticket lookup failed");
+  }
+
+  const body: unknown = await response.json();
+  if (!isTicket(body)) {
+    throw new Error("Ticket lookup returned an invalid response");
+  }
+
+  return body;
+}

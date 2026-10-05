@@ -16,4 +16,5 @@ export interface TicketRecord {
 export interface TicketRepository {
   create(input: CreateTicketInput): Promise<TicketRecord>;
   listRecent(limit: number): Promise<TicketRecord[]>;
+  findById(id: string): Promise<TicketRecord | null>;
 }

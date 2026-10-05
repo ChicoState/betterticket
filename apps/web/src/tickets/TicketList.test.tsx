@@ -56,10 +56,15 @@ describe("TicketList", () => {
     expect(within(printer).getByText("Open")).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
-    expect(within(printer).getByText("Office printer, macOS 15")).toBeInTheDocument();
-    expect(within(printer).queryByText("Additional information")).not.toBeInTheDocument();
     expect(printer.querySelector("time")).toHaveAttribute("datetime", "2026-09-29T09:30:00.000Z");
-    expect(within(laptop).getByText("Started after an update.")).toBeInTheDocument();
+    expect(within(printer).getByRole("link", { name: "Printer is offline" })).toHaveAttribute(
+      "href",
+      "/tickets/2f1c5b0e-6f0a-4c59-9a55-0f6f2f4c8f11"
+    );
+    expect(within(laptop).getByRole("link", { name: "Laptop will not start" })).toHaveAttribute(
+      "href",
+      "/tickets/cc04d84c-9aee-4d35-8af3-999d861aaed6"
+    );
   });
 
   it("shows an empty state when no tickets exist", async () => {

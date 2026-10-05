@@ -72,7 +72,7 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 ## Ticket viewer baseline
 
-The homepage (`/`) lists submitted tickets, newest first, without signing in; the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
+The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
 ## Tooling and CI
 

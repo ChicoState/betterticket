@@ -1,23 +1,9 @@
 import { useEffect, useState } from "react";
 
-import { listTickets, type Ticket } from "./ticket-api.js";
+import { listTickets, ticketPath, type Ticket } from "./ticket-api.js";
+import { formatCreatedAt, formatStatus } from "./ticket-format.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; tickets: Ticket[] } | { type: "error" };
-
-const statusLabels: Record<string, string> = {
-  OPEN: "Open"
-};
-
-const createdAtFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short"
-});
-
-function formatCreatedAt(createdAt: string): string {
-  const date = new Date(createdAt);
-
-  return Number.isNaN(date.getTime()) ? createdAt : createdAtFormat.format(date);
-}
 
 export function TicketList() {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
@@ -78,8 +64,10 @@ export function TicketList() {
         <li key={ticket.id}>
           <article className="ticket-card" aria-labelledby={`ticket-${ticket.id}-title`}>
             <header className="ticket-card-header">
-              <h2 id={`ticket-${ticket.id}-title`}>{ticket.title}</h2>
-              <span className="status-badge">{statusLabels[ticket.status] ?? ticket.status}</span>
+              <h2 id={`ticket-${ticket.id}-title`}>
+                <a href={ticketPath(ticket.id)}>{ticket.title}</a>
+              </h2>
+              <span className="status-badge">{formatStatus(ticket.status)}</span>
             </header>
 
             <p className="ticket-meta">
@@ -87,21 +75,7 @@ export function TicketList() {
               <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time>
             </p>
 
-            <p className="ticket-text">{ticket.description}</p>
-
-            <details>
-              <summary>Setup and additional information</summary>
-              <dl>
-                <dt>Setup</dt>
-                <dd className="ticket-text">{ticket.setup}</dd>
-                {ticket.additionalInformation ? (
-                  <>
-                    <dt>Additional information</dt>
-                    <dd className="ticket-text">{ticket.additionalInformation}</dd>
-                  </>
-                ) : null}
-              </dl>
-            </details>
+            <p className="ticket-text ticket-excerpt">{ticket.description}</p>
           </article>
         </li>
       ))}

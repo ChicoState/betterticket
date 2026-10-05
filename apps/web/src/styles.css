@@ -197,20 +197,52 @@ main {
   white-space: pre-wrap;
 }
 
-.ticket-card details {
-  margin-top: 1rem;
-  border-top: 1px solid #d6dcda;
-  padding-top: 0.75rem;
+.ticket-card h2 a {
+  color: inherit;
+  text-decoration: none;
 }
 
-.ticket-card summary {
+.ticket-card h2 a:hover {
+  color: #0b5967;
+  text-decoration: underline;
+}
+
+.ticket-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1.5rem;
   color: #0b5967;
   font-weight: 700;
-  cursor: pointer;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.ticket-detail {
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.ticket-detail h1 {
+  max-width: none;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 
 .ticket-card dl {
-  margin: 0;
+  margin: 1.5rem 0 0;
+  border-top: 1px solid #d6dcda;
+  padding-top: 0.5rem;
 }
 
 .ticket-card dt {
@@ -311,7 +343,6 @@ textarea {
 input:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
-summary:focus-visible,
 a:focus-visible {
   outline: 0.2rem solid #e9a23b;
   outline-offset: 0.15rem;

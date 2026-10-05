@@ -66,4 +66,16 @@ describe("PostgresTicketRepository", () => {
 
     expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
   });
+
+  it("finds a ticket by ID and returns null for an unknown ID", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const created = await repository.create({
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42"
+    });
+
+    expect(await repository.findById(created.id)).toEqual(created);
+    expect(await repository.findById("00000000-0000-4000-8000-000000000000")).toBeNull();
+  });
 });

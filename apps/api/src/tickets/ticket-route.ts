@@ -6,10 +6,13 @@ import {
   normalizeCreateTicketInput,
   ticketListLimit,
   ticketListResponseSchema,
+  ticketParamsSchema,
   ticketResponseSchema,
+  type ApiError,
   type CreateTicketInput,
   type Ticket,
-  type TicketList
+  type TicketList,
+  type TicketParams
 } from "./ticket-contract.js";
 import type { TicketRecord, TicketRepository } from "./ticket-repository.js";
 
@@ -62,6 +65,35 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       const tickets = await ticketRepository.listRecent(ticketListLimit);
 
       return { tickets: tickets.map(toTicket) };
+    }
+  );
+
+  app.get<{ Params: TicketParams; Reply: Ticket | ApiError }>(
+    "/api/tickets/:id",
+    {
+      schema: {
+        params: ticketParamsSchema,
+        response: {
+          200: ticketResponseSchema,
+          400: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const ticket = await ticketRepository.findById(request.params.id);
+
+      if (!ticket) {
+        return reply.status(404).send({
+          error: {
+            code: "NOT_FOUND",
+            message: "The ticket was not found"
+          }
+        });
+      }
+
+      return toTicket(ticket);
     }
   );
 };

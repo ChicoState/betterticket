@@ -14,7 +14,7 @@ ADR-001 limited the anonymous exception to ticket creation and deferred reading 
 
 ## Decision
 
-Allow unauthenticated `GET /api/tickets` requests and make the ticket list the homepage. This amends ADR-001 for reading only; updating, assignment, and deletion remain out of scope. The list exposes every stored ticket field because no ownership model exists to scope visibility. The endpoint returns at most the 100 most recently created tickets.
+Allow unauthenticated `GET /api/tickets` and `GET /api/tickets/:id` requests, make the ticket list the homepage, and give each ticket its own page. This amends ADR-001 for reading only; updating, assignment, and deletion remain out of scope. The list exposes every stored ticket field because no ownership model exists to scope visibility. The list endpoint returns at most the 100 most recently created tickets; any ticket can be read by ID.
 
 ## Alternatives Considered
 
@@ -34,5 +34,6 @@ Deferred. A fixed cap bounds the response without committing to a pagination con
 
 - Anything a visitor submits is publicly readable; the UI states this beside the existing warning about sensitive information.
 - Public deployment needs the abuse controls from ADR-001 and a visibility review before launch.
-- Tickets older than the 100 most recent are not reachable until pagination is designed.
+- Tickets older than the 100 most recent are not listed until pagination is designed, but remain reachable by their URL.
+- Ticket URLs contain the full UUID, so a ticket page can be shared by link.
 - A future authentication ADR must define which fields stay public and who can see the rest.

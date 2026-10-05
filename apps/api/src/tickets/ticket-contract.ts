@@ -83,6 +83,26 @@ export const ticketListResponseSchema = {
   }
 } as const;
 
+export interface TicketParams {
+  id: string;
+}
+
+export const ticketParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export interface ApiError {
+  error: {
+    code: string;
+    message: string;
+  };
+}
+
 export const apiErrorResponseSchema = {
   type: "object",
   additionalProperties: false,

@@ -2,9 +2,10 @@
 
 ## Architecture Decisions
 
-- Extend `TicketRepository` with `listRecent(limit)` so route tests stay fast and a real-database test proves ordering.
+- Extend `TicketRepository` with `listRecent(limit)` and `findById(id)` so route tests stay fast and a real-database test proves ordering.
 - Wrap the list in a `{ tickets }` object so pagination metadata can be added without breaking clients.
-- Choose the page from `window.location.pathname` with plain links instead of adding a router for two pages.
+- Choose the page from `window.location.pathname` with plain links instead of adding a router for three pages.
+- Validate the ticket ID as a UUID at the route so malformed IDs never reach PostgreSQL.
 - No schema change or migration; the viewer reads the existing `tickets` table.
 
 ## Task List
@@ -24,15 +25,24 @@
   - Acceptance: both pages are reachable from each other by keyboard.
   - Verify: `App` tests and production build.
 
+### Phase 3: Single-ticket page
+
+- [x] Add the ticket params schema, repository lookup, and `GET /api/tickets/:id` route.
+  - Acceptance: a stored ticket returns `200`; unknown IDs return `404`; malformed IDs return `400` without a query.
+  - Verify: API route tests and PostgreSQL integration test.
+- [x] Add the `TicketDetail` component at `/tickets/:id` and link to it from the list and the form confirmation.
+  - Acceptance: loading, loaded, not-found, and error-with-retry states are accessible; the page links back to the list.
+  - Verify: component and `App` tests.
+
 ### Checkpoint: complete
 
 - [ ] Run format, lint, typecheck, tests, coverage, build, migration, browser verification, smoke test, and `git diff --check`.
 
 ## Risks and Mitigations
 
-| Risk                         | Impact | Mitigation                                                                          |
-| ---------------------------- | ------ | ----------------------------------------------------------------------------------- |
-| Submitted details are public | High   | State it in the UI; ADR-002 requires a visibility review before public deployment.  |
-| Unbounded list responses     | Medium | Cap the query and response schema at 100 tickets.                                   |
-| Deep links to `/new`         | Low    | The static host must serve `index.html` for unknown paths; Vite does this in dev.   |
-| UI/API drift                 | Medium | Validate the response shape in the client and test the contract at both boundaries. |
+| Risk                                    | Impact | Mitigation                                                                          |
+| --------------------------------------- | ------ | ----------------------------------------------------------------------------------- |
+| Submitted details are public            | High   | State it in the UI; ADR-002 requires a visibility review before public deployment.  |
+| Unbounded list responses                | Medium | Cap the query and response schema at 100 tickets.                                   |
+| Deep links to `/new` and `/tickets/:id` | Low    | The static host must serve `index.html` for unknown paths; Vite does this in dev.   |
+| UI/API drift                            | Medium | Validate the response shape in the client and test the contract at both boundaries. |

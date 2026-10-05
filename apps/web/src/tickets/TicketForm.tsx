@@ -22,7 +22,13 @@ function readFormInput(form: HTMLFormElement): CreateTicketInput {
   };
 }
 
-export function TicketForm() {
+export function TicketForm({
+  csrfToken,
+  onCreated
+}: {
+  csrfToken: string;
+  onCreated: (ticketId: string) => void;
+}) {
   const [submission, setSubmission] = useState<SubmissionState>(initialState);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -31,9 +37,10 @@ export function TicketForm() {
     setSubmission({ type: "submitting" });
 
     try {
-      const ticket = await createTicket(readFormInput(form));
+      const ticket = await createTicket(readFormInput(form), csrfToken);
       form.reset();
       setSubmission({ type: "success", ticketId: ticket.id });
+      onCreated(ticket.id);
     } catch {
       setSubmission({ type: "error" });
     }

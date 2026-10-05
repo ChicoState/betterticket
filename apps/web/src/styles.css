@@ -104,6 +104,47 @@ h1 {
   box-shadow: 0 1rem 2.5rem rgb(23 33 43 / 8%);
 }
 
+.discussion h2,
+.discussion h3 {
+  margin-top: 0;
+}
+
+.comment-list {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.comment {
+  border-left: 0.25rem solid #d6dcda;
+  background: #f8faf9;
+  padding: 1rem;
+}
+
+.comment.solution {
+  border-color: #26734d;
+  background: #eef8f2;
+}
+
+.comment.reply {
+  margin: 0.8rem 0 0 1rem;
+}
+
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.comment button,
+.discussion form > button:not(.submit-button) {
+  border: 1px solid #9aa6aa;
+  border-radius: 0.25rem;
+  background: #fff;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
 fieldset {
   display: grid;
   gap: 1.5rem;

@@ -8,11 +8,16 @@ export interface TicketRecord {
   description: string;
   setup: string;
   additionalInformation: string | null;
+  ownerId: string | null;
+  solutionCommentId: string | null;
   status: TicketStatus;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface TicketRepository {
-  create(input: CreateTicketInput): Promise<TicketRecord>;
+  create(input: CreateTicketInput, ownerId: string): Promise<TicketRecord>;
+  list(): Promise<TicketRecord[]>;
+  findById(id: string): Promise<TicketRecord | null>;
+  setSolution(ticketId: string, commentId: string | null): Promise<TicketRecord | null>;
 }

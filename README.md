@@ -68,7 +68,7 @@ BetterTicket is a public ticketing web application. The first product slice supp
 
 ## Ticket creation baseline
 
-Anonymous visitors can submit a title, issue description, setup details, and optional additional information. `POST /api/tickets` validates the request, rejects unknown fields, and stores the ticket with a generated UUID, `OPEN` status, and timestamps. See [the feature spec](docs/specs/ticket-creation.md) and [ADR-001](docs/decisions/001-anonymous-ticket-creation.md) for scope and rationale.
+Signed-in users can submit tickets, comment or reply once within a thread, mark helpful posts, and receive per-ticket notification preferences. IT members can spotlight posts and approve a solution, which resolves the ticket. Set the local bootstrap administrator values in your untracked `.env` before starting the API. See [the discussion spec](docs/specs/ticket-discussion.md) and [ADR-002](docs/decisions/002-ticket-discussion-authorization.md) for scope and rationale. Existing anonymous tickets remain ownerless for compatibility.
 
 ## Tooling and CI
 

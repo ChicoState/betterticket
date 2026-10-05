@@ -1,4 +1,4 @@
-export const ticketStatuses = ["OPEN"] as const;
+export const ticketStatuses = ["OPEN", "RESOLVED"] as const;
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
@@ -15,6 +15,8 @@ export interface Ticket {
   description: string;
   setup: string;
   additionalInformation: string | null;
+  ownerId: string | null;
+  solutionCommentId: string | null;
   status: TicketStatus;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +50,8 @@ export const ticketResponseSchema = {
     "description",
     "setup",
     "additionalInformation",
+    "ownerId",
+    "solutionCommentId",
     "status",
     "createdAt",
     "updatedAt"
@@ -58,6 +62,8 @@ export const ticketResponseSchema = {
     description: { type: "string" },
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
+    ownerId: { type: ["string", "null"], format: "uuid" },
+    solutionCommentId: { type: ["string", "null"], format: "uuid" },
     status: { type: "string", enum: ticketStatuses },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" }

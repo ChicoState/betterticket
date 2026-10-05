@@ -40,7 +40,7 @@ describe("TicketForm", () => {
       })
     );
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketForm />);
+    render(<TicketForm csrfToken="csrf" onCreated={vi.fn()} />);
 
     fillRequiredFields();
     fireEvent.change(screen.getByLabelText("Additional information"), {
@@ -52,7 +52,7 @@ describe("TicketForm", () => {
     expect(screen.getByText("cc04d84c")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/tickets", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-csrf-token": "csrf" },
       body: JSON.stringify({
         title: "Laptop will not start",
         description: "The power light flashes once.",
@@ -71,7 +71,7 @@ describe("TicketForm", () => {
         })
     );
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketForm />);
+    render(<TicketForm csrfToken="csrf" onCreated={vi.fn()} />);
 
     fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Create ticket" }));
@@ -107,7 +107,7 @@ describe("TicketForm", () => {
         )
       )
     );
-    render(<TicketForm />);
+    render(<TicketForm csrfToken="csrf" onCreated={vi.fn()} />);
 
     fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: "Create ticket" }));

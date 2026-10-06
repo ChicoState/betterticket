@@ -9,10 +9,20 @@ export interface TicketRecord {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  assignedTechnicianId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
+export type AssignmentResult =
+  | { type: "updated"; ticket: TicketRecord }
+  | { type: "ticket-not-found" }
+  | { type: "invalid-technician" };
+
 export interface TicketRepository {
   create(input: CreateTicketInput): Promise<TicketRecord>;
+  assignTechnician(
+    ticketId: string,
+    assignedTechnicianId: string | null
+  ): Promise<AssignmentResult>;
 }

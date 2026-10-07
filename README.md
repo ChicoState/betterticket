@@ -1,12 +1,12 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. The first product slice supports anonymous ticket creation through a React frontend and Fastify API, with tickets stored in PostgreSQL. Authentication and technician workflows are not implemented yet.
+BetterTicket is a public ticketing web application. The first product slices support anonymous ticket creation and viewing through a React frontend and Fastify API, with tickets stored in PostgreSQL. Authentication and technician workflows are not implemented yet.
 
 ## Repository map
 
 | Location                    | Purpose                                                              |
 | --------------------------- | -------------------------------------------------------------------- |
-| `apps/web`                  | React/Vite ticket-creation frontend and component tests.             |
+| `apps/web`                  | React/Vite ticket list and creation frontend with component tests.   |
 | `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.      |
 | `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services. |
 | `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                |
@@ -69,6 +69,10 @@ BetterTicket is a public ticketing web application. The first product slice supp
 ## Ticket creation baseline
 
 Anonymous visitors can submit a title, issue description, setup details, and optional additional information. `POST /api/tickets` validates the request, rejects unknown fields, and stores the ticket with a generated UUID, `OPEN` status, and timestamps. See [the feature spec](docs/specs/ticket-creation.md) and [ADR-001](docs/decisions/001-anonymous-ticket-creation.md) for scope and rationale.
+
+## Ticket viewer baseline
+
+The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
 ## Tooling and CI
 

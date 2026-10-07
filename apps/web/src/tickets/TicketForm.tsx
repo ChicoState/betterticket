@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 
-import { createTicket, type CreateTicketInput } from "./ticket-api.js";
+import { createTicket, ticketPath, type CreateTicketInput } from "./ticket-api.js";
 
 type SubmissionState =
   | { type: "idle" }
@@ -115,7 +115,8 @@ export function TicketForm() {
           <div className="success-message">
             <strong>Your ticket has been created.</strong>
             <span>
-              Reference <code>{submission.ticketId.slice(0, 8)}</code>
+              Reference <code>{submission.ticketId.slice(0, 8)}</code> ·{" "}
+              <a href={ticketPath(submission.ticketId)}>View ticket</a>
             </span>
           </div>
         ) : null}

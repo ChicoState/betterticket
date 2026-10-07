@@ -44,4 +44,38 @@ describe("PostgresTicketRepository", () => {
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
   });
+
+  it("lists the most recently created tickets first up to the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = (title: string, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    await database
+      .insert(tickets)
+      .values([
+        ticket("Oldest", "2026-09-27T12:00:00.000Z"),
+        ticket("Newest", "2026-09-29T12:00:00.000Z"),
+        ticket("Middle", "2026-09-28T12:00:00.000Z")
+      ]);
+
+    const listed = await repository.listRecent(2);
+
+    expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
+  });
+
+  it("finds a ticket by ID and returns null for an unknown ID", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const created = await repository.create({
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42"
+    });
+
+    expect(await repository.findById(created.id)).toEqual(created);
+    expect(await repository.findById("00000000-0000-4000-8000-000000000000")).toBeNull();
+  });
 });

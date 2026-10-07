@@ -1,8 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { asc } from "drizzle-orm";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
 import { tickets } from "./schema.js";
+import { ticketStatuses } from "../tickets/ticket-contract.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -65,6 +67,26 @@ describe("PostgresTicketRepository", () => {
     const listed = await repository.listRecent(2);
 
     expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
+  });
+
+  it("persists and returns every approved ticket status", async () => {
+    await database.insert(tickets).values(
+      ticketStatuses.map((status, index) => ({
+        title: status,
+        description: "Description",
+        setup: "Setup",
+        status,
+        createdAt: new Date(`2026-09-${String(index + 1).padStart(2, "0")}T12:00:00.000Z`),
+        updatedAt: new Date(`2026-09-${String(index + 1).padStart(2, "0")}T12:00:00.000Z`)
+      }))
+    );
+
+    const storedStatuses = await database
+      .select({ status: tickets.status })
+      .from(tickets)
+      .orderBy(asc(tickets.createdAt));
+
+    expect(storedStatuses.map((ticket) => ticket.status)).toEqual(ticketStatuses);
   });
 
   it("finds a ticket by ID and returns null for an unknown ID", async () => {

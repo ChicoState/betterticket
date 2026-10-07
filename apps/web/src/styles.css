@@ -245,6 +245,82 @@ main {
   padding-top: 0.5rem;
 }
 
+.ticket-progress {
+  margin-top: 1.5rem;
+  border-top: 1px solid #d6dcda;
+  padding-top: 1.25rem;
+}
+
+.ticket-progress h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.progress-timeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress-stage {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.5rem;
+  color: #64727a;
+  font-size: 0.75rem;
+}
+
+.progress-stage-marker {
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+.progress-stage-label {
+  align-self: center;
+  font-weight: 750;
+}
+
+.progress-stage-state {
+  grid-column: 1 / -1;
+  font-size: 0.6875rem;
+}
+
+.progress-stage-complete {
+  color: #174c34;
+}
+
+.progress-stage-current {
+  color: #0b5967;
+}
+
+.progress-stage-current .progress-stage-marker {
+  background: #0b5967;
+  color: #ffffff;
+}
+
+@media (max-width: 42rem) {
+  .progress-timeline {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-stage {
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+  }
+
+  .progress-stage-state {
+    grid-column: auto;
+  }
+}
+
 .ticket-card dt {
   margin-top: 1rem;
   color: #64727a;

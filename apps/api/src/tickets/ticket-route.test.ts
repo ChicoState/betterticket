@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../app.js";
+import { ticketStatuses, type TicketStatus } from "./ticket-contract.js";
 import type { CreateTicketInput, TicketRecord, TicketRepository } from "./ticket-repository.js";
 
 class FakeTicketRepository implements TicketRepository {
@@ -230,6 +231,28 @@ describe("GET /api/tickets", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ tickets: [] });
+  });
+
+  it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {
+    const repository = new FakeTicketRepository([
+      {
+        id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42",
+        additionalInformation: null,
+        status: status as TicketStatus,
+        createdAt: new Date("2026-09-28T18:00:00.000Z"),
+        updatedAt: new Date("2026-09-30T10:15:00.000Z")
+      }
+    ]);
+    const app = buildApp({ ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({ method: "GET", url: "/api/tickets" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ tickets: [{ status }] });
   });
 
   it("does not expose persistence errors", async () => {

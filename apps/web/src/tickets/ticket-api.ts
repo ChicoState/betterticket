@@ -5,6 +5,16 @@ export interface CreateTicketInput {
   additionalInformation?: string;
 }
 
+export const ticketStatuses = [
+  "OPEN",
+  "UNDER_REVIEW",
+  "IN_PROGRESS",
+  "RESOLVED",
+  "COMPLETED"
+] as const;
+
+export type TicketStatus = (typeof ticketStatuses)[number];
+
 export interface CreatedTicket {
   id: string;
 }
@@ -40,8 +50,13 @@ export interface Ticket {
   description: string;
   setup: string;
   additionalInformation: string | null;
-  status: string;
+  status: TicketStatus;
   createdAt: string;
+  updatedAt: string;
+}
+
+function isTicketStatus(value: unknown): value is TicketStatus {
+  return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
 
 function isTicket(value: unknown): value is Ticket {
@@ -57,8 +72,9 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.description === "string" &&
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
-    typeof ticket.status === "string" &&
-    typeof ticket.createdAt === "string"
+    isTicketStatus(ticket.status) &&
+    typeof ticket.createdAt === "string" &&
+    typeof ticket.updatedAt === "string"
   );
 }
 

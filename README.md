@@ -74,6 +74,10 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
+## Ticket progress
+
+Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Status changes require a future authenticated, authorized staff workflow; this baseline provides no status-update endpoint. See [the feature spec](docs/specs/ticket-progress.md) and [ADR-003](docs/decisions/003-ticket-progress-statuses.md).
+
 ## Tooling and CI
 
 The pnpm workspace contains React/Vite and Fastify packages. Drizzle schema files are the database source of truth, and generated SQL migrations are committed under `apps/api/drizzle`.

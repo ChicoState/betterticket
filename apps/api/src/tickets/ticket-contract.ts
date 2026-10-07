@@ -1,4 +1,10 @@
-export const ticketStatuses = ["OPEN"] as const;
+export const ticketStatuses = [
+  "OPEN",
+  "UNDER_REVIEW",
+  "IN_PROGRESS",
+  "RESOLVED",
+  "COMPLETED"
+] as const;
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 

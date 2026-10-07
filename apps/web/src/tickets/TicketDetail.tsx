@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { getTicket, type Ticket } from "./ticket-api.js";
-import { formatCreatedAt, formatStatus } from "./ticket-format.js";
+import {
+  formatCreatedAt,
+  formatStatus,
+  getProgressStageState,
+  ticketProgress
+} from "./ticket-format.js";
 
 type LoadState =
   | { type: "loading" }
@@ -86,7 +91,39 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
       <p className="ticket-meta">
         Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
         <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time>
+        {" · "}
+        <span>Last updated</span>{" "}
+        <time dateTime={ticket.updatedAt}>{formatCreatedAt(ticket.updatedAt)}</time>
       </p>
+
+      <section className="ticket-progress" aria-labelledby="ticket-progress-title">
+        <h2 id="ticket-progress-title">Ticket progress</h2>
+        <ol className="progress-timeline" aria-label="Ticket progress">
+          {ticketProgress.map((stage) => {
+            const stageState = getProgressStageState(ticket.status, stage);
+
+            return (
+              <li
+                key={stage}
+                className={`progress-stage progress-stage-${stageState}`}
+                aria-current={stageState === "current" ? "step" : undefined}
+              >
+                <span className="progress-stage-marker" aria-hidden="true">
+                  {stageState === "complete" ? "✓" : ""}
+                </span>
+                <span className="progress-stage-label">{formatStatus(stage)}</span>
+                <span className="progress-stage-state">
+                  {stageState === "complete"
+                    ? "Complete"
+                    : stageState === "current"
+                      ? "Current stage"
+                      : "Upcoming"}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
 
       <dl>
         <dt>What is happening</dt>

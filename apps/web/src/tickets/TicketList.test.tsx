@@ -10,7 +10,7 @@ const tickets = [
     description: "Jobs stay queued.",
     setup: "Office printer, macOS 15",
     additionalInformation: null,
-    status: "OPEN",
+    status: "IN_PROGRESS",
     createdAt: "2026-09-29T09:30:00.000Z",
     updatedAt: "2026-09-29T09:30:00.000Z"
   },
@@ -53,7 +53,7 @@ describe("TicketList", () => {
     ).toEqual(["Printer is offline", "Laptop will not start"]);
 
     const [printer, laptop] = items as [HTMLElement, HTMLElement];
-    expect(within(printer).getByText("Open")).toBeInTheDocument();
+    expect(within(printer).getByText("In progress")).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
     expect(printer.querySelector("time")).toHaveAttribute("datetime", "2026-09-29T09:30:00.000Z");

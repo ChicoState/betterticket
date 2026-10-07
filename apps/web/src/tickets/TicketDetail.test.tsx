@@ -40,7 +40,7 @@ describe("TicketDetail", () => {
       await screen.findByRole("heading", { level: 1, name: "Laptop will not start" })
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}`);
-    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getByText("Open", { selector: ".status-badge" })).toBeInTheDocument();
     expect(screen.getByText("cc04d84c")).toBeInTheDocument();
     expect(screen.getByText("The power light flashes once.")).toBeInTheDocument();
     expect(screen.getByText("Framework Laptop 13, Fedora 42")).toBeInTheDocument();
@@ -57,6 +57,36 @@ describe("TicketDetail", () => {
 
     await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByText("Additional information")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["OPEN", "Open"],
+    ["UNDER_REVIEW", "Under review"],
+    ["IN_PROGRESS", "In progress"],
+    ["RESOLVED", "Resolved"],
+    ["COMPLETED", "Completed"]
+  ])("shows %s as the current stage in the progress timeline", async (status, label) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status })));
+    render(<TicketDetail ticketId={ticketId} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Ticket progress" })
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+    expect(
+      screen.getByText(label, { selector: ".progress-stage-current .progress-stage-label" })
+    ).toBeInTheDocument();
+  });
+
+  it("shows the last updated timestamp", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ ...ticket, updatedAt: "2026-09-30T10:15:00.000Z" }))
+    );
+    render(<TicketDetail ticketId={ticketId} />);
+
+    expect(await screen.findByText("Last updated")).toBeInTheDocument();
+    expect(document.querySelector('time[datetime="2026-09-30T10:15:00.000Z"]')).toBeInTheDocument();
   });
 
   it.each([404, 400])("shows a not-found message for a %i response", async (status) => {

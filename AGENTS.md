@@ -2,13 +2,13 @@
 
 ## Status and source of truth
 
-BetterTicket has infrastructure, anonymous ticket creation, and a minimal provisioned-user login and technician-assignment backend. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure, anonymous ticket-creation and ticket-viewing baselines, and a minimal provisioned-user login and technician-assignment backend. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 
 | Area           | Location                                                          | Status                               |
 | -------------- | ----------------------------------------------------------------- | ------------------------------------ |
-| Frontend       | `apps/web`                                                        | React/Vite ticket creation.          |
+| Frontend       | `apps/web`                                                        | React/Vite ticket list and creation. |
 | API            | `apps/api`                                                        | Fastify/Drizzle tickets and auth.    |
 | Infrastructure | `compose.yml`, `docker/`, `.env.example`                          | Present.                             |
 | Scripts        | `scripts/smoke.sh`                                                | Present; infrastructure-only.        |

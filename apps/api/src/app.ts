@@ -57,13 +57,12 @@ export function buildApp({ authRepository, ticketRepository, logger = true }: Bu
       { errorType: error instanceof Error ? error.name : "UnknownError" },
       "request failed"
     );
-    const isTicketCreation =
-      request.method === "POST" && request.routeOptions.url === "/api/tickets";
+    const isTicketRequest = request.routeOptions.url?.startsWith("/api/tickets") ?? false;
     return reply.status(500).send({
       error: {
         code: "INTERNAL_ERROR",
-        message: isTicketCreation
-          ? "The ticket could not be created"
+        message: isTicketRequest
+          ? "The ticket request could not be completed"
           : "The request could not be completed"
       }
     });

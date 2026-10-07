@@ -30,8 +30,35 @@ textarea {
 }
 
 .site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #d6dcda;
   background: #ffffff;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem clamp(1rem, 5vw, 4rem);
+}
+
+.site-nav a {
+  color: #53616a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
+  color: #0b5967;
+}
+
+.site-nav a[aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.4rem;
 }
 
 .brand {
@@ -58,12 +85,177 @@ textarea {
 }
 
 main {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(30rem, 1.2fr);
-  gap: clamp(2rem, 6vw, 6rem);
   width: min(76rem, calc(100% - 2rem));
   margin: 0 auto;
   padding: clamp(3rem, 8vw, 7rem) 0 4rem;
+}
+
+.form-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(30rem, 1.2fr);
+  gap: clamp(2rem, 6vw, 6rem);
+}
+
+.tickets-page {
+  width: min(56rem, calc(100% - 2rem));
+  padding-top: clamp(2rem, 6vw, 4rem);
+}
+
+.tickets-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.tickets-intro h1 {
+  max-width: none;
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+}
+
+.tickets-intro p:last-child {
+  margin: 1rem 0 0;
+  color: #53616a;
+  font-size: 1.05rem;
+}
+
+.primary-link {
+  border-radius: 0.25rem;
+  background: #0b5967;
+  color: #ffffff;
+  padding: 0.8rem 1.25rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.primary-link:hover {
+  background: #074753;
+}
+
+.list-message {
+  margin: 0;
+  border: 1px dashed #9aa6aa;
+  padding: 2rem 1.25rem;
+  color: #53616a;
+  text-align: center;
+}
+
+.ticket-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticket-card {
+  border-left: 0.25rem solid #0b5967;
+  background: #ffffff;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  box-shadow: 0 0.5rem 1.5rem rgb(23 33 43 / 6%);
+}
+
+.ticket-card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ticket-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.status-badge {
+  flex-shrink: 0;
+  border: 1px solid #b7d5c3;
+  border-radius: 999px;
+  background: #eef8f2;
+  color: #174c34;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticket-meta {
+  margin: 0.35rem 0 0;
+  color: #64727a;
+  font-size: 0.875rem;
+}
+
+.ticket-text {
+  margin: 1rem 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ticket-card h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ticket-card h2 a:hover {
+  color: #0b5967;
+  text-decoration: underline;
+}
+
+.ticket-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: #0b5967;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.ticket-detail {
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.ticket-detail h1 {
+  max-width: none;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.ticket-card dl {
+  margin: 1.5rem 0 0;
+  border-top: 1px solid #d6dcda;
+  padding-top: 0.5rem;
+}
+
+.ticket-card dt {
+  margin-top: 1rem;
+  color: #64727a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ticket-card dd.ticket-text {
+  margin: 0.25rem 0 0;
 }
 
 .intro {
@@ -204,6 +396,10 @@ a:focus-visible {
   color: #7d281f;
 }
 
+.error-message p {
+  margin: 0 0 0.75rem;
+}
+
 code {
   border: 1px solid #b7d5c3;
   border-radius: 0.2rem;
@@ -226,9 +422,12 @@ footer p {
 
 @media (max-width: 48rem) {
   main {
+    padding-top: 3rem;
+  }
+
+  .form-page {
     grid-template-columns: 1fr;
     gap: 2.5rem;
-    padding-top: 3rem;
   }
 
   .intro {

@@ -46,6 +46,12 @@ const unusedTicketRepository: TicketRepository = {
   create: async (): Promise<TicketRecord> => {
     throw new Error("not used");
   },
+  listRecent: async (): Promise<TicketRecord[]> => {
+    throw new Error("not used");
+  },
+  findById: async (): Promise<TicketRecord | null> => {
+    throw new Error("not used");
+  },
   assignTechnician: async (): Promise<AssignmentResult> => {
     throw new Error("not used");
   }

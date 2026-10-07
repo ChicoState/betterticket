@@ -75,6 +75,45 @@ export const ticketResponseSchema = {
   }
 } as const;
 
+export const ticketListLimit = 100;
+
+export interface TicketList {
+  tickets: Ticket[];
+}
+
+export const ticketListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["tickets"],
+  properties: {
+    tickets: {
+      type: "array",
+      maxItems: ticketListLimit,
+      items: ticketResponseSchema
+    }
+  }
+} as const;
+
+export interface TicketParams {
+  id: string;
+}
+
+export const ticketParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export interface ApiError {
+  error: {
+    code: string;
+    message: string;
+  };
+}
+
 export const ticketAssignmentParamsSchema = {
   type: "object",
   additionalProperties: false,

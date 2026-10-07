@@ -33,3 +33,76 @@ export async function createTicket(input: CreateTicketInput): Promise<CreatedTic
 
   return body;
 }
+
+export interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  setup: string;
+  additionalInformation: string | null;
+  status: string;
+  createdAt: string;
+}
+
+function isTicket(value: unknown): value is Ticket {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const ticket = value as Record<string, unknown>;
+
+  return (
+    typeof ticket.id === "string" &&
+    typeof ticket.title === "string" &&
+    typeof ticket.description === "string" &&
+    typeof ticket.setup === "string" &&
+    (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
+    typeof ticket.status === "string" &&
+    typeof ticket.createdAt === "string"
+  );
+}
+
+export async function listTickets(): Promise<Ticket[]> {
+  const response = await fetch("/api/tickets");
+
+  if (!response.ok) {
+    throw new Error("Ticket listing failed");
+  }
+
+  const body: unknown = await response.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("tickets" in body) ||
+    !Array.isArray(body.tickets) ||
+    !body.tickets.every(isTicket)
+  ) {
+    throw new Error("Ticket listing returned an invalid response");
+  }
+
+  return body.tickets;
+}
+
+export function ticketPath(id: string): string {
+  return `/tickets/${encodeURIComponent(id)}`;
+}
+
+export async function getTicket(id: string): Promise<Ticket | null> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(id)}`);
+
+  // A malformed ID is rejected with 400; to a visitor that is the same as a missing ticket.
+  if (response.status === 404 || response.status === 400) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Ticket lookup failed");
+  }
+
+  const body: unknown = await response.json();
+  if (!isTicket(body)) {
+    throw new Error("Ticket lookup returned an invalid response");
+  }
+
+  return body;
+}

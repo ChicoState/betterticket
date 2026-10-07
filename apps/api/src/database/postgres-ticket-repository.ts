@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { tickets, users } from "./schema.js";
@@ -28,6 +28,20 @@ export class PostgresTicketRepository implements TicketRepository {
     }
 
     return ticket;
+  }
+
+  async listRecent(limit: number): Promise<TicketRecord[]> {
+    return this.database
+      .select()
+      .from(tickets)
+      .orderBy(desc(tickets.createdAt), desc(tickets.id))
+      .limit(limit);
+  }
+
+  async findById(id: string): Promise<TicketRecord | null> {
+    const [ticket] = await this.database.select().from(tickets).where(eq(tickets.id, id)).limit(1);
+
+    return ticket ?? null;
   }
 
   async assignTechnician(

@@ -1,12 +1,12 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, users, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation and viewing through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, users, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
 | Location                    | Purpose                                                              |
 | --------------------------- | -------------------------------------------------------------------- |
-| `apps/web`                  | React/Vite ticket-creation frontend and component tests.             |
+| `apps/web`                  | React/Vite ticket list and creation frontend with component tests.   |
 | `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.      |
 | `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services. |
 | `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                |
@@ -70,6 +70,10 @@ BetterTicket is a public ticketing web application. It supports anonymous ticket
 
 Anonymous visitors can submit a title, issue description, setup details, and optional additional information. `POST /api/tickets` validates the request, rejects unknown fields, and stores the ticket with a generated UUID, `OPEN` status, and timestamps. See [the feature spec](docs/specs/ticket-creation.md) and [ADR-001](docs/decisions/001-anonymous-ticket-creation.md) for scope and rationale.
 
+## Ticket viewer baseline
+
+The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
+
 ## Technician assignment MVP
 
 After applying migrations, provision each account interactively from the pinned toolchain:
@@ -82,7 +86,7 @@ The command requests a name, username, password, and either the `USER` or `TECHN
 
 `POST /api/sessions` logs a user in and sets an HttpOnly session cookie; `DELETE /api/sessions/current` logs the user out. An authenticated technician can call `PATCH /api/tickets/:ticketId/assignment` with `{"assignedTechnicianId":"<technician UUID>"}` to assign or reassign a ticket, or with `{"assignedTechnicianId":null}` to unassign it. The selected user must also be a technician, and assignment never changes ticket status.
 
-See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-002](docs/decisions/002-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
+See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
 
 ## Tooling and CI
 

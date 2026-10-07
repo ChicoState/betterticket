@@ -21,6 +21,8 @@ export type AssignmentResult =
 
 export interface TicketRepository {
   create(input: CreateTicketInput): Promise<TicketRecord>;
+  listRecent(limit: number): Promise<TicketRecord[]>;
+  findById(id: string): Promise<TicketRecord | null>;
   assignTechnician(
     ticketId: string,
     assignedTechnicianId: string | null

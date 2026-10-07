@@ -1,6 +1,6 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. The first product slices support anonymous ticket creation and viewing through a React frontend and Fastify API, with tickets stored in PostgreSQL. Authentication and technician workflows are not implemented yet.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation and viewing through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, users, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
@@ -74,6 +74,20 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
+## Technician assignment MVP
+
+After applying migrations, provision each account interactively from the pinned toolchain:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm user:create
+```
+
+The command requests a name, username, password, and either the `USER` or `TECHNICIAN` role. It hashes the password and never accepts credentials as command-line arguments. Do not commit provisioned credentials.
+
+`POST /api/sessions` logs a user in and sets an HttpOnly session cookie; `DELETE /api/sessions/current` logs the user out. An authenticated technician can call `PATCH /api/tickets/:ticketId/assignment` with `{"assignedTechnicianId":"<technician UUID>"}` to assign or reassign a ticket, or with `{"assignedTechnicianId":null}` to unassign it. The selected user must also be a technician, and assignment never changes ticket status.
+
+See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
+
 ## Tooling and CI
 
 The pnpm workspace contains React/Vite and Fastify packages. Drizzle schema files are the database source of truth, and generated SQL migrations are committed under `apps/api/drizzle`.
@@ -91,6 +105,6 @@ Before enabling a release workflow, select the static host, API container host, 
 - If Docker cannot connect, start Docker Desktop and rerun `docker compose config --quiet`.
 - If ports 5432 or 8333 are occupied, stop the conflicting local service or change the loopback mapping in `compose.yml`.
 - If Docker reports a bind-mount permission issue, grant Docker Desktop access to this repository and rerun the command.
-- If tests report that the `tickets` relation does not exist, run `docker compose --profile tools run --rm toolchain pnpm db:migrate`.
+- If tests report that a required database relation or column does not exist, run `docker compose --profile tools run --rm toolchain pnpm db:migrate`.
 - If ports 3000 or 5173 are occupied, stop the conflicting application before running the development command.
 - If a locked install fails after changing dependencies, regenerate `pnpm-lock.yaml` from the toolchain with `docker compose --profile tools run --rm toolchain pnpm install`, review the diff, then rerun with `--frozen-lockfile`.

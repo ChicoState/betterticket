@@ -2,14 +2,14 @@
 
 ## Status and source of truth
 
-BetterTicket has infrastructure plus anonymous ticket-creation and ticket-viewing baselines. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure, anonymous ticket-creation and ticket-viewing baselines, and a minimal provisioned-user login and technician-assignment backend. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 
 | Area           | Location                                                          | Status                               |
 | -------------- | ----------------------------------------------------------------- | ------------------------------------ |
 | Frontend       | `apps/web`                                                        | React/Vite ticket list and creation. |
-| API            | `apps/api`                                                        | Fastify/Drizzle ticket list/create.  |
+| API            | `apps/api`                                                        | Fastify/Drizzle tickets and auth.    |
 | Infrastructure | `compose.yml`, `docker/`, `.env.example`                          | Present.                             |
 | Scripts        | `scripts/smoke.sh`                                                | Present; infrastructure-only.        |
 | Tests          | Colocated `*.test.ts(x)` files                                    | Unit, component, and DB integration. |
@@ -46,6 +46,8 @@ bash scripts/smoke.sh
 ```
 
 These correspond to the current pull-request workflow. The smoke test uses an isolated Compose project and removes its own containers and volumes. `docker compose up --detach postgres object-storage` starts persistent local services; use `docker compose down` to stop them and add `--volumes` only when intentionally resetting local data.
+
+After applying migrations, provision MVP users interactively with `docker compose --profile tools run --rm toolchain pnpm user:create`. Never place passwords or provisioned credentials in tracked files or command arguments.
 
 ## Change checklist
 

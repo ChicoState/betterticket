@@ -1,9 +1,10 @@
 import { desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { tickets } from "./schema.js";
+import { ticketReplies, tickets } from "./schema.js";
 import type {
   CreateTicketInput,
+  ReplyRecord,
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
@@ -41,5 +42,29 @@ export class PostgresTicketRepository implements TicketRepository {
     const [ticket] = await this.database.select().from(tickets).where(eq(tickets.id, id)).limit(1);
 
     return ticket ?? null;
+  }
+
+  async createReply(ticketId: string, body: string): Promise<ReplyRecord> {
+    const [reply] = await this.database
+      .insert(ticketReplies)
+      .values({ ticketId, body })
+      .returning();
+
+    if (!reply) {
+      throw new Error("Reply insert did not return a row");
+    }
+
+    return reply;
+  }
+
+  async listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]> {
+    const newestFirst = await this.database
+      .select()
+      .from(ticketReplies)
+      .where(eq(ticketReplies.ticketId, ticketId))
+      .orderBy(desc(ticketReplies.createdAt), desc(ticketReplies.id))
+      .limit(limit);
+
+    return newestFirst.reverse();
   }
 }

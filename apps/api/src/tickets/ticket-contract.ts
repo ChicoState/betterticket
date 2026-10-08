@@ -96,6 +96,57 @@ export const ticketParamsSchema = {
   }
 } as const;
 
+export interface CreateReplyInput {
+  body: string;
+}
+
+export interface Reply {
+  id: string;
+  ticketId: string;
+  body: string;
+  createdAt: string;
+}
+
+export const createReplyBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["body"],
+  properties: {
+    body: requiredText(5_000)
+  }
+} as const;
+
+export const replyResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "ticketId", "body", "createdAt"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    ticketId: { type: "string", format: "uuid" },
+    body: { type: "string" },
+    createdAt: { type: "string", format: "date-time" }
+  }
+} as const;
+
+export const replyListLimit = 200;
+
+export interface ReplyList {
+  replies: Reply[];
+}
+
+export const replyListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["replies"],
+  properties: {
+    replies: {
+      type: "array",
+      maxItems: replyListLimit,
+      items: replyResponseSchema
+    }
+  }
+} as const;
+
 export interface ApiError {
   error: {
     code: string;

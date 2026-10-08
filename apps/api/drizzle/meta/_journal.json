@@ -15,6 +15,13 @@
       "when": 1791227845172,
       "tag": "0001_technician_assignment_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791497140595,
+      "tag": "0002_new_magneto",
+      "breakpoints": true
     }
   ]
 }

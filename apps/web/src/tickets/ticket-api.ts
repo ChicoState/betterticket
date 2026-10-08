@@ -106,3 +106,67 @@ export async function getTicket(id: string): Promise<Ticket | null> {
 
   return body;
 }
+
+export interface Reply {
+  id: string;
+  body: string;
+  createdAt: string;
+}
+
+function isReply(value: unknown): value is Reply {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const reply = value as Record<string, unknown>;
+
+  return (
+    typeof reply.id === "string" &&
+    typeof reply.body === "string" &&
+    typeof reply.createdAt === "string"
+  );
+}
+
+function repliesUrl(ticketId: string): string {
+  return `/api/tickets/${encodeURIComponent(ticketId)}/replies`;
+}
+
+export async function listReplies(ticketId: string): Promise<Reply[]> {
+  const response = await fetch(repliesUrl(ticketId));
+
+  if (!response.ok) {
+    throw new Error("Reply listing failed");
+  }
+
+  const body: unknown = await response.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("replies" in body) ||
+    !Array.isArray(body.replies) ||
+    !body.replies.every(isReply)
+  ) {
+    throw new Error("Reply listing returned an invalid response");
+  }
+
+  return body.replies;
+}
+
+export async function createReply(ticketId: string, body: string): Promise<Reply> {
+  const response = await fetch(repliesUrl(ticketId), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ body })
+  });
+
+  if (!response.ok) {
+    throw new Error("Reply creation failed");
+  }
+
+  const reply: unknown = await response.json();
+  if (!isReply(reply)) {
+    throw new Error("Reply creation returned an invalid response");
+  }
+
+  return reply;
+}

@@ -4,23 +4,30 @@ import { sessionCookieName } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import {
   apiErrorResponseSchema,
-  assignTechnicianBodySchema,
+  createReplyBodySchema,
   createTicketBodySchema,
   normalizeCreateTicketInput,
+  replyListLimit,
+  replyListResponseSchema,
+  replyResponseSchema,
+  assignTechnicianBodySchema,
   ticketAssignmentParamsSchema,
   ticketListLimit,
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
   type ApiError,
+  type CreateReplyInput,
   type AssignTechnicianInput,
   type CreateTicketInput,
+  type Reply,
+  type ReplyList,
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
   type TicketParams
 } from "./ticket-contract.js";
-import type { TicketRecord, TicketRepository } from "./ticket-repository.js";
+import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
 
 interface TicketRoutesOptions {
   authRepository: AuthRepository;
@@ -34,6 +41,20 @@ function toTicket(ticket: TicketRecord): Ticket {
     updatedAt: ticket.updatedAt.toISOString()
   };
 }
+
+function toReply(reply: ReplyRecord): Reply {
+  return {
+    ...reply,
+    createdAt: reply.createdAt.toISOString()
+  };
+}
+
+const ticketNotFound: ApiError = {
+  error: {
+    code: "NOT_FOUND",
+    message: "The ticket was not found"
+  }
+};
 
 export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
@@ -92,15 +113,63 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       const ticket = await ticketRepository.findById(request.params.id);
 
       if (!ticket) {
-        return reply.status(404).send({
-          error: {
-            code: "NOT_FOUND",
-            message: "The ticket was not found"
-          }
-        });
+        return reply.status(404).send(ticketNotFound);
       }
 
       return toTicket(ticket);
+    }
+  );
+
+  app.get<{ Params: TicketParams; Reply: ReplyList | ApiError }>(
+    "/api/tickets/:id/replies",
+    {
+      schema: {
+        params: ticketParamsSchema,
+        response: {
+          200: replyListResponseSchema,
+          400: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const ticket = await ticketRepository.findById(request.params.id);
+
+      if (!ticket) {
+        return reply.status(404).send(ticketNotFound);
+      }
+
+      const replies = await ticketRepository.listRecentReplies(ticket.id, replyListLimit);
+
+      return { replies: replies.map(toReply) };
+    }
+  );
+
+  app.post<{ Params: TicketParams; Body: CreateReplyInput; Reply: Reply | ApiError }>(
+    "/api/tickets/:id/replies",
+    {
+      schema: {
+        params: ticketParamsSchema,
+        body: createReplyBodySchema,
+        response: {
+          201: replyResponseSchema,
+          400: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const ticket = await ticketRepository.findById(request.params.id);
+
+      if (!ticket) {
+        return reply.status(404).send(ticketNotFound);
+      }
+
+      const created = await ticketRepository.createReply(ticket.id, request.body.body.trim());
+
+      return reply.status(201).send(toReply(created));
     }
   );
 

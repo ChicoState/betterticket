@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { getTicket, type Ticket } from "./ticket-api.js";
 import { formatCreatedAt, formatStatus } from "./ticket-format.js";
+import { TicketReplies } from "./TicketReplies.js";
 
 type LoadState =
   | { type: "loading" }
@@ -77,29 +78,33 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
   const { ticket } = load;
 
   return (
-    <article className="ticket-card ticket-detail" aria-labelledby="page-title">
-      <header className="ticket-card-header">
-        <h1 id="page-title">{ticket.title}</h1>
-        <span className="status-badge">{formatStatus(ticket.status)}</span>
-      </header>
+    <>
+      <article className="ticket-card ticket-detail" aria-labelledby="page-title">
+        <header className="ticket-card-header">
+          <h1 id="page-title">{ticket.title}</h1>
+          <span className="status-badge">{formatStatus(ticket.status)}</span>
+        </header>
 
-      <p className="ticket-meta">
-        Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
-        <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time>
-      </p>
+        <p className="ticket-meta">
+          Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
+          <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time>
+        </p>
 
-      <dl>
-        <dt>What is happening</dt>
-        <dd className="ticket-text">{ticket.description}</dd>
-        <dt>Setup</dt>
-        <dd className="ticket-text">{ticket.setup}</dd>
-        {ticket.additionalInformation ? (
-          <>
-            <dt>Additional information</dt>
-            <dd className="ticket-text">{ticket.additionalInformation}</dd>
-          </>
-        ) : null}
-      </dl>
-    </article>
+        <dl>
+          <dt>What is happening</dt>
+          <dd className="ticket-text">{ticket.description}</dd>
+          <dt>Setup</dt>
+          <dd className="ticket-text">{ticket.setup}</dd>
+          {ticket.additionalInformation ? (
+            <>
+              <dt>Additional information</dt>
+              <dd className="ticket-text">{ticket.additionalInformation}</dd>
+            </>
+          ) : null}
+        </dl>
+      </article>
+
+      <TicketReplies ticketId={ticket.id} />
+    </>
   );
 }

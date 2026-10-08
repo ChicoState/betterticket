@@ -16,8 +16,17 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  assignedTechnicianId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TicketAssignmentParams {
+  ticketId: string;
+}
+
+export interface AssignTechnicianInput {
+  assignedTechnicianId: string | null;
 }
 
 const requiredText = (maxLength: number) => ({
@@ -49,6 +58,7 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "assignedTechnicianId",
     "createdAt",
     "updatedAt"
   ],
@@ -59,6 +69,7 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" }
   }
@@ -153,6 +164,24 @@ export interface ApiError {
     message: string;
   };
 }
+
+export const ticketAssignmentParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ticketId"],
+  properties: {
+    ticketId: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const assignTechnicianBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["assignedTechnicianId"],
+  properties: {
+    assignedTechnicianId: { type: ["string", "null"], format: "uuid" }
+  }
+} as const;
 
 export const apiErrorResponseSchema = {
   type: "object",

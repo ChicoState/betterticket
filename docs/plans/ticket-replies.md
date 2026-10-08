@@ -37,8 +37,8 @@
 
 | Risk                                  | Impact | Mitigation                                                                             |
 | ------------------------------------- | ------ | -------------------------------------------------------------------------------------- |
-| Spam or abuse on any ticket           | High   | ADR-003 requires rate limiting and a moderation path before public deployment.         |
-| Replies mistaken for official answers | Medium | The form states replies are anonymous; verified roles wait for the authentication ADR. |
+| Spam or abuse on any ticket           | High   | ADR-004 requires rate limiting and a moderation path before public deployment.         |
+| Replies mistaken for official answers | Medium | The form states replies are anonymous; verified roles wait for a reply-authorship ADR. |
 | Unbounded conversation responses      | Medium | Cap the query and response schema at the 200 most recent replies.                      |
 | Replies are public                    | Medium | State it beside the form; the footer already warns against sensitive information.      |
 | UI/API drift                          | Medium | Validate the response shape in the client and test the contract at both boundaries.    |

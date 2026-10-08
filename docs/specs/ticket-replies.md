@@ -2,7 +2,7 @@
 
 ## Objective
 
-Let the person who submitted a ticket and the technicians working on it hold a conversation on the ticket's page. No accounts exist yet, so any visitor can reply and replies carry no author or role. See [ADR-003](../decisions/003-anonymous-ticket-replies.md) for why replies are anonymous and unlabelled in this slice.
+Let the person who submitted a ticket and the technicians working on it hold a conversation on the ticket's page. Visitors do not sign in to create or read tickets, so any visitor can reply and replies carry no author or role. See [ADR-004](../decisions/004-anonymous-ticket-replies.md) for why replies are anonymous and unlabelled in this slice.
 
 ## Contract
 

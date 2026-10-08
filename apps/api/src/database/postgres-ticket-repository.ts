@@ -1,8 +1,9 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { ticketReplies, tickets } from "./schema.js";
+import { ticketReplies, tickets, users } from "./schema.js";
 import type {
+  AssignmentResult,
   CreateTicketInput,
   ReplyRecord,
   TicketRecord,
@@ -66,5 +67,29 @@ export class PostgresTicketRepository implements TicketRepository {
       .limit(limit);
 
     return newestFirst.reverse();
+  }
+
+  async assignTechnician(
+    ticketId: string,
+    assignedTechnicianId: string | null
+  ): Promise<AssignmentResult> {
+    if (assignedTechnicianId) {
+      const [technician] = await this.database
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.id, assignedTechnicianId), eq(users.role, "TECHNICIAN")));
+
+      if (!technician) {
+        return { type: "invalid-technician" };
+      }
+    }
+
+    const [ticket] = await this.database
+      .update(tickets)
+      .set({ assignedTechnicianId, updatedAt: new Date() })
+      .where(eq(tickets.id, ticketId))
+      .returning();
+
+    return ticket ? { type: "updated", ticket } : { type: "ticket-not-found" };
   }
 }

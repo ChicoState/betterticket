@@ -1,6 +1,6 @@
 {
-  "id": "99b7433a-c147-481e-bb49-12b63f48562b",
-  "prevId": "a78acd5c-2d65-420e-aada-4126037ca948",
+  "id": "0db2e1eb-ece6-4b4b-8166-bf44bab39bcc",
+  "prevId": "99b7433a-c147-481e-bb49-12b63f48562b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -34,6 +34,77 @@
           "tableFrom": "sessions",
           "tableTo": "users",
           "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ticket_replies": {
+      "name": "ticket_replies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "ticket_id": {
+          "name": "ticket_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ticket_replies_ticket_id_created_at_idx": {
+          "name": "ticket_replies_ticket_id_created_at_idx",
+          "columns": [
+            {
+              "expression": "ticket_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ticket_replies_ticket_id_tickets_id_fk": {
+          "name": "ticket_replies_ticket_id_tickets_id_fk",
+          "tableFrom": "ticket_replies",
+          "tableTo": "tickets",
+          "columnsFrom": ["ticket_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"

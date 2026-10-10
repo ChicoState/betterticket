@@ -96,6 +96,52 @@ main {
   gap: clamp(2rem, 6vw, 6rem);
 }
 
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(22rem, 1.2fr);
+  gap: clamp(2rem, 6vw, 6rem);
+}
+
+.auth-panel {
+  align-self: start;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #d6dcda;
+}
+
+.auth-tab {
+  border: 0;
+  border-bottom: 0.2rem solid transparent;
+  background: transparent;
+  color: #53616a;
+  padding: 0.65rem 0.8rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.auth-tab:hover,
+.auth-tab.active {
+  color: #0b5967;
+}
+
+.auth-tab.active {
+  border-bottom-color: #0b5967;
+}
+
+.auth-anonymous {
+  margin: 1.5rem 0 0;
+  color: #53616a;
+}
+
+.auth-anonymous a {
+  color: #0b5967;
+  font-weight: 700;
+}
+
 .tickets-page {
   width: min(56rem, calc(100% - 2rem));
   padding-top: clamp(2rem, 6vw, 4rem);
@@ -426,6 +472,11 @@ footer p {
   }
 
   .form-page {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .auth-page {
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }

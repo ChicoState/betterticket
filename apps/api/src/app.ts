@@ -48,8 +48,12 @@ export function buildApp({ authRepository, ticketRepository, logger = true }: Bu
       "statusCode" in error &&
       error.statusCode === 429
     ) {
+      const isRegistration = request.method === "POST" && request.routeOptions.url === "/api/users";
       return reply.status(429).send({
-        error: { code: "RATE_LIMITED", message: "Too many login attempts" }
+        error: {
+          code: "RATE_LIMITED",
+          message: isRegistration ? "Too many account-creation attempts" : "Too many login attempts"
+        }
       });
     }
 

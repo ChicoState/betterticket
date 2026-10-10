@@ -22,7 +22,21 @@ describe("App", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("shows the submitted tickets on the homepage", async () => {
+  it("shows the account gateway on the homepage", () => {
+    render(<App />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Get help your way." })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Continue anonymously" })).toHaveAttribute(
+      "href",
+      "/tickets"
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("shows the submitted tickets at /tickets", async () => {
+    window.history.pushState({}, "", "/tickets");
     render(<App />);
 
     expect(
@@ -71,7 +85,7 @@ describe("App", () => {
       await screen.findByRole("heading", { level: 1, name: "Laptop will not start" })
     ).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith("/api/tickets/cc04d84c-9aee-4d35-8af3-999d861aaed6");
-    expect(screen.getByRole("link", { name: "← All tickets" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "← All tickets" })).toHaveAttribute("href", "/tickets");
     expect(screen.getByRole("link", { name: "Tickets" })).not.toHaveAttribute("aria-current");
   });
 });

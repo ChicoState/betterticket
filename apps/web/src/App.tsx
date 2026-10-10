@@ -1,18 +1,22 @@
 import { useEffect } from "react";
 
+import { AuthGateway } from "./auth/AuthGateway.js";
 import { TicketDetail } from "./tickets/TicketDetail.js";
 import { TicketForm } from "./tickets/TicketForm.js";
 import { TicketList } from "./tickets/TicketList.js";
 
 const newTicketPath = "/new";
+const ticketListPath = "/tickets";
 
 const pageTitles = {
+  login: "Welcome",
   list: "Tickets",
   new: "Create a ticket",
   ticket: "Ticket details"
 };
 
-type Page = { type: "list" } | { type: "new" } | { type: "ticket"; ticketId: string };
+type Page =
+  { type: "login" } | { type: "list" } | { type: "new" } | { type: "ticket"; ticketId: string };
 
 function readPage(pathname: string): Page {
   const path = pathname.replace(/\/+$/, "");
@@ -22,7 +26,11 @@ function readPage(pathname: string): Page {
     return { type: "ticket", ticketId: decodeTicketId(ticketId) };
   }
 
-  return path === newTicketPath ? { type: "new" } : { type: "list" };
+  if (path === ticketListPath) {
+    return { type: "list" };
+  }
+
+  return path === newTicketPath ? { type: "new" } : { type: "login" };
 }
 
 function decodeTicketId(ticketId: string): string {
@@ -52,7 +60,7 @@ export function App() {
         </a>
 
         <nav className="site-nav" aria-label="Main">
-          <a href="/" aria-current={page.type === "list" ? "page" : undefined}>
+          <a href={ticketListPath} aria-current={page.type === "list" ? "page" : undefined}>
             Tickets
           </a>
           <a href={newTicketPath} aria-current={isNewTicketPage ? "page" : undefined}>
@@ -63,7 +71,7 @@ export function App() {
 
       {page.type === "ticket" ? (
         <main className="tickets-page">
-          <a className="back-link" href="/">
+          <a className="back-link" href={ticketListPath}>
             ← All tickets
           </a>
 
@@ -84,7 +92,7 @@ export function App() {
             <TicketForm />
           </section>
         </main>
-      ) : (
+      ) : page.type === "list" ? (
         <main className="tickets-page">
           <section className="tickets-intro" aria-labelledby="page-title">
             <div>
@@ -99,6 +107,8 @@ export function App() {
 
           <TicketList />
         </main>
+      ) : (
+        <AuthGateway onAuthenticated={() => window.location.assign(ticketListPath)} />
       )}
 
       <footer>

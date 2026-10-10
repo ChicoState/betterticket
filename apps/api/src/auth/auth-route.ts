@@ -4,11 +4,13 @@ import {
   authenticatedUserResponseSchema,
   loginBodySchema,
   normalizeUsername,
+  registrationBodySchema,
   sessionCookieName,
   sessionMaxAgeSeconds,
   type ApiError,
   type AuthenticatedUser,
-  type LoginInput
+  type LoginInput,
+  type RegisterUserInput
 } from "./auth-contract.js";
 import type { AuthRepository } from "./auth-repository.js";
 import { apiErrorResponseSchema } from "../tickets/ticket-contract.js";
@@ -62,6 +64,34 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
         .setCookie(sessionCookieName, session.token, sessionCookieOptions())
         .status(200)
         .send(session.user);
+    }
+  );
+
+  app.post<{ Body: RegisterUserInput; Reply: AuthenticatedUser | ApiError }>(
+    "/api/users",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      schema: {
+        body: registrationBodySchema,
+        response: {
+          201: authenticatedUserResponseSchema,
+          400: apiErrorResponseSchema,
+          409: apiErrorResponseSchema,
+          429: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const user = await authRepository.createUser({ ...request.body, role: "USER" });
+
+      if (!user) {
+        return reply.status(409).send({
+          error: { code: "USERNAME_UNAVAILABLE", message: "That username is unavailable" }
+        });
+      }
+
+      return reply.status(201).send(user);
     }
   );
 

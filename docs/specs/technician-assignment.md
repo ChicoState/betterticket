@@ -2,7 +2,7 @@
 
 ## Objective
 
-Deliver issue #13 as a minimal authenticated backend workflow. A provisioned user can log in,
+Deliver issue #13 as a minimal authenticated backend workflow. A registered or provisioned user can log in,
 and a user whose database role is `TECHNICIAN` can assign, reassign, or unassign one technician
 from a ticket without changing the ticket's status.
 
@@ -32,7 +32,8 @@ from a ticket without changing the ticket's status.
 ## Provisioning
 
 `pnpm user:create` interactively requests name, username, password, and role. It uses the same
-Argon2id hashing implementation as login and is the only account-creation mechanism in this MVP.
+Argon2id hashing implementation as login and remains the only technician-account creation mechanism.
+Public regular-user registration is defined by ADR-004.
 
 ## Tech Stack and Structure
 
@@ -63,7 +64,7 @@ docker compose --profile tools run --rm toolchain pnpm coverage
 
 - Always: validate HTTP and CLI input, hash passwords, store only session-token hashes, use
   parameterized Drizzle queries, and update `updatedAt` when assignment changes.
-- Ask first: add public registration, password reset, role management, ticket ownership, or
+- Ask first: add password reset, role management, ticket ownership, or
   authenticated user ticket-reading behavior.
 - Never: accept a role or caller id as proof of authorization, expose password hashes, log
   passwords/session tokens, or commit provisioned credentials.
@@ -78,6 +79,6 @@ docker compose --profile tools run --rm toolchain pnpm coverage
 
 ## Excluded from MVP
 
-Registration, password reset, account management, admin roles, multiple assignees, notifications,
+Password reset, account management, admin roles, multiple assignees, notifications,
 advanced ticket workflow, frontend technician screens, and user-visible ticket reading are out of
 scope.

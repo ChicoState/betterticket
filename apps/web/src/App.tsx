@@ -43,6 +43,7 @@ function decodeTicketId(ticketId: string): string {
 
 export function App() {
   const page = readPage(window.location.pathname);
+  const isLoginPage = page.type === "login";
   const isNewTicketPage = page.type === "new";
 
   useEffect(() => {
@@ -59,14 +60,16 @@ export function App() {
           <span>BetterTicket</span>
         </a>
 
-        <nav className="site-nav" aria-label="Main">
-          <a href={ticketListPath} aria-current={page.type === "list" ? "page" : undefined}>
-            Tickets
-          </a>
-          <a href={newTicketPath} aria-current={isNewTicketPage ? "page" : undefined}>
-            New ticket
-          </a>
-        </nav>
+        {isLoginPage ? null : (
+          <nav className="site-nav" aria-label="Main">
+            <a href={ticketListPath} aria-current={page.type === "list" ? "page" : undefined}>
+              Tickets
+            </a>
+            <a href={newTicketPath} aria-current={isNewTicketPage ? "page" : undefined}>
+              New ticket
+            </a>
+          </nav>
+        )}
       </header>
 
       {page.type === "ticket" ? (

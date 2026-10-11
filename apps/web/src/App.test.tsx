@@ -32,6 +32,8 @@ describe("App", () => {
       "href",
       "/tickets"
     );
+    expect(screen.queryByRole("link", { name: "Tickets" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "New ticket" })).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -43,6 +45,7 @@ describe("App", () => {
       screen.getByRole("heading", { level: 1, name: "Submitted tickets" })
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tickets" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "New ticket" })).toHaveAttribute("href", "/new");
     expect(await screen.findByText("No tickets have been submitted yet.")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith("/api/tickets");
   });
@@ -56,6 +59,7 @@ describe("App", () => {
       "aria-current",
       "page"
     );
+    expect(screen.getByRole("link", { name: "Tickets" })).toHaveAttribute("href", "/tickets");
     expect(fetch).not.toHaveBeenCalled();
   });
 

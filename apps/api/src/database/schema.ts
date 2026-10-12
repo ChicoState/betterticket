@@ -1,4 +1,13 @@
-import { boolean, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  varchar
+} from "drizzle-orm/pg-core";
 
 export const ticketStatus = pgEnum("ticket_status", ["OPEN"]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);

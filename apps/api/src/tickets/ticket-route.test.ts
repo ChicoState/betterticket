@@ -613,6 +613,7 @@ describe("ticket replies", () => {
     additionalInformation: null,
     status: "OPEN",
     assignedTechnicianId: null,
+    createdByName: null,
     createdAt: new Date("2026-09-28T18:00:00.000Z"),
     updatedAt: new Date("2026-09-28T18:00:00.000Z")
   };

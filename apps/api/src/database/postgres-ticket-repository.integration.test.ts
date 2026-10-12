@@ -14,6 +14,7 @@ const { database, close } = createDatabase(databaseUrl);
 
 describe("PostgresTicketRepository", () => {
   beforeEach(async () => {
+    await database.delete(ticketReplies);
     await database.delete(tickets);
     await database.delete(sessions);
     await database.delete(users);

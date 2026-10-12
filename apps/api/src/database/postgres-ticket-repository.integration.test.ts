@@ -108,6 +108,8 @@ describe("PostgresTicketRepository", () => {
     expect(anonymous.createdByName).toBeNull();
     expect((await repository.findById(anonymous.id))?.createdByName).toBeNull();
     expect(storedTickets.map((ticket) => ticket.creatorUserId)).toEqual([user!.id, user!.id]);
+  });
+
   it("persists a reply and lists a ticket's most recent replies oldest first", async () => {
     const repository = new PostgresTicketRepository(database);
     const input = { title: "Title", description: "Description", setup: "Setup" };

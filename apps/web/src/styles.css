@@ -416,6 +416,8 @@ main {
 
 .checkbox-field .field-hint {
   grid-column: 2;
+}
+
 .replies {
   margin-top: 2.5rem;
 }

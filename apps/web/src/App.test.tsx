@@ -105,25 +105,12 @@ describe("App", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      createdByName: null,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
-            title: "Laptop will not start",
-            description: "The power light flashes once.",
-            setup: "Framework Laptop 13, Fedora 42",
-            additionalInformation: null,
-            status: "OPEN",
-            createdByName: null,
-            createdAt: "2026-09-28T18:00:00.000Z",
-            updatedAt: "2026-09-28T18:00:00.000Z"
-          }),
-          { status: 200, headers: { "content-type": "application/json" } }
       vi.fn((url: string) =>
         Promise.resolve(
           new Response(JSON.stringify(url.endsWith("/replies") ? { replies: [] } : ticket), {

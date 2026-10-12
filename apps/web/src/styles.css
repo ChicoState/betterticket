@@ -402,6 +402,22 @@ main {
   margin: 0.25rem 0 0;
 }
 
+.checkbox-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  align-items: center;
+}
+
+.checkbox-field input {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checkbox-field .field-hint {
+  grid-column: 2;
+}
+
 .intro {
   align-self: start;
   position: sticky;

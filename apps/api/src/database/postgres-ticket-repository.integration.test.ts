@@ -32,7 +32,7 @@ describe("PostgresTicketRepository", () => {
 
     const storedTickets = await database.select().from(tickets);
 
-    expect(storedTickets).toEqual([created]);
+    expect(storedTickets).toHaveLength(1);
     expect(created).toMatchObject({
       title: "Laptop will not start",
       description: "The power light flashes once.",
@@ -82,6 +82,34 @@ describe("PostgresTicketRepository", () => {
     expect(await repository.findById("00000000-0000-4000-8000-000000000000")).toBeNull();
   });
 
+  it("returns an attributed creator name unless the ticket was posted anonymously", async () => {
+    const [user] = await database
+      .insert(users)
+      .values({
+        name: "Uma User",
+        username: "uma",
+        passwordHash: "not-used",
+        role: "USER"
+      })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = {
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42"
+    };
+
+    const attributed = await repository.create(input, user!);
+    const anonymous = await repository.create({ ...input, postAnonymously: true }, user!);
+    const storedTickets = await database.select().from(tickets);
+
+    expect(attributed.createdByName).toBe("Uma User");
+    expect((await repository.findById(attributed.id))?.createdByName).toBe("Uma User");
+    expect(anonymous.createdByName).toBeNull();
+    expect((await repository.findById(anonymous.id))?.createdByName).toBeNull();
+    expect(storedTickets.map((ticket) => ticket.creatorUserId)).toEqual([user!.id, user!.id]);
+  });
+
   it("assigns, reassigns, and unassigns technicians without changing status", async () => {
     const [firstTechnician, secondTechnician] = await database
       .insert(users)
@@ -101,11 +129,14 @@ describe("PostgresTicketRepository", () => {
       ])
       .returning();
     const repository = new PostgresTicketRepository(database);
-    const created = await repository.create({
-      title: "Laptop will not start",
-      description: "The power light flashes once.",
-      setup: "Framework Laptop 13, Fedora 42"
-    });
+    const created = await repository.create(
+      {
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42"
+      },
+      firstTechnician!
+    );
 
     const assigned = await repository.assignTechnician(created.id, firstTechnician!.id);
     const reassigned = await repository.assignTechnician(created.id, secondTechnician!.id);
@@ -121,7 +152,11 @@ describe("PostgresTicketRepository", () => {
     });
     expect(unassigned).toMatchObject({
       type: "updated",
-      ticket: { assignedTechnicianId: null, status: "OPEN" }
+      ticket: {
+        assignedTechnicianId: null,
+        createdByName: "First Technician",
+        status: "OPEN"
+      }
     });
   });
 

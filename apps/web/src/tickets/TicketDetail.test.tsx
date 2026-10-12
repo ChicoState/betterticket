@@ -12,6 +12,7 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
 };
@@ -45,6 +46,7 @@ describe("TicketDetail", () => {
     expect(screen.getByText("The power light flashes once.")).toBeInTheDocument();
     expect(screen.getByText("Framework Laptop 13, Fedora 42")).toBeInTheDocument();
     expect(screen.getByText("Started after an update.")).toBeInTheDocument();
+    expect(screen.getByText(/Created by Uma User/)).toBeInTheDocument();
     expect(document.querySelector("time")).toHaveAttribute("datetime", "2026-09-28T18:00:00.000Z");
   });
 

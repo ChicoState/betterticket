@@ -12,7 +12,7 @@ Let any visitor see the tickets that have been submitted and open any one of the
 { "tickets": [] }
 ```
 
-Each entry has the same shape as the `POST /api/tickets` response: UUID, `title`, `description`, `setup`, `additionalInformation` (string or `null`), `status`, and ISO-8601 `createdAt`/`updatedAt`. Tickets are ordered newest first by creation time and limited to the 100 most recent. Unexpected failures return `500` with the stable error object and no database details.
+Each entry has the same shape as the `POST /api/tickets` response: UUID, `title`, `description`, `setup`, `additionalInformation` (string or `null`), `status`, `createdByName` (string or `null`), and ISO-8601 `createdAt`/`updatedAt`. A null creator name is displayed as `Anonymous`; usernames, user IDs, and private anonymous attribution are never public. Tickets are ordered newest first by creation time and limited to the 100 most recent. Unexpected failures return `500` with the stable error object and no database details.
 
 `GET /api/tickets/:id` returns `200` with a single ticket in that same shape. An ID that is not a UUID returns `400` with the `VALIDATION_ERROR` object and is never sent to the database. A well-formed ID with no ticket returns `404` with:
 
@@ -26,8 +26,8 @@ The `500` error message for all ticket routes is now `The ticket request could n
 
 ## Pages
 
-- `/tickets`: ticket list with loading, empty, error-with-retry, and populated states. Each ticket shows its title as a link to its own page, status, short reference, submission time, and the first lines of its description.
-- `/tickets/:id`: one ticket with its title, status, short reference, submission time, description, setup, and additional information when present. It has loading, not-found, and error-with-retry states and a link back to the list. Both `400` and `404` responses show the not-found state.
+- `/tickets`: ticket list with loading, empty, error-with-retry, and populated states. Each ticket shows its title as a link to its own page, status, short reference, submission time, creator label, and the first lines of its description.
+- `/tickets/:id`: one ticket with its title, status, short reference, submission time, creator label, description, setup, and additional information when present. It has loading, not-found, and error-with-retry states and a link back to the list. Both `400` and `404` responses show the not-found state.
 - `/new`: the existing ticket form. Its confirmation links to the new ticket's page.
 
 Navigation uses plain links and the browser path; no routing dependency is added.

@@ -15,6 +15,13 @@
       "when": 1791227845172,
       "tag": "0001_technician_assignment_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791840327468,
+      "tag": "0002_motionless_black_bird",
+      "breakpoints": true
     }
   ]
 }

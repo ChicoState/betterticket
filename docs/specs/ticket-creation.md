@@ -2,7 +2,7 @@
 
 ## Objective
 
-Deliver issue #30 as the first BetterTicket product slice. An anonymous visitor can describe a problem, submit it, and receive confirmation only after the ticket has been stored in PostgreSQL.
+Deliver issue #30 as the first BetterTicket product slice. An anonymous visitor can describe a problem, submit it, and receive confirmation only after the ticket has been stored in PostgreSQL. A signed-in visitor can publish under their display name or choose to post anonymously.
 
 ## Contract
 
@@ -12,8 +12,9 @@ Deliver issue #30 as the first BetterTicket product slice. An anonymous visitor 
 - `description`: required, trimmed, 1–5,000 characters.
 - `setup`: required, trimmed, 1–3,000 characters.
 - `additionalInformation`: optional, trimmed, at most 3,000 characters.
+- `postAnonymously`: optional boolean; when true, a signed-in creator is retained privately but is not publicly identified.
 
-Unknown fields are rejected. A successful response is `201` and contains the stored ticket's UUID, submitted fields, `OPEN` status, and ISO-8601 creation/update timestamps. Invalid requests return `400` with a stable error object and are not persisted.
+Unknown fields are rejected. A successful response is `201` and contains the stored ticket's UUID, submitted fields, `OPEN` status, nullable `createdByName`, and ISO-8601 creation/update timestamps. The server derives creator attribution only from the session; a client cannot submit a creator identity. Invalid requests return `400` with a stable error object and are not persisted.
 
 ## Tech Stack and Structure
 
@@ -59,6 +60,7 @@ export interface CreateTicketInput {
 ## Success Criteria
 
 - A visitor can submit the four approved fields without signing in.
+- A signed-in visitor can choose whether their display name or `Anonymous` appears publicly.
 - The ticket is stored in PostgreSQL with server-generated ID, status, and timestamps.
 - Invalid or oversized input is rejected without a database write.
 - The UI is keyboard accessible and reports submission success or failure.

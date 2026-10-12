@@ -1,10 +1,11 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, getTableColumns } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { tickets, users } from "./schema.js";
 import type {
   AssignmentResult,
   CreateTicketInput,
+  TicketCreator,
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
@@ -12,14 +13,19 @@ import type {
 export class PostgresTicketRepository implements TicketRepository {
   constructor(private readonly database: NodePgDatabase) {}
 
-  async create(input: CreateTicketInput): Promise<TicketRecord> {
+  async create(
+    input: CreateTicketInput,
+    creator: TicketCreator | null = null
+  ): Promise<TicketRecord> {
     const [ticket] = await this.database
       .insert(tickets)
       .values({
         title: input.title,
         description: input.description,
         setup: input.setup,
-        additionalInformation: input.additionalInformation
+        additionalInformation: input.additionalInformation,
+        creatorUserId: creator?.id,
+        isAnonymous: input.postAnonymously ?? false
       })
       .returning();
 
@@ -27,21 +33,32 @@ export class PostgresTicketRepository implements TicketRepository {
       throw new Error("Ticket insert did not return a row");
     }
 
-    return ticket;
+    return {
+      ...ticket,
+      createdByName: input.postAnonymously ? null : (creator?.name ?? null)
+    };
   }
 
   async listRecent(limit: number): Promise<TicketRecord[]> {
-    return this.database
-      .select()
+    const results = await this.database
+      .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)
+      .leftJoin(users, eq(tickets.creatorUserId, users.id))
       .orderBy(desc(tickets.createdAt), desc(tickets.id))
       .limit(limit);
+
+    return results.map(toTicketRecord);
   }
 
   async findById(id: string): Promise<TicketRecord | null> {
-    const [ticket] = await this.database.select().from(tickets).where(eq(tickets.id, id)).limit(1);
+    const [ticket] = await this.database
+      .select({ ...getTableColumns(tickets), creatorName: users.name })
+      .from(tickets)
+      .leftJoin(users, eq(tickets.creatorUserId, users.id))
+      .where(eq(tickets.id, id))
+      .limit(1);
 
-    return ticket ?? null;
+    return ticket ? toTicketRecord(ticket) : null;
   }
 
   async assignTechnician(
@@ -65,6 +82,26 @@ export class PostgresTicketRepository implements TicketRepository {
       .where(eq(tickets.id, ticketId))
       .returning();
 
-    return ticket ? { type: "updated", ticket } : { type: "ticket-not-found" };
+    if (!ticket) {
+      return { type: "ticket-not-found" };
+    }
+
+    const updatedTicket = await this.findById(ticketId);
+    if (!updatedTicket) {
+      throw new Error("Ticket update could not be read");
+    }
+
+    return { type: "updated", ticket: updatedTicket };
   }
+}
+
+function toTicketRecord(
+  ticket: typeof tickets.$inferSelect & { creatorName: string | null }
+): TicketRecord {
+  const { creatorName, ...ticketRecord } = ticket;
+
+  return {
+    ...ticketRecord,
+    createdByName: ticket.isAnonymous ? null : creatorName
+  };
 }

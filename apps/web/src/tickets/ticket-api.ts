@@ -3,6 +3,7 @@ export interface CreateTicketInput {
   description: string;
   setup: string;
   additionalInformation?: string;
+  postAnonymously?: boolean;
 }
 
 export interface CreatedTicket {
@@ -41,6 +42,7 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: string;
+  createdByName: string | null;
   createdAt: string;
 }
 
@@ -58,6 +60,7 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     typeof ticket.status === "string" &&
+    (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string"
   );
 }

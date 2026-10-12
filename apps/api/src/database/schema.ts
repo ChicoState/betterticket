@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 export const ticketStatus = pgEnum("ticket_status", ["OPEN"]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
@@ -26,6 +26,8 @@ export const tickets = pgTable("tickets", {
   setup: text().notNull(),
   additionalInformation: text("additional_information"),
   status: ticketStatus().default("OPEN").notNull(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  isAnonymous: boolean("is_anonymous").default(false).notNull(),
   assignedTechnicianId: uuid("assigned_technician_id").references(() => users.id, {
     onDelete: "set null"
   }),

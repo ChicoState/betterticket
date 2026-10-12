@@ -135,7 +135,7 @@ export function App() {
           </section>
 
           <section className="form-panel" aria-label="Create a support ticket">
-            <TicketForm />
+            <TicketForm currentUser={session?.type === "authenticated" ? session.user : null} />
           </section>
         </main>
       ) : page.type === "list" ? (

@@ -7,6 +7,11 @@
     "node": ">=24.21.0 <25",
     "pnpm": ">=10.34.5 <11"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2"
+    ]
+  },
   "scripts": {
     "build": "pnpm --recursive --if-present build",
     "dev": "pnpm --parallel --filter @betterticket/api --filter @betterticket/web dev",
@@ -19,6 +24,7 @@
     "test": "vitest run --passWithNoTests && pnpm --recursive --if-present test",
     "coverage": "vitest run --coverage --passWithNoTests && pnpm --recursive --if-present coverage",
     "test:smoke": "bash scripts/smoke.sh",
+    "user:create": "pnpm --filter @betterticket/api user:create",
     "docker:up": "docker compose up --detach postgres object-storage",
     "docker:down": "docker compose down"
   },

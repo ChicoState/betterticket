@@ -22,8 +22,17 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  assignedTechnicianId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TicketAssignmentParams {
+  ticketId: string;
+}
+
+export interface AssignTechnicianInput {
+  assignedTechnicianId: string | null;
 }
 
 const requiredText = (maxLength: number) => ({
@@ -55,6 +64,7 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "assignedTechnicianId",
     "createdAt",
     "updatedAt"
   ],
@@ -65,6 +75,7 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" }
   }
@@ -102,12 +113,81 @@ export const ticketParamsSchema = {
   }
 } as const;
 
+export interface CreateReplyInput {
+  body: string;
+}
+
+export interface Reply {
+  id: string;
+  ticketId: string;
+  body: string;
+  createdAt: string;
+}
+
+export const createReplyBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["body"],
+  properties: {
+    body: requiredText(5_000)
+  }
+} as const;
+
+export const replyResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "ticketId", "body", "createdAt"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    ticketId: { type: "string", format: "uuid" },
+    body: { type: "string" },
+    createdAt: { type: "string", format: "date-time" }
+  }
+} as const;
+
+export const replyListLimit = 200;
+
+export interface ReplyList {
+  replies: Reply[];
+}
+
+export const replyListResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["replies"],
+  properties: {
+    replies: {
+      type: "array",
+      maxItems: replyListLimit,
+      items: replyResponseSchema
+    }
+  }
+} as const;
+
 export interface ApiError {
   error: {
     code: string;
     message: string;
   };
 }
+
+export const ticketAssignmentParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ticketId"],
+  properties: {
+    ticketId: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const assignTechnicianBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["assignedTechnicianId"],
+  properties: {
+    assignedTechnicianId: { type: ["string", "null"], format: "uuid" }
+  }
+} as const;
 
 export const apiErrorResponseSchema = {
   type: "object",

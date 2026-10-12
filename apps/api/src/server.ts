@@ -1,5 +1,6 @@
 import { buildApp } from "./app.js";
 import { createDatabase } from "./database/client.js";
+import { PostgresAuthRepository } from "./database/postgres-auth-repository.js";
 import { PostgresTicketRepository } from "./database/postgres-ticket-repository.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -10,6 +11,7 @@ if (!databaseUrl) {
 
 const { database, close } = createDatabase(databaseUrl);
 const app = buildApp({
+  authRepository: new PostgresAuthRepository(database),
   ticketRepository: new PostgresTicketRepository(database)
 });
 

@@ -10,9 +10,13 @@
     "db:migrate": "drizzle-kit migrate",
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "user:create": "tsx src/auth/create-user.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/rate-limit": "^11.2.0",
+    "argon2": "^0.44.0",
     "drizzle-orm": "^0.45.2",
     "fastify": "catalog:",
     "pg": "^8.0.0"

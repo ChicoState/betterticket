@@ -10,6 +10,8 @@ from a ticket without changing the ticket's status.
 
 - `POST /api/sessions` accepts `username` and `password`, creates a server-side session, sets an
   HttpOnly cookie, and returns the authenticated user's id, name, username, and role.
+- `GET /api/sessions/current` returns that safe user response for a valid session and otherwise
+  returns `401 AUTHENTICATION_REQUIRED` after clearing any stale session cookie.
 - `DELETE /api/sessions/current` revokes the presented session and clears its cookie.
 - `PATCH /api/tickets/:ticketId/assignment` accepts `assignedTechnicianId`, which is either a user
   UUID or `null`, and returns the updated ticket.

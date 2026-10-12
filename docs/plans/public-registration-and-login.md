@@ -6,6 +6,8 @@
       duplicate conflict response, and a five-attempt-per-minute rate limit.
 - [x] Build an accessible account gateway at `/`; move the anonymous list to `/tickets`; preserve
       `/new` and `/tickets/:id`.
+- [x] Add a current-session account menu with anonymous/sign-in and authenticated/logout states;
+      logout revokes the server session and replaces the current browser entry with `/`.
 - [x] Add API/component regression tests and update product documentation.
 
 ## Verification

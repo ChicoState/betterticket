@@ -1,6 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { AccountMenu, type AccountSession } from "./auth/AccountMenu.js";
 import { AuthGateway } from "./auth/AuthGateway.js";
+import { getCurrentUser, logout } from "./auth/auth-api.js";
 import { TicketDetail } from "./tickets/TicketDetail.js";
 import { TicketForm } from "./tickets/TicketForm.js";
 import { TicketList } from "./tickets/TicketList.js";
@@ -43,12 +45,50 @@ function decodeTicketId(ticketId: string): string {
 
 export function App() {
   const page = readPage(window.location.pathname);
+  const [, refreshLocation] = useState(0);
+  const [session, setSession] = useState<AccountSession | null>(null);
   const isLoginPage = page.type === "login";
   const isNewTicketPage = page.type === "new";
 
   useEffect(() => {
+    let ignore = false;
+
+    async function refreshSession() {
+      setSession(null);
+
+      try {
+        const user = await getCurrentUser();
+        if (!ignore) {
+          setSession(user ? { type: "authenticated", user } : { type: "anonymous" });
+        }
+      } catch {
+        // Avoid presenting an anonymous status when the server could not verify the session.
+      }
+    }
+
+    void refreshSession();
+    window.addEventListener("pageshow", refreshSession);
+    return () => {
+      ignore = true;
+      window.removeEventListener("pageshow", refreshSession);
+    };
+  }, []);
+
+  useEffect(() => {
     document.title = `${pageTitles[page.type]} | BetterTicket`;
   }, [page.type]);
+
+  useEffect(() => {
+    if (page.type === "login" && session?.type === "authenticated") {
+      window.history.replaceState({}, "", ticketListPath);
+      refreshLocation((current) => current + 1);
+    }
+  }, [page.type, session]);
+
+  async function handleLogout() {
+    await logout();
+    window.location.replace("/");
+  }
 
   return (
     <>
@@ -61,14 +101,17 @@ export function App() {
         </a>
 
         {isLoginPage ? null : (
-          <nav className="site-nav" aria-label="Main">
-            <a href={ticketListPath} aria-current={page.type === "list" ? "page" : undefined}>
-              Tickets
-            </a>
-            <a href={newTicketPath} aria-current={isNewTicketPage ? "page" : undefined}>
-              New ticket
-            </a>
-          </nav>
+          <div className="header-actions">
+            <nav className="site-nav" aria-label="Main">
+              <a href={ticketListPath} aria-current={page.type === "list" ? "page" : undefined}>
+                Tickets
+              </a>
+              <a href={newTicketPath} aria-current={isNewTicketPage ? "page" : undefined}>
+                New ticket
+              </a>
+            </nav>
+            {session ? <AccountMenu session={session} onLogout={handleLogout} /> : null}
+          </div>
         )}
       </header>
 

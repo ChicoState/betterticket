@@ -98,6 +98,48 @@ describe("session routes", () => {
     expect(response.body).not.toContain("password");
   });
 
+  it("returns the current user for a valid session", async () => {
+    const authRepository = new FakeAuthRepository();
+    authRepository.sessions.set("test-session-token", technician);
+    const app = buildApp({
+      authRepository,
+      ticketRepository: unusedTicketRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/sessions/current",
+      headers: { cookie: "betterticket_session=test-session-token" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(technician);
+  });
+
+  it("treats a missing or revoked session as anonymous", async () => {
+    const app = buildApp({
+      authRepository: new FakeAuthRepository(),
+      ticketRepository: unusedTicketRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/sessions/current",
+      headers: { cookie: "betterticket_session=revoked-session" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+    });
+    expect(response.headers["set-cookie"]).toContain("betterticket_session=");
+    expect(response.headers["set-cookie"]).toContain("Max-Age=0");
+  });
+
   it("returns the same generic error for invalid credentials", async () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),

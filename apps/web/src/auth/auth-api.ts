@@ -68,3 +68,28 @@ export function login(input: LoginInput): Promise<AuthenticatedUser> {
 export function register(input: RegistrationInput): Promise<AuthenticatedUser> {
   return requestUser("/api/users", input);
 }
+
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  const response = await fetch("/api/sessions/current");
+
+  if (response.status === 401) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new AuthApiError("We couldn't check your account status. Please try again.");
+  }
+
+  const body: unknown = await response.json();
+  if (!isAuthenticatedUser(body)) {
+    throw new AuthApiError("We couldn't check your account status. Please try again.");
+  }
+
+  return body;
+}
+
+export async function logout(): Promise<void> {
+  const response = await fetch("/api/sessions/current", { method: "DELETE" });
+  if (!response.ok) {
+    throw new AuthApiError("We couldn't log you out. Please try again.");
+  }
+}

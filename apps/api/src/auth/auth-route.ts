@@ -33,6 +33,34 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = async (
   app,
   { authRepository }
 ) => {
+  app.get<{ Reply: AuthenticatedUser | ApiError }>(
+    "/api/sessions/current",
+    {
+      schema: {
+        response: {
+          200: authenticatedUserResponseSchema,
+          401: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
+
+      if (!user) {
+        return reply
+          .clearCookie(sessionCookieName, sessionCookieOptions())
+          .status(401)
+          .send({
+            error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+          });
+      }
+
+      return reply.status(200).send(user);
+    }
+  );
+
   app.post<{ Body: LoginInput; Reply: AuthenticatedUser | ApiError }>(
     "/api/sessions",
     {

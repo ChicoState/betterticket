@@ -46,7 +46,7 @@ Unchanged from [ticket creation](ticket-creation.md). The read routes, repositor
 
 - Always: render ticket text through React, keep the response bounded, and keep database errors out of responses.
 - Ask first: add authentication, pagination, filtering, or workflow transitions.
-- Never: add write access through the viewer or expose fields that are not in the ticket contract.
+- Never: add write access through the viewer or expose fields that are not in the ticket contract. The reply form on the ticket page is the one exception and is specified in [ticket replies](ticket-replies.md).
 
 ## Success Criteria
 

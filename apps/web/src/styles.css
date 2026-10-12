@@ -258,6 +258,48 @@ main {
   margin: 0.25rem 0 0;
 }
 
+.replies {
+  margin-top: 2.5rem;
+}
+
+.replies h2 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.reply-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reply {
+  border-left: 0.25rem solid #9aa6aa;
+  background: #ffffff;
+  padding: 1rem 1.25rem;
+}
+
+.reply .ticket-meta {
+  margin: 0;
+}
+
+.reply .ticket-text {
+  margin-top: 0.5rem;
+}
+
+.reply-form {
+  margin-top: 1.5rem;
+  background: #ffffff;
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.reply-form legend {
+  margin-bottom: 1rem;
+}
+
 .intro {
   align-self: start;
   position: sticky;

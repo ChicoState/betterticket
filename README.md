@@ -1,19 +1,19 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation and viewing through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, users, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, replies, users, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
-| Location                    | Purpose                                                              |
-| --------------------------- | -------------------------------------------------------------------- |
-| `apps/web`                  | React/Vite ticket list and creation frontend with component tests.   |
-| `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.      |
-| `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services. |
-| `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                |
-| `.github/workflows/`        | Pull-request checks and scheduled CodeQL analysis.                   |
-| `.agents/skills/`           | Repository-specific Codex skills.                                    |
-| `docs/`                     | Product specs, implementation plans, and architecture decisions.     |
-| `infrastructure_plan.md`    | Approved infrastructure decisions and deferred product decisions.    |
+| Location                    | Purpose                                                               |
+| --------------------------- | --------------------------------------------------------------------- |
+| `apps/web`                  | React/Vite ticket, reply, and creation frontend with component tests. |
+| `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.       |
+| `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services.  |
+| `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                 |
+| `.github/workflows/`        | Pull-request checks and scheduled CodeQL analysis.                    |
+| `.agents/skills/`           | Repository-specific Codex skills.                                     |
+| `docs/`                     | Product specs, implementation plans, and architecture decisions.      |
+| `infrastructure_plan.md`    | Approved infrastructure decisions and deferred product decisions.     |
 
 ## Getting started
 
@@ -73,6 +73,10 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 ## Ticket viewer baseline
 
 The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
+
+## Ticket replies baseline
+
+Each ticket page shows its replies, oldest first, with a form for adding one without signing in. `GET /api/tickets/:id/replies` returns the ticket's 200 most recent replies as `{ "replies": [...] }`, and `POST /api/tickets/:id/replies` stores a `{ "body": "..." }` reply of up to 5,000 characters. Replies are anonymous and public: they carry no author or role, so a submitter's reply and a technician's look the same until replies are tied to accounts. See [the feature spec](docs/specs/ticket-replies.md) and [ADR-004](docs/decisions/004-anonymous-ticket-replies.md) for scope and rationale.
 
 ## Technician assignment MVP
 

@@ -24,6 +24,12 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function ticketFetch(ticketBody: unknown) {
+  return vi.fn((url: string) =>
+    Promise.resolve(jsonResponse(url.endsWith("/replies") ? { replies: [] } : ticketBody))
+  );
+}
+
 describe("TicketDetail", () => {
   afterEach(() => {
     cleanup();
@@ -31,7 +37,7 @@ describe("TicketDetail", () => {
   });
 
   it("shows a loading status and then every ticket field", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(ticket));
+    const fetchMock = ticketFetch(ticket);
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketDetail ticketId={ticketId} />);
 
@@ -50,11 +56,19 @@ describe("TicketDetail", () => {
     expect(document.querySelector("time")).toHaveAttribute("datetime", "2026-09-28T18:00:00.000Z");
   });
 
+  it("shows the ticket's replies and reply form below the ticket", async () => {
+    const fetchMock = ticketFetch(ticket);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} />);
+
+    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
   it("omits additional information when none was submitted", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(jsonResponse({ ...ticket, additionalInformation: null }))
-    );
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, additionalInformation: null }));
     render(<TicketDetail ticketId={ticketId} />);
 
     await screen.findByRole("heading", { level: 1 });
@@ -79,6 +93,7 @@ describe("TicketDetail", () => {
       await screen.findByRole("heading", { level: 1, name: "Ticket not found" })
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Post reply" })).not.toBeInTheDocument();
   });
 
   it("shows an accessible error and retries on request", async () => {
@@ -92,7 +107,8 @@ describe("TicketDetail", () => {
           500
         )
       )
-      .mockResolvedValueOnce(jsonResponse(ticket));
+      .mockResolvedValueOnce(jsonResponse(ticket))
+      .mockResolvedValueOnce(jsonResponse({ replies: [] }));
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketDetail ticketId={ticketId} />);
 
@@ -105,6 +121,7 @@ describe("TicketDetail", () => {
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
       "Laptop will not start"
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

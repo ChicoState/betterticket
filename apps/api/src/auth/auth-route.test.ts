@@ -5,6 +5,7 @@ import type { AuthenticatedUser, CreateUserInput, LoginInput } from "./auth-cont
 import type { AuthRepository, CreatedSession } from "./auth-repository.js";
 import type {
   AssignmentResult,
+  ReplyRecord,
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
@@ -61,6 +62,12 @@ const unusedTicketRepository: TicketRepository = {
     throw new Error("not used");
   },
   findById: async (): Promise<TicketRecord | null> => {
+    throw new Error("not used");
+  },
+  createReply: async (): Promise<ReplyRecord> => {
+    throw new Error("not used");
+  },
+  listRecentReplies: async (): Promise<ReplyRecord[]> => {
     throw new Error("not used");
   },
   assignTechnician: async (): Promise<AssignmentResult> => {

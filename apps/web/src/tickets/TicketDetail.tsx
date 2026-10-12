@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { getTicket, type Ticket } from "./ticket-api.js";
 import { formatCreatedAt, formatStatus } from "./ticket-format.js";
+import { TicketReplies } from "./TicketReplies.js";
 
 type LoadState =
   | { type: "loading" }
@@ -88,19 +89,21 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
         <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time> · Created by{" "}
         {ticket.createdByName ?? "Anonymous"}
       </p>
-
       <dl>
-        <dt>What is happening</dt>
-        <dd className="ticket-text">{ticket.description}</dd>
-        <dt>Setup</dt>
-        <dd className="ticket-text">{ticket.setup}</dd>
-        {ticket.additionalInformation ? (
-          <>
-            <dt>Additional information</dt>
-            <dd className="ticket-text">{ticket.additionalInformation}</dd>
-          </>
-        ) : null}
-      </dl>
-    </article>
+          <dt>What is happening</dt>
+          <dd className="ticket-text">{ticket.description}</dd>
+          <dt>Setup</dt>
+          <dd className="ticket-text">{ticket.setup}</dd>
+          {ticket.additionalInformation ? (
+            <>
+              <dt>Additional information</dt>
+              <dd className="ticket-text">{ticket.additionalInformation}</dd>
+            </>
+          ) : null}
+        </dl>
+      </article>
+
+      <TicketReplies ticketId={ticket.id} />
+    </>
   );
 }

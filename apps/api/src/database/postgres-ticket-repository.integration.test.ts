@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
-import { sessions, tickets, users } from "./schema.js";
+import { sessions, ticketReplies, tickets, users } from "./schema.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -108,6 +108,38 @@ describe("PostgresTicketRepository", () => {
     expect(anonymous.createdByName).toBeNull();
     expect((await repository.findById(anonymous.id))?.createdByName).toBeNull();
     expect(storedTickets.map((ticket) => ticket.creatorUserId)).toEqual([user!.id, user!.id]);
+  it("persists a reply and lists a ticket's most recent replies oldest first", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const input = { title: "Title", description: "Description", setup: "Setup" };
+    const ticket = await repository.create(input);
+    const otherTicket = await repository.create(input);
+    await database.insert(ticketReplies).values([
+      { ticketId: ticket.id, body: "Second", createdAt: new Date("2026-09-28T12:00:00.000Z") },
+      { ticketId: ticket.id, body: "First", createdAt: new Date("2026-09-27T12:00:00.000Z") },
+      { ticketId: otherTicket.id, body: "Elsewhere" }
+    ]);
+
+    const created = await repository.createReply(ticket.id, "Third");
+
+    expect(created).toMatchObject({ ticketId: ticket.id, body: "Third" });
+    expect(created.createdAt).toBeInstanceOf(Date);
+    expect((await repository.listRecentReplies(ticket.id, 10)).map((reply) => reply.body)).toEqual([
+      "First",
+      "Second",
+      "Third"
+    ]);
+    expect((await repository.listRecentReplies(ticket.id, 2)).map((reply) => reply.body)).toEqual([
+      "Second",
+      "Third"
+    ]);
+  });
+
+  it("rejects a reply to a ticket that does not exist", async () => {
+    const repository = new PostgresTicketRepository(database);
+
+    await expect(
+      repository.createReply("00000000-0000-4000-8000-000000000000", "Orphan")
+    ).rejects.toThrow();
   });
 
   it("assigns, reassigns, and unassigns technicians without changing status", async () => {

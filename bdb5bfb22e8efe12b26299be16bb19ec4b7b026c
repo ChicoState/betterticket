@@ -1,0 +1,12 @@
+## AI Agent Reasoning
+
+### Context
+PR #48 renumbered an already-applied Drizzle migration, causing upgrades from main to recreate the ticket_replies table and fail.
+
+### Decisions Made
+- Restore 0002_new_magneto byte-for-byte with its original journal timestamp because released migrations are immutable.
+- Move ticket creator attribution to 0003 and chain its snapshot from the restored 0002 snapshot.
+- Add a regression test for the released migration filename, timestamp, and SQL hash.
+
+### Trade-offs
+- The regression test intentionally couples to the released artifact so accidental migration rewrites fail immediately.

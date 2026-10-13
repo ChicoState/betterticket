@@ -19,15 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1791840327468,
-      "tag": "0002_motionless_black_bird",
+      "when": 1791497140595,
+      "tag": "0002_new_magneto",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1791943200000,
-      "tag": "0003_new_magneto",
+      "when": 1791840327468,
+      "tag": "0003_motionless_black_bird",
       "breakpoints": true
     }
   ]

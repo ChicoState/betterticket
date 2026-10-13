@@ -1,5 +1,5 @@
 {
-  "id": "c5d133ac-5121-4b7c-a4df-da2af8ceab3f",
+  "id": "0db2e1eb-ece6-4b4b-8166-bf44bab39bcc",
   "prevId": "99b7433a-c147-481e-bb49-12b63f48562b",
   "version": "7",
   "dialect": "postgresql",
@@ -159,19 +159,6 @@
           "notNull": true,
           "default": "'OPEN'"
         },
-        "creator_user_id": {
-          "name": "creator_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_anonymous": {
-          "name": "is_anonymous",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "assigned_technician_id": {
           "name": "assigned_technician_id",
           "type": "uuid",
@@ -195,15 +182,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "tickets_creator_user_id_users_id_fk": {
-          "name": "tickets_creator_user_id_users_id_fk",
-          "tableFrom": "tickets",
-          "tableTo": "users",
-          "columnsFrom": ["creator_user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "tickets_assigned_technician_id_users_id_fk": {
           "name": "tickets_assigned_technician_id_users_id_fk",
           "tableFrom": "tickets",

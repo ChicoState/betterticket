@@ -74,6 +74,10 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
+## Ticket progress
+
+Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Status changes require a future authenticated, authorized staff workflow; this baseline provides no status-update endpoint. See [the feature spec](docs/specs/ticket-progress.md) and [ADR-003](docs/decisions/003-ticket-progress-statuses.md).
+
 ## Ticket replies baseline
 
 Each ticket page shows its replies, oldest first, with a form for adding one without signing in. `GET /api/tickets/:id/replies` returns the ticket's 200 most recent replies as `{ "replies": [...] }`, and `POST /api/tickets/:id/replies` stores a `{ "body": "..." }` reply of up to 5,000 characters. Replies are anonymous and public: they carry no author or role, so a submitter's reply and a technician's look the same until replies are tied to accounts. See [the feature spec](docs/specs/ticket-replies.md) and [ADR-004](docs/decisions/004-anonymous-ticket-replies.md) for scope and rationale.

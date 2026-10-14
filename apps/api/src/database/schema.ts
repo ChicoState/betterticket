@@ -9,7 +9,13 @@ import {
   varchar
 } from "drizzle-orm/pg-core";
 
-export const ticketStatus = pgEnum("ticket_status", ["OPEN"]);
+export const ticketStatus = pgEnum("ticket_status", [
+  "OPEN",
+  "UNDER_REVIEW",
+  "IN_PROGRESS",
+  "RESOLVED",
+  "COMPLETED"
+]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
 
 export const users = pgTable("users", {

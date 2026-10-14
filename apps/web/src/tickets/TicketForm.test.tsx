@@ -96,6 +96,42 @@ describe("TicketForm", () => {
     await screen.findByText("Your ticket has been created.");
   });
 
+  it("lets a signed-in user choose anonymous posting", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(ticketResponse), {
+        status: 201,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <TicketForm
+        currentUser={{
+          id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+          name: "Uma User",
+          username: "uma",
+          role: "USER"
+        }}
+      />
+    );
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByLabelText("Post anonymously"));
+    fireEvent.click(screen.getByRole("button", { name: "Create ticket" }));
+
+    await screen.findByText("Your ticket has been created.");
+    expect(fetchMock).toHaveBeenCalledWith("/api/tickets", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42",
+        postAnonymously: true
+      })
+    });
+  });
+
   it("shows an accessible error and keeps the entered values", async () => {
     vi.stubGlobal(
       "fetch",

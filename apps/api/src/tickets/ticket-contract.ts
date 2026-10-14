@@ -7,6 +7,7 @@ export interface CreateTicketInput {
   description: string;
   setup: string;
   additionalInformation?: string;
+  postAnonymously?: boolean;
 }
 
 export interface Ticket {
@@ -17,6 +18,7 @@ export interface Ticket {
   additionalInformation: string | null;
   status: TicketStatus;
   assignedTechnicianId: string | null;
+  createdByName: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,7 +46,8 @@ export const createTicketBodySchema = {
     title: requiredText(160),
     description: requiredText(5_000),
     setup: requiredText(3_000),
-    additionalInformation: requiredText(3_000)
+    additionalInformation: requiredText(3_000),
+    postAnonymously: { type: "boolean" }
   }
 } as const;
 
@@ -59,6 +62,7 @@ export const ticketResponseSchema = {
     "additionalInformation",
     "status",
     "assignedTechnicianId",
+    "createdByName",
     "createdAt",
     "updatedAt"
   ],
@@ -70,6 +74,7 @@ export const ticketResponseSchema = {
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
+    createdByName: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" }
   }
@@ -207,6 +212,7 @@ export function normalizeCreateTicketInput(input: CreateTicketInput): CreateTick
     setup: input.setup.trim(),
     ...(input.additionalInformation === undefined
       ? {}
-      : { additionalInformation: input.additionalInformation.trim() })
+      : { additionalInformation: input.additionalInformation.trim() }),
+    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously })
   };
 }

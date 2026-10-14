@@ -72,7 +72,8 @@ export function TicketList() {
 
             <p className="ticket-meta">
               Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
-              <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time>
+              <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time> · Created
+              by {ticket.createdByName ?? "Anonymous"}
             </p>
 
             <p className="ticket-text ticket-excerpt">{ticket.description}</p>

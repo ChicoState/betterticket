@@ -41,7 +41,13 @@ textarea {
 .site-nav {
   display: flex;
   gap: 1.5rem;
-  padding: 1rem clamp(1rem, 5vw, 4rem);
+  padding: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  margin-right: clamp(1rem, 5vw, 4rem);
 }
 
 .site-nav a {
@@ -53,6 +59,98 @@ textarea {
 .site-nav a:hover,
 .site-nav a[aria-current="page"] {
   color: #0b5967;
+}
+
+.account-menu {
+  position: relative;
+}
+
+.account-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #d6dcda;
+  border-radius: 0.25rem;
+  background: #ffffff;
+  color: #17212b;
+  padding: 0.5rem 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-menu-trigger:hover,
+.account-menu-trigger[aria-expanded="true"] {
+  border-color: #0b5967;
+  color: #0b5967;
+}
+
+.account-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.account-menu-popover {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: max-content;
+  min-width: 13rem;
+  border: 1px solid #d6dcda;
+  background: #ffffff;
+  padding: 0.5rem;
+  box-shadow: 0 0.75rem 1.75rem rgb(23 33 43 / 14%);
+}
+
+.account-menu-identity {
+  display: grid;
+  gap: 0.1rem;
+  border-bottom: 1px solid #d6dcda;
+  padding: 0.45rem 0.55rem 0.65rem;
+}
+
+.account-menu-identity span {
+  color: #64727a;
+  font-size: 0.875rem;
+}
+
+.account-menu-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #17212b;
+  padding: 0.6rem 0.55rem;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-menu-item:hover:not(:disabled),
+.account-menu-item:focus-visible {
+  background: #eef4f3;
+  color: #0b5967;
+}
+
+.account-menu-item:disabled {
+  color: #7b878d;
+  cursor: not-allowed;
+}
+
+.account-menu-logout {
+  color: #9b2617;
+}
+
+.account-menu-error {
+  margin: 0.35rem 0.55rem 0.2rem;
+  color: #9b2617;
+  font-size: 0.875rem;
 }
 
 .site-nav a[aria-current="page"] {
@@ -94,6 +192,52 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(30rem, 1.2fr);
   gap: clamp(2rem, 6vw, 6rem);
+}
+
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(22rem, 1.2fr);
+  gap: clamp(2rem, 6vw, 6rem);
+}
+
+.auth-panel {
+  align-self: start;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #d6dcda;
+}
+
+.auth-tab {
+  border: 0;
+  border-bottom: 0.2rem solid transparent;
+  background: transparent;
+  color: #53616a;
+  padding: 0.65rem 0.8rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.auth-tab:hover,
+.auth-tab.active {
+  color: #0b5967;
+}
+
+.auth-tab.active {
+  border-bottom-color: #0b5967;
+}
+
+.auth-anonymous {
+  margin: 1.5rem 0 0;
+  color: #53616a;
+}
+
+.auth-anonymous a {
+  color: #0b5967;
+  font-weight: 700;
 }
 
 .tickets-page {
@@ -256,6 +400,22 @@ main {
 
 .ticket-card dd.ticket-text {
   margin: 0.25rem 0 0;
+}
+
+.checkbox-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.6rem;
+  align-items: center;
+}
+
+.checkbox-field input {
+  width: 1rem;
+  height: 1rem;
+}
+
+.checkbox-field .field-hint {
+  grid-column: 2;
 }
 
 .replies {
@@ -468,6 +628,11 @@ footer p {
   }
 
   .form-page {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .auth-page {
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }

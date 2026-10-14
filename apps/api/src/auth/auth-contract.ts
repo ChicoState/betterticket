@@ -19,6 +19,10 @@ export interface CreateUserInput extends LoginInput {
   role: UserRole;
 }
 
+export interface RegisterUserInput extends LoginInput {
+  name: string;
+}
+
 export interface ApiError {
   error: {
     code: string;
@@ -35,6 +39,22 @@ export const loginBodySchema = {
   required: ["username", "password"],
   properties: {
     username: { type: "string", minLength: 1, maxLength: 100, pattern: "\\S" },
+    password: { type: "string", minLength: 12, maxLength: 128 }
+  }
+} as const;
+
+export const registrationBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "username", "password"],
+  properties: {
+    name: { type: "string", minLength: 1, maxLength: 160, pattern: "\\S" },
+    username: {
+      type: "string",
+      minLength: 1,
+      maxLength: 100,
+      pattern: "^[\\s]*[A-Za-z0-9._-]+[\\s]*$"
+    },
     password: { type: "string", minLength: 12, maxLength: 128 }
   }
 } as const;

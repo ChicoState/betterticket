@@ -3,6 +3,7 @@ export interface CreateTicketInput {
   description: string;
   setup: string;
   additionalInformation?: string;
+  postAnonymously?: boolean;
 }
 
 export const ticketStatuses = [
@@ -51,6 +52,7 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  createdByName: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +75,7 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
+    (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"
   );

@@ -73,7 +73,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       }
     },
     async (request, reply) => {
-      const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body));
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
+      const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body), user);
 
       return reply.status(201).send(toTicket(ticket));
     }

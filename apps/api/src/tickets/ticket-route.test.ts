@@ -7,6 +7,7 @@ import type { AuthRepository, CreatedSession } from "../auth/auth-repository.js"
 import type {
   AssignmentResult,
   CreateTicketInput,
+  TicketCreator,
   ReplyRecord,
   TicketRecord,
   TicketRepository
@@ -48,6 +49,7 @@ const authRepository = new FakeAuthRepository();
 
 class FakeTicketRepository implements TicketRepository {
   readonly created: CreateTicketInput[] = [];
+  readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
   readonly createdReplies: Array<{ ticketId: string; body: string }> = [];
   readonly replyListLimits: number[] = [];
@@ -57,8 +59,12 @@ class FakeTicketRepository implements TicketRepository {
     private readonly storedReplies: ReplyRecord[] = []
   ) {}
 
-  async create(input: CreateTicketInput): Promise<TicketRecord> {
+  async create(
+    input: CreateTicketInput,
+    creator: TicketCreator | null = null
+  ): Promise<TicketRecord> {
     this.created.push(input);
+    this.creators.push(creator ? { id: creator.id, name: creator.name } : null);
 
     return {
       id: ticketId,
@@ -66,6 +72,7 @@ class FakeTicketRepository implements TicketRepository {
       additionalInformation: input.additionalInformation ?? null,
       status: "OPEN",
       assignedTechnicianId: null,
+      createdByName: input.postAnonymously ? null : (creator?.name ?? null),
       createdAt: new Date("2026-09-28T18:00:00.000Z"),
       updatedAt: new Date("2026-09-28T18:00:00.000Z")
     };
@@ -143,9 +150,54 @@ describe("POST /api/tickets", () => {
       additionalInformation: "Started after an update.",
       status: "OPEN",
       assignedTechnicianId: null,
+      createdByName: null,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
     });
+  });
+
+  it("retains a signed-in anonymous poster privately without exposing their name", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      headers: { cookie: "betterticket_session=user-session" },
+      payload: {
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42",
+        postAnonymously: true
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(repository.creators).toEqual([
+      { id: "bb97588e-0e8b-49e1-980b-4b9207121898", name: "Uma User" }
+    ]);
+    expect(response.json()).toMatchObject({ createdByName: null });
+  });
+
+  it("shows the signed-in poster's display name when they do not choose anonymity", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      headers: { cookie: "betterticket_session=user-session" },
+      payload: {
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ createdByName: "Uma User" });
   });
 
   it.each([
@@ -250,6 +302,7 @@ describe("GET /api/tickets", () => {
         additionalInformation: null,
         status: "OPEN",
         assignedTechnicianId: null,
+        createdByName: null,
         createdAt: new Date("2026-09-29T09:30:00.000Z"),
         updatedAt: new Date("2026-09-29T09:30:00.000Z")
       },
@@ -261,6 +314,7 @@ describe("GET /api/tickets", () => {
         additionalInformation: "Started after an update.",
         status: "OPEN",
         assignedTechnicianId: null,
+        createdByName: null,
         createdAt: new Date("2026-09-28T18:00:00.000Z"),
         updatedAt: new Date("2026-09-28T18:00:00.000Z")
       }
@@ -282,6 +336,7 @@ describe("GET /api/tickets", () => {
           additionalInformation: null,
           status: "OPEN",
           assignedTechnicianId: null,
+          createdByName: null,
           createdAt: "2026-09-29T09:30:00.000Z",
           updatedAt: "2026-09-29T09:30:00.000Z"
         },
@@ -293,6 +348,7 @@ describe("GET /api/tickets", () => {
           additionalInformation: "Started after an update.",
           status: "OPEN",
           assignedTechnicianId: null,
+          createdByName: null,
           createdAt: "2026-09-28T18:00:00.000Z",
           updatedAt: "2026-09-28T18:00:00.000Z"
         }
@@ -324,6 +380,7 @@ describe("GET /api/tickets", () => {
         additionalInformation: null,
         status: status as TicketStatus,
         assignedTechnicianId: null,
+        createdByName: null,
         createdAt: new Date("2026-09-28T18:00:00.000Z"),
         updatedAt: new Date("2026-09-30T10:15:00.000Z")
       }
@@ -372,6 +429,7 @@ describe("GET /api/tickets/:id", () => {
     additionalInformation: null,
     status: "OPEN",
     assignedTechnicianId: null,
+    createdByName: null,
     createdAt: new Date("2026-09-28T18:00:00.000Z"),
     updatedAt: new Date("2026-09-28T18:00:00.000Z")
   };
@@ -522,6 +580,7 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       additionalInformation: null,
       status: "OPEN",
       assignedTechnicianId,
+      createdByName: null,
       createdAt: new Date("2026-09-28T18:00:00.000Z"),
       updatedAt
     };
@@ -579,6 +638,7 @@ describe("ticket replies", () => {
     additionalInformation: null,
     status: "OPEN",
     assignedTechnicianId: null,
+    createdByName: null,
     createdAt: new Date("2026-09-28T18:00:00.000Z"),
     updatedAt: new Date("2026-09-28T18:00:00.000Z")
   };

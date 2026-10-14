@@ -37,3 +37,4 @@ Deferred. A fixed cap bounds the response without committing to a pagination con
 - Tickets older than the 100 most recent are not listed until pagination is designed, but remain reachable by their URL.
 - Ticket URLs contain the full UUID, so a ticket page can be shared by link.
 - A future authentication ADR must define which fields stay public and who can see the rest.
+- ADR-004 moves the public viewer from `/` to `/tickets` while preserving this anonymous-access decision.

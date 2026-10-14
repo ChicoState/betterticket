@@ -72,7 +72,7 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 ## Ticket viewer baseline
 
-The homepage (`/`) lists submitted tickets, newest first, without signing in; each ticket opens on its own page at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
+The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
 ## Ticket progress
 
@@ -95,6 +95,13 @@ The command requests a name, username, password, and either the `USER` or `TECHN
 `POST /api/sessions` logs a user in and sets an HttpOnly session cookie; `DELETE /api/sessions/current` logs the user out. An authenticated technician can call `PATCH /api/tickets/:ticketId/assignment` with `{"assignedTechnicianId":"<technician UUID>"}` to assign or reassign a ticket, or with `{"assignedTechnicianId":null}` to unassign it. The selected user must also be a technician, and assignment never changes ticket status.
 
 See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
+
+## Public registration and login
+
+The homepage (`/`) lets a visitor sign in, create a regular-user account, or continue anonymously
+to `/tickets`. `POST /api/users` creates only `USER` accounts; it never accepts a role from the
+browser. Technician accounts must still be created with `pnpm user:create`. New accounts return to
+the login form rather than creating a session automatically. See [the feature spec](docs/specs/public-registration-and-login.md) and [ADR-004](docs/decisions/004-public-regular-user-registration.md).
 
 ## Tooling and CI
 

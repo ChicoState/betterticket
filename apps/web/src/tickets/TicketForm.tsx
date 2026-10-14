@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 
+import type { AuthenticatedUser } from "../auth/auth-api.js";
 import { createTicket, ticketPath, type CreateTicketInput } from "./ticket-api.js";
 
 type SubmissionState =
@@ -18,11 +19,16 @@ function readFormInput(form: HTMLFormElement): CreateTicketInput {
     title: String(formData.get("title") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
     setup: String(formData.get("setup") ?? "").trim(),
-    ...(additionalInformation ? { additionalInformation } : {})
+    ...(additionalInformation ? { additionalInformation } : {}),
+    ...(formData.get("postAnonymously") === "on" ? { postAnonymously: true } : {})
   };
 }
 
-export function TicketForm() {
+interface TicketFormProps {
+  currentUser?: AuthenticatedUser | null;
+}
+
+export function TicketForm({ currentUser = null }: TicketFormProps) {
   const [submission, setSubmission] = useState<SubmissionState>(initialState);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -104,6 +110,14 @@ export function TicketForm() {
             aria-describedby="additional-information-hint"
           />
         </div>
+
+        {currentUser ? (
+          <div className="field checkbox-field">
+            <input id="post-anonymously" name="postAnonymously" type="checkbox" />
+            <label htmlFor="post-anonymously">Post anonymously</label>
+            <p className="field-hint">Your name will not appear on this public ticket.</p>
+          </div>
+        ) : null}
 
         <button className="submit-button" type="submit">
           {isSubmitting ? "Creating ticket…" : "Create ticket"}

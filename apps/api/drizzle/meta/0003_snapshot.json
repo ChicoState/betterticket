@@ -1,5 +1,5 @@
 {
-  "id": "ba9eb925-4de2-46f4-b1e4-74717aa22e05",
+  "id": "d7b7ce0d-3178-4d84-9ed3-3f0fed0b2cf2",
   "prevId": "0db2e1eb-ece6-4b4b-8166-bf44bab39bcc",
   "version": "7",
   "dialect": "postgresql",
@@ -14,7 +14,12 @@
           "primaryKey": true,
           "notNull": true
         },
-        "user_id": { "name": "user_id", "type": "uuid", "primaryKey": false, "notNull": true },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "expires_at": {
           "name": "expires_at",
           "type": "timestamp with time zone",
@@ -51,8 +56,18 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "ticket_id": { "name": "ticket_id", "type": "uuid", "primaryKey": false, "notNull": true },
-        "body": { "name": "body", "type": "text", "primaryKey": false, "notNull": true },
+        "ticket_id": {
+          "name": "ticket_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -65,8 +80,18 @@
         "ticket_replies_ticket_id_created_at_idx": {
           "name": "ticket_replies_ticket_id_created_at_idx",
           "columns": [
-            { "expression": "ticket_id", "isExpression": false, "asc": true, "nulls": "last" },
-            { "expression": "created_at", "isExpression": false, "asc": true, "nulls": "last" }
+            {
+              "expression": "ticket_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
           "isUnique": false,
           "concurrently": false,
@@ -102,14 +127,24 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "title": { "name": "title", "type": "varchar(160)", "primaryKey": false, "notNull": true },
+        "title": {
+          "name": "title",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "description": {
           "name": "description",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "setup": { "name": "setup", "type": "text", "primaryKey": false, "notNull": true },
+        "setup": {
+          "name": "setup",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "additional_information": {
           "name": "additional_information",
           "type": "text",
@@ -123,6 +158,19 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'OPEN'"
+        },
+        "creator_user_id": {
+          "name": "creator_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_anonymous": {
+          "name": "is_anonymous",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "assigned_technician_id": {
           "name": "assigned_technician_id",
@@ -147,6 +195,15 @@
       },
       "indexes": {},
       "foreignKeys": {
+        "tickets_creator_user_id_users_id_fk": {
+          "name": "tickets_creator_user_id_users_id_fk",
+          "tableFrom": "tickets",
+          "tableTo": "users",
+          "columnsFrom": ["creator_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "tickets_assigned_technician_id_users_id_fk": {
           "name": "tickets_assigned_technician_id_users_id_fk",
           "tableFrom": "tickets",
@@ -174,7 +231,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "name": { "name": "name", "type": "varchar(160)", "primaryKey": false, "notNull": true },
+        "name": {
+          "name": "name",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "username": {
           "name": "username",
           "type": "varchar(100)",
@@ -214,7 +276,7 @@
     "public.ticket_status": {
       "name": "ticket_status",
       "schema": "public",
-      "values": ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "COMPLETED"]
+      "values": ["OPEN"]
     },
     "public.user_role": {
       "name": "user_role",
@@ -227,5 +289,9 @@
   "roles": {},
   "policies": {},
   "views": {},
-  "_meta": { "columns": {}, "schemas": {}, "tables": {} }
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
 }

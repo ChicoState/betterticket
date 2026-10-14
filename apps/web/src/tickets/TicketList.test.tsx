@@ -11,6 +11,7 @@ const tickets = [
     setup: "Office printer, macOS 15",
     additionalInformation: null,
     status: "IN_PROGRESS",
+    createdByName: "Terry Technician",
     createdAt: "2026-09-29T09:30:00.000Z",
     updatedAt: "2026-09-29T09:30:00.000Z"
   },
@@ -21,6 +22,7 @@ const tickets = [
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: "Started after an update.",
     status: "OPEN",
+    createdByName: null,
     createdAt: "2026-09-28T18:00:00.000Z",
     updatedAt: "2026-09-28T18:00:00.000Z"
   }
@@ -56,6 +58,8 @@ describe("TicketList", () => {
     expect(within(printer).getByText("In progress")).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
+    expect(within(printer).getByText(/Created by Terry Technician/)).toBeInTheDocument();
+    expect(within(laptop).getByText(/Created by Anonymous/)).toBeInTheDocument();
     expect(printer.querySelector("time")).toHaveAttribute("datetime", "2026-09-29T09:30:00.000Z");
     expect(within(printer).getByRole("link", { name: "Printer is offline" })).toHaveAttribute(
       "href",

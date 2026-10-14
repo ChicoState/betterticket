@@ -90,9 +90,8 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
         </header>
         <p className="ticket-meta">
           Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
-          <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time>
-          {" · "}
-          <span>Last updated</span>{" "}
+          <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time> · Created by{" "}
+          {ticket.createdByName ?? "Anonymous"} · <span>Last updated</span>{" "}
           <time dateTime={ticket.updatedAt}>{formatCreatedAt(ticket.updatedAt)}</time>
         </p>
         <section className="ticket-progress" aria-labelledby="ticket-progress-title">

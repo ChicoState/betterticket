@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildApp } from "../app.js";
-import type { AuthenticatedUser, CreateUserInput, LoginInput } from "./auth-contract.js";
+import type { AuthenticatedUser, CreateUserInput, LoginInput, UserRole } from "./auth-contract.js";
 import type { AuthRepository, CreatedSession } from "./auth-repository.js";
 import type {
   AssignmentResult,
@@ -51,6 +51,10 @@ class FakeAuthRepository implements AuthRepository {
       username: input.username.trim().toLowerCase(),
       role: input.role
     };
+  }
+
+  async setUserRole(username: string, role: UserRole): Promise<AuthenticatedUser | null> {
+    return username === technician.username ? { ...technician, role } : null;
   }
 }
 

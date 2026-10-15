@@ -25,8 +25,9 @@ export function AccountMenu({ session, onLogout }: AccountMenuProps) {
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const isAuthenticated = session.type === "authenticated";
+  const isItAccount = isAuthenticated && session.user.role === "TECHNICIAN";
   const accountLabel = isAuthenticated
-    ? `Account: Signed in as ${session.user.name}`
+    ? `Account: Signed in as ${session.user.name}${isItAccount ? " (IT)" : ""}`
     : "Account: Anonymous";
 
   useEffect(() => {
@@ -76,6 +77,11 @@ export function AccountMenu({ session, onLogout }: AccountMenuProps) {
         <span aria-hidden="true" className="account-status-label">
           {isAuthenticated ? "Signed in" : "Anonymous"}
         </span>
+        {isItAccount ? (
+          <span aria-hidden="true" className="account-it-badge">
+            IT
+          </span>
+        ) : null}
       </button>
 
       {isOpen ? (

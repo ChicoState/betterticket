@@ -118,4 +118,38 @@ describe("PostgresAuthRepository", () => {
 
     expect(duplicate).toBeNull();
   });
+
+  it("changes an existing user's role without changing their credentials", async () => {
+    const repository = new PostgresAuthRepository(database);
+    const user = await repository.createUser({
+      name: "Uma User",
+      username: "uma",
+      password: "correct horse battery staple",
+      role: "USER"
+    });
+    const [before] = await database.select().from(users);
+    const session = await repository.createSession({
+      username: "uma",
+      password: "correct horse battery staple"
+    });
+
+    const promoted = await repository.setUserRole(" UMA ", "TECHNICIAN");
+    const [after] = await database.select().from(users);
+
+    expect(promoted).toEqual({ ...user, role: "TECHNICIAN" });
+    expect(promoted).not.toHaveProperty("passwordHash");
+    expect(after?.passwordHash).toBe(before?.passwordHash);
+    expect(await repository.findUserBySession(session!.token)).toEqual(promoted);
+
+    const demoted = await repository.setUserRole("uma", "USER");
+
+    expect(demoted).toEqual(user);
+    expect(await repository.findUserBySession(session!.token)).toEqual(user);
+  });
+
+  it("does not change a role for an unknown username", async () => {
+    const repository = new PostgresAuthRepository(database);
+
+    expect(await repository.setUserRole("nobody", "TECHNICIAN")).toBeNull();
+  });
 });

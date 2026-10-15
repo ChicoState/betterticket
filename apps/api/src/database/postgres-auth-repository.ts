@@ -6,7 +6,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { normalizeUsername, type AuthenticatedUser } from "../auth/auth-contract.js";
 import type { AuthRepository, CreatedSession } from "../auth/auth-repository.js";
-import type { CreateUserInput, LoginInput } from "../auth/auth-contract.js";
+import type { CreateUserInput, LoginInput, UserRole } from "../auth/auth-contract.js";
 import { sessions, users } from "./schema.js";
 
 const sessionLifetimeMilliseconds = 24 * 60 * 60 * 1_000;
@@ -109,5 +109,15 @@ export class PostgresAuthRepository implements AuthRepository {
       }
       throw error;
     }
+  }
+
+  async setUserRole(username: string, role: UserRole): Promise<AuthenticatedUser | null> {
+    const [user] = await this.database
+      .update(users)
+      .set({ role })
+      .where(eq(users.username, normalizeUsername(username)))
+      .returning();
+
+    return user ? withoutPassword(user) : null;
   }
 }

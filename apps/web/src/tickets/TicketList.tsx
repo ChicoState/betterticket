@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { listTickets, ticketPath, type Ticket } from "./ticket-api.js";
-import { formatCreatedAt, formatStatus } from "./ticket-format.js";
+import { formatCreatedAt, formatReplyStatus, formatStatus } from "./ticket-format.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; tickets: Ticket[] } | { type: "error" };
 
@@ -68,6 +68,9 @@ export function TicketList() {
                 <a href={ticketPath(ticket.id)}>{ticket.title}</a>
               </h2>
               <span className="status-badge">{formatStatus(ticket.status)}</span>
+              <span className="reply-status-badge">
+                {formatReplyStatus(ticket.replyStatus ?? "OPEN")}
+              </span>
             </header>
 
             <p className="ticket-meta">

@@ -10,7 +10,8 @@ import type {
   TicketCreator,
   ReplyRecord,
   TicketRecord,
-  TicketRepository
+  TicketRepository,
+  UpdateReplyStatusResult
 } from "./ticket-repository.js";
 
 const technicianId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
@@ -88,14 +89,24 @@ class FakeTicketRepository implements TicketRepository {
     return this.stored.find((ticket) => ticket.id === id) ?? null;
   }
 
-  async createReply(ticketId: string, body: string): Promise<ReplyRecord> {
+  async createReply(ticketId: string, body: string) {
+    const ticket = this.stored.find((storedTicket) => storedTicket.id === ticketId);
+    if (!ticket) {
+      return { type: "ticket-not-found" as const };
+    }
+    if (ticket.replyStatus === "CLOSED") {
+      return { type: "ticket-closed" as const };
+    }
     this.createdReplies.push({ ticketId, body });
 
     return {
-      id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
-      ticketId,
-      body,
-      createdAt: new Date("2026-10-07T18:00:00.000Z")
+      type: "created" as const,
+      reply: {
+        id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
+        ticketId,
+        body,
+        createdAt: new Date("2026-10-07T18:00:00.000Z")
+      }
     };
   }
 
@@ -103,6 +114,22 @@ class FakeTicketRepository implements TicketRepository {
     this.replyListLimits.push(limit);
 
     return this.storedReplies.filter((reply) => reply.ticketId === ticketId);
+  }
+
+  async updateReplyStatus(
+    ticketId: string,
+    ownerUserId: string,
+    replyStatus: "OPEN" | "CLOSED"
+  ): Promise<UpdateReplyStatusResult> {
+    const ticket = this.stored.find((storedTicket) => storedTicket.id === ticketId);
+    if (!ticket) {
+      return { type: "ticket-not-found" };
+    }
+    if (ticket.creatorUserId !== ownerUserId) {
+      return { type: "not-owner" };
+    }
+    ticket.replyStatus = replyStatus;
+    return { type: "updated", ticket };
   }
 
   async assignTechnician(): Promise<AssignmentResult> {
@@ -149,6 +176,8 @@ describe("POST /api/tickets", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: "Started after an update.",
       status: "OPEN",
+      replyStatus: "OPEN",
+      canManageReplyStatus: false,
       assignedTechnicianId: null,
       createdByName: null,
       createdAt: "2026-09-28T18:00:00.000Z",
@@ -335,6 +364,8 @@ describe("GET /api/tickets", () => {
           setup: "Office printer, macOS 15",
           additionalInformation: null,
           status: "OPEN",
+          replyStatus: "OPEN",
+          canManageReplyStatus: false,
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-29T09:30:00.000Z",
@@ -347,6 +378,8 @@ describe("GET /api/tickets", () => {
           setup: "Framework Laptop 13, Fedora 42",
           additionalInformation: "Started after an update.",
           status: "OPEN",
+          replyStatus: "OPEN",
+          canManageReplyStatus: false,
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-28T18:00:00.000Z",
@@ -451,6 +484,8 @@ describe("GET /api/tickets/:id", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ...storedTicket,
+      replyStatus: "OPEN",
+      canManageReplyStatus: false,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
     });
@@ -516,6 +551,69 @@ describe("GET /api/tickets/:id", () => {
         message: "The ticket request could not be completed"
       }
     });
+  });
+});
+
+describe("PATCH /api/tickets/:id/reply-status", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  function ownerTicket(replyStatus: "OPEN" | "CLOSED" = "OPEN"): TicketRecord {
+    return {
+      id: ticketId,
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42",
+      additionalInformation: null,
+      status: "OPEN",
+      replyStatus,
+      creatorUserId: "bb97588e-0e8b-49e1-980b-4b9207121898",
+      assignedTechnicianId: null,
+      createdByName: null,
+      createdAt: new Date("2026-09-28T18:00:00.000Z"),
+      updatedAt: new Date("2026-09-28T18:00:00.000Z")
+    };
+  }
+
+  it("lets the private owner close an anonymously displayed ticket", async () => {
+    const repository = new FakeTicketRepository([ownerTicket()]);
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/reply-status`,
+      headers: { cookie: "betterticket_session=user-session" },
+      payload: { replyStatus: "CLOSED" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ replyStatus: "CLOSED", canManageReplyStatus: true });
+    expect(response.body).not.toContain("creatorUserId");
+  });
+
+  it("rejects unsigned and non-owner status changes", async () => {
+    const repository = new FakeTicketRepository([ownerTicket()]);
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const unsigned = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/reply-status`,
+      payload: { replyStatus: "CLOSED" }
+    });
+    const nonOwner = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/reply-status`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { replyStatus: "CLOSED" }
+    });
+
+    expect(unsigned.statusCode).toBe(401);
+    expect(nonOwner.statusCode).toBe(403);
   });
 });
 
@@ -770,6 +868,22 @@ describe("ticket replies", () => {
       expect(response.statusCode).toBe(404);
       expect(response.json()).toEqual({
         error: { code: "NOT_FOUND", message: "The ticket was not found" }
+      });
+      expect(repository.createdReplies).toEqual([]);
+    });
+
+    it("rejects new replies when the ticket is closed", async () => {
+      const repository = new FakeTicketRepository([{ ...storedTicket, replyStatus: "CLOSED" }]);
+
+      const response = await build(repository).inject({
+        method: "POST",
+        url: repliesUrl,
+        payload: { body: "Reply" }
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toEqual({
+        error: { code: "TICKET_CLOSED", message: "This ticket is closed to new replies" }
       });
       expect(repository.createdReplies).toEqual([]);
     });

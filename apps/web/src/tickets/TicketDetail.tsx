@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { getTicket, type Ticket } from "./ticket-api.js";
+import {
+  getTicket,
+  updateTicketReplyStatus,
+  type Ticket,
+  type TicketReplyStatus
+} from "./ticket-api.js";
 import {
   formatCreatedAt,
+  formatReplyStatus,
   formatStatus,
   getProgressStageState,
   ticketProgress
@@ -22,6 +28,7 @@ interface TicketDetailProps {
 export function TicketDetail({ ticketId }: TicketDetailProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [replyStatusUpdate, setReplyStatusUpdate] = useState<"idle" | "saving" | "error">("idle");
 
   useEffect(() => {
     let ignore = false;
@@ -47,6 +54,20 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
   function retry() {
     setLoad({ type: "loading" });
     setAttempt((current) => current + 1);
+  }
+
+  async function changeReplyStatus(replyStatus: TicketReplyStatus) {
+    if (load.type !== "loaded") {
+      return;
+    }
+    setReplyStatusUpdate("saving");
+    try {
+      const ticket = await updateTicketReplyStatus(load.ticket.id, replyStatus);
+      setLoad({ type: "loaded", ticket });
+      setReplyStatusUpdate("idle");
+    } catch {
+      setReplyStatusUpdate("error");
+    }
   }
 
   if (load.type === "loading") {
@@ -86,8 +107,34 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
       <article className="ticket-card ticket-detail" aria-labelledby="page-title">
         <header className="ticket-card-header">
           <h1 id="page-title">{ticket.title}</h1>
-          <span className="status-badge">{formatStatus(ticket.status)}</span>
+          <div className="ticket-detail-header-actions">
+            <span className="status-badge">{formatStatus(ticket.status)}</span>
+            <span className="reply-status-badge">
+              {formatReplyStatus(ticket.replyStatus ?? "OPEN")}
+            </span>
+            {ticket.canManageReplyStatus ? (
+              <button
+                className="submit-button"
+                type="button"
+                disabled={replyStatusUpdate === "saving"}
+                onClick={() =>
+                  void changeReplyStatus(ticket.replyStatus === "OPEN" ? "CLOSED" : "OPEN")
+                }
+              >
+                {replyStatusUpdate === "saving"
+                  ? "Saving…"
+                  : ticket.replyStatus === "OPEN"
+                    ? "Close ticket"
+                    : "Reopen ticket"}
+              </button>
+            ) : null}
+          </div>
         </header>
+        {replyStatusUpdate === "error" ? (
+          <p className="error-message" role="alert">
+            We couldn&apos;t update reply status. Please try again.
+          </p>
+        ) : null}
         <p className="ticket-meta">
           Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
           <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time> · Created by{" "}
@@ -134,7 +181,11 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
           ) : null}
         </dl>
       </article>
-      <TicketReplies ticketId={ticket.id} />
+      <TicketReplies
+        ticketId={ticket.id}
+        replyStatus={ticket.replyStatus ?? "OPEN"}
+        onTicketClosed={retry}
+      />
     </>
   );
 }

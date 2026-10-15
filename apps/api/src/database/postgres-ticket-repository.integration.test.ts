@@ -49,6 +49,7 @@ describe("PostgresTicketRepository", () => {
     );
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
+    expect(created.replyStatus).toBe("OPEN");
   });
 
   it("lists the most recently created tickets first up to the limit", async () => {
@@ -146,8 +147,11 @@ describe("PostgresTicketRepository", () => {
 
     const created = await repository.createReply(ticket.id, "Third");
 
-    expect(created).toMatchObject({ ticketId: ticket.id, body: "Third" });
-    expect(created.createdAt).toBeInstanceOf(Date);
+    expect(created).toMatchObject({
+      type: "created",
+      reply: { ticketId: ticket.id, body: "Third" }
+    });
+    expect(created.type === "created" && created.reply.createdAt).toBeInstanceOf(Date);
     expect((await repository.listRecentReplies(ticket.id, 10)).map((reply) => reply.body)).toEqual([
       "First",
       "Second",
@@ -164,7 +168,35 @@ describe("PostgresTicketRepository", () => {
 
     await expect(
       repository.createReply("00000000-0000-4000-8000-000000000000", "Orphan")
-    ).rejects.toThrow();
+    ).resolves.toEqual({
+      type: "ticket-not-found"
+    });
+  });
+
+  it("lets the stored owner close and reopen replies without changing progress", async () => {
+    const [owner] = await database
+      .insert(users)
+      .values({ name: "Uma User", username: "uma", passwordHash: "not-used", role: "USER" })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create(
+      { title: "Title", description: "Description", setup: "Setup", postAnonymously: true },
+      owner!
+    );
+
+    const closed = await repository.updateReplyStatus(ticket.id, owner!.id, "CLOSED");
+    const deniedReply = await repository.createReply(ticket.id, "Too late");
+    const reopened = await repository.updateReplyStatus(ticket.id, owner!.id, "OPEN");
+
+    expect(closed).toMatchObject({
+      type: "updated",
+      ticket: { replyStatus: "CLOSED", status: "OPEN" }
+    });
+    expect(deniedReply).toEqual({ type: "ticket-closed" });
+    expect(reopened).toMatchObject({
+      type: "updated",
+      ticket: { replyStatus: "OPEN", status: "OPEN" }
+    });
   });
 
   it("assigns, reassigns, and unassigns technicians without changing status", async () => {

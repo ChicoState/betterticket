@@ -64,7 +64,7 @@ const unusedTicketRepository: TicketRepository = {
   findById: async (): Promise<TicketRecord | null> => {
     throw new Error("not used");
   },
-  createReply: async (): Promise<ReplyRecord> => {
+  createReply: async () => {
     throw new Error("not used");
   },
   listRecentReplies: async (): Promise<ReplyRecord[]> => {

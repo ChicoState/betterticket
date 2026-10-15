@@ -12,6 +12,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  replyStatus: "OPEN",
+  canManageReplyStatus: false,
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
@@ -65,6 +67,32 @@ describe("TicketDetail", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
+  it("lets only the owner close a ticket's replies", async () => {
+    const ownerTicket = { ...ticket, canManageReplyStatus: true };
+    const closedTicket = { ...ownerTicket, replyStatus: "CLOSED" };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(ownerTicket))
+      .mockResolvedValueOnce(jsonResponse({ replies: [] }))
+      .mockResolvedValueOnce(jsonResponse(closedTicket));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} />);
+
+    const closeButton = await screen.findByRole("button", { name: "Close ticket" });
+    expect(closeButton.closest(".ticket-card-header")).toBeInTheDocument();
+    expect(screen.queryByText("Open for replies.")).not.toBeInTheDocument();
+
+    fireEvent.click(closeButton);
+
+    expect(await screen.findByRole("button", { name: "Reopen ticket" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith(`/api/tickets/${ticketId}/reply-status`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ replyStatus: "CLOSED" })
+    });
+    expect(screen.getByText("This ticket is closed to new replies.")).toBeInTheDocument();
   });
 
   it("omits additional information when none was submitted", async () => {

@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 
-import { sessionCookieName } from "../auth/auth-contract.js";
+import { sessionCookieName, type AuthenticatedUser } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import {
   apiErrorResponseSchema,
@@ -16,6 +16,7 @@ import {
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
+  updateTicketReplyStatusBodySchema,
   type ApiError,
   type CreateReplyInput,
   type AssignTechnicianInput,
@@ -25,7 +26,8 @@ import {
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
-  type TicketParams
+  type TicketParams,
+  type UpdateTicketReplyStatusInput
 } from "./ticket-contract.js";
 import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
 
@@ -34,9 +36,12 @@ interface TicketRoutesOptions {
   ticketRepository: TicketRepository;
 }
 
-function toTicket(ticket: TicketRecord): Ticket {
+function toTicket(ticket: TicketRecord, user: AuthenticatedUser | null = null): Ticket {
+  const { creatorUserId, ...publicTicket } = ticket;
   return {
-    ...ticket,
+    ...publicTicket,
+    replyStatus: ticket.replyStatus ?? "OPEN",
+    canManageReplyStatus: creatorUserId != null && creatorUserId === user?.id,
     createdAt: ticket.createdAt.toISOString(),
     updatedAt: ticket.updatedAt.toISOString()
   };
@@ -77,7 +82,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       const user = token ? await authRepository.findUserBySession(token) : null;
       const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body), user);
 
-      return reply.status(201).send(toTicket(ticket));
+      return reply.status(201).send(toTicket(ticket, user));
     }
   );
 
@@ -91,10 +96,12 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         }
       }
     },
-    async () => {
+    async (request) => {
       const tickets = await ticketRepository.listRecent(ticketListLimit);
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
 
-      return { tickets: tickets.map(toTicket) };
+      return { tickets: tickets.map((ticket) => toTicket(ticket, user)) };
     }
   );
 
@@ -118,7 +125,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(404).send(ticketNotFound);
       }
 
-      return toTicket(ticket);
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
+      return toTicket(ticket, user);
     }
   );
 
@@ -158,6 +167,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
           201: replyResponseSchema,
           400: apiErrorResponseSchema,
           404: apiErrorResponseSchema,
+          409: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
       }
@@ -169,9 +179,66 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(404).send(ticketNotFound);
       }
 
-      const created = await ticketRepository.createReply(ticket.id, request.body.body.trim());
+      const result = await ticketRepository.createReply(ticket.id, request.body.body.trim());
 
-      return reply.status(201).send(toReply(created));
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
+      }
+      if (result.type === "ticket-closed") {
+        return reply.status(409).send({
+          error: { code: "TICKET_CLOSED", message: "This ticket is closed to new replies" }
+        });
+      }
+
+      return reply.status(201).send(toReply(result.reply));
+    }
+  );
+
+  app.patch<{
+    Params: TicketParams;
+    Body: UpdateTicketReplyStatusInput;
+    Reply: Ticket | ApiError;
+  }>(
+    "/api/tickets/:id/reply-status",
+    {
+      schema: {
+        params: ticketParamsSchema,
+        body: updateTicketReplyStatusBodySchema,
+        response: {
+          200: ticketResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
+
+      if (!user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+
+      const result = await ticketRepository.updateReplyStatus!(
+        request.params.id,
+        user.id,
+        request.body.replyStatus
+      );
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
+      }
+      if (result.type === "not-owner") {
+        return reply.status(403).send({
+          error: { code: "FORBIDDEN", message: "Only the ticket owner can change reply status" }
+        });
+      }
+
+      return reply.status(200).send(toTicket(result.ticket, user));
     }
   );
 
@@ -226,7 +293,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         });
       }
 
-      return reply.status(200).send(toTicket(result.ticket));
+      return reply.status(200).send(toTicket(result.ticket, user));
     }
   );
 };

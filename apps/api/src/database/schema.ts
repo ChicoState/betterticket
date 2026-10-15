@@ -16,6 +16,7 @@ export const ticketStatus = pgEnum("ticket_status", [
   "RESOLVED",
   "COMPLETED"
 ]);
+export const ticketReplyStatus = pgEnum("ticket_reply_status", ["OPEN", "CLOSED"]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
 
 export const users = pgTable("users", {
@@ -41,6 +42,7 @@ export const tickets = pgTable("tickets", {
   setup: text().notNull(),
   additionalInformation: text("additional_information"),
   status: ticketStatus().default("OPEN").notNull(),
+  replyStatus: ticketReplyStatus().default("OPEN").notNull(),
   creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
   isAnonymous: boolean("is_anonymous").default(false).notNull(),
   assignedTechnicianId: uuid("assigned_technician_id").references(() => users.id, {

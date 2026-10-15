@@ -73,6 +73,15 @@ describe("TicketReplies", () => {
     expect(screen.getByLabelText("Your reply")).toBeRequired();
   });
 
+  it("shows existing replies but no form when the ticket is closed", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ replies: [firstReply] })));
+    render(<TicketReplies ticketId={ticketId} replyStatus="CLOSED" />);
+
+    expect(await screen.findByText(firstReply.body)).toBeInTheDocument();
+    expect(screen.getByText("This ticket is closed to new replies.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Post reply" })).not.toBeInTheDocument();
+  });
+
   it("shows an accessible error and retries on request", async () => {
     const fetchMock = vi
       .fn()

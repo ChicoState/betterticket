@@ -23,7 +23,7 @@ A reply has this shape:
 
 For both routes an ID that is not a UUID or an invalid body returns `400` with the existing `VALIDATION_ERROR` object, a well-formed ID with no ticket returns `404` with the existing `NOT_FOUND` object, and unexpected failures return `500` with the stable error object and no database details.
 
-Posting a reply does not change the ticket's status or `updatedAt`. Replies cannot be edited or deleted.
+Posting a reply does not change the ticket's progress status or `updatedAt`. Replies cannot be edited or deleted. A ticket closed under [ticket closure](ticket-closure.md) returns `409 TICKET_CLOSED` for new replies while retaining its existing replies.
 
 ## Pages
 

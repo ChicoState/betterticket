@@ -1,4 +1,4 @@
-import type { TicketStatus } from "./ticket-api.js";
+import type { TicketReplyStatus, TicketStatus } from "./ticket-api.js";
 
 const statusLabels: Record<TicketStatus, string> = {
   OPEN: "Open",
@@ -25,6 +25,10 @@ const createdAtFormat = new Intl.DateTimeFormat(undefined, {
 
 export function formatStatus(status: TicketStatus): string {
   return statusLabels[status];
+}
+
+export function formatReplyStatus(status: TicketReplyStatus): string {
+  return status === "OPEN" ? "Open for replies" : "Closed to replies";
 }
 
 export function getProgressStageState(

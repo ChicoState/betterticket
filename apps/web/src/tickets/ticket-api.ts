@@ -16,6 +16,12 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketReplyStatuses = ["OPEN", "CLOSED"] as const;
+
+export type TicketReplyStatus = (typeof ticketReplyStatuses)[number];
+
+export class TicketClosedError extends Error {}
+
 export interface CreatedTicket {
   id: string;
 }
@@ -52,6 +58,8 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  replyStatus: TicketReplyStatus;
+  canManageReplyStatus: boolean;
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -59,6 +67,10 @@ export interface Ticket {
 
 function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
+}
+
+function isTicketReplyStatus(value: unknown): value is TicketReplyStatus {
+  return typeof value === "string" && ticketReplyStatuses.includes(value as TicketReplyStatus);
 }
 
 function isTicket(value: unknown): value is Ticket {
@@ -75,6 +87,8 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
+    (!("replyStatus" in ticket) || isTicketReplyStatus(ticket.replyStatus)) &&
+    (!("canManageReplyStatus" in ticket) || typeof ticket.canManageReplyStatus === "boolean") &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"
@@ -178,6 +192,9 @@ export async function createReply(ticketId: string, body: string): Promise<Reply
     body: JSON.stringify({ body })
   });
 
+  if (response.status === 409) {
+    throw new TicketClosedError("This ticket is closed to new replies");
+  }
   if (!response.ok) {
     throw new Error("Reply creation failed");
   }
@@ -188,4 +205,26 @@ export async function createReply(ticketId: string, body: string): Promise<Reply
   }
 
   return reply;
+}
+
+export async function updateTicketReplyStatus(
+  ticketId: string,
+  replyStatus: TicketReplyStatus
+): Promise<Ticket> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/reply-status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ replyStatus })
+  });
+
+  if (!response.ok) {
+    throw new Error("Ticket reply status update failed");
+  }
+
+  const ticket: unknown = await response.json();
+  if (!isTicket(ticket)) {
+    throw new Error("Ticket reply status update returned an invalid response");
+  }
+
+  return ticket;
 }

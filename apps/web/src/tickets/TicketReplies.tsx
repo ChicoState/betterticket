@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 
-import { createReply, listReplies, type Reply } from "./ticket-api.js";
+import {
+  createReply,
+  listReplies,
+  TicketClosedError,
+  type Reply,
+  type TicketReplyStatus
+} from "./ticket-api.js";
 import { formatCreatedAt } from "./ticket-format.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; replies: Reply[] } | { type: "error" };
@@ -10,9 +16,15 @@ type SubmissionState =
 
 interface TicketRepliesProps {
   ticketId: string;
+  replyStatus?: TicketReplyStatus;
+  onTicketClosed?: () => void;
 }
 
-export function TicketReplies({ ticketId }: TicketRepliesProps) {
+export function TicketReplies({
+  ticketId,
+  replyStatus = "OPEN",
+  onTicketClosed = () => {}
+}: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [submission, setSubmission] = useState<SubmissionState>({ type: "idle" });
@@ -58,7 +70,10 @@ export function TicketReplies({ ticketId }: TicketRepliesProps) {
           : current
       );
       setSubmission({ type: "success" });
-    } catch {
+    } catch (error) {
+      if (error instanceof TicketClosedError) {
+        onTicketClosed();
+      }
       setSubmission({ type: "error" });
     }
   }
@@ -100,42 +115,46 @@ export function TicketReplies({ ticketId }: TicketRepliesProps) {
             </ol>
           )}
 
-          <form className="reply-form" onSubmit={handleSubmit}>
-            <fieldset disabled={submission.type === "submitting"}>
-              <legend>Add a reply</legend>
+          {replyStatus === "CLOSED" ? (
+            <p className="list-message">This ticket is closed to new replies.</p>
+          ) : (
+            <form className="reply-form" onSubmit={handleSubmit}>
+              <fieldset disabled={submission.type === "submitting"}>
+                <legend>Add a reply</legend>
 
-              <div className="field">
-                <label htmlFor="reply-body">Your reply</label>
-                <p className="field-hint" id="reply-body-hint">
-                  Replies are anonymous and publicly visible. You can reply without an account.
-                </p>
-                <textarea
-                  id="reply-body"
-                  name="body"
-                  rows={4}
-                  maxLength={5_000}
-                  aria-describedby="reply-body-hint"
-                  required
-                />
+                <div className="field">
+                  <label htmlFor="reply-body">Your reply</label>
+                  <p className="field-hint" id="reply-body-hint">
+                    Replies are anonymous and publicly visible. You can reply without an account.
+                  </p>
+                  <textarea
+                    id="reply-body"
+                    name="body"
+                    rows={4}
+                    maxLength={5_000}
+                    aria-describedby="reply-body-hint"
+                    required
+                  />
+                </div>
+
+                <button className="submit-button" type="submit">
+                  {submission.type === "submitting" ? "Posting reply…" : "Post reply"}
+                </button>
+              </fieldset>
+
+              <div className="submission-message" aria-live="polite">
+                {submission.type === "success" ? (
+                  <p className="success-message">Your reply has been posted.</p>
+                ) : null}
               </div>
 
-              <button className="submit-button" type="submit">
-                {submission.type === "submitting" ? "Posting reply…" : "Post reply"}
-              </button>
-            </fieldset>
-
-            <div className="submission-message" aria-live="polite">
-              {submission.type === "success" ? (
-                <p className="success-message">Your reply has been posted.</p>
+              {submission.type === "error" ? (
+                <p className="error-message" role="alert">
+                  We couldn&apos;t post your reply. Please try again.
+                </p>
               ) : null}
-            </div>
-
-            {submission.type === "error" ? (
-              <p className="error-message" role="alert">
-                We couldn&apos;t post your reply. Please try again.
-              </p>
-            ) : null}
-          </form>
+            </form>
+          )}
         </>
       ) : null}
     </section>

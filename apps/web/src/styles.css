@@ -329,6 +329,18 @@ main {
   text-transform: uppercase;
 }
 
+.reply-status-badge {
+  flex-shrink: 0;
+  border: 1px solid #d6dcda;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #53616a;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .ticket-meta {
   margin: 0.35rem 0 0;
   color: #64727a;
@@ -376,11 +388,26 @@ main {
 }
 
 .ticket-detail h1 {
+  flex: 1 1 16rem;
   max-width: none;
+  min-width: 0;
   font-size: clamp(1.75rem, 4vw, 2.75rem);
   line-height: 1.1;
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
+}
+
+.ticket-detail-header-actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ticket-detail-header-actions .submit-button {
+  white-space: nowrap;
 }
 
 .ticket-card dl {

@@ -1,15 +1,18 @@
-import { and, desc, eq, getTableColumns } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { ticketReplies, tickets, users } from "./schema.js";
 import type {
   AssignmentResult,
   CreateTicketInput,
+  ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
   TicketRecord,
-  TicketRepository
+  TicketRepository,
+  UpdateReplyStatusResult
 } from "../tickets/ticket-repository.js";
+import type { TicketReplyStatus } from "../tickets/ticket-contract.js";
 
 export class PostgresTicketRepository implements TicketRepository {
   constructor(private readonly database: NodePgDatabase) {}
@@ -62,17 +65,29 @@ export class PostgresTicketRepository implements TicketRepository {
     return ticket ? toTicketRecord(ticket) : null;
   }
 
-  async createReply(ticketId: string, body: string): Promise<ReplyRecord> {
+  async createReply(ticketId: string, body: string): Promise<ReplyCreationResult> {
     const [reply] = await this.database
       .insert(ticketReplies)
-      .values({ ticketId, body })
+      .select(
+        this.database
+          .select({
+            id: sql<string>`gen_random_uuid()`.as("id"),
+            ticketId: tickets.id,
+            body: sql<string>`${body}`.as("body"),
+            createdAt: sql<Date>`now()`.as("created_at")
+          })
+          .from(tickets)
+          .where(and(eq(tickets.id, ticketId), eq(tickets.replyStatus, "OPEN")))
+      )
       .returning();
 
-    if (!reply) {
-      throw new Error("Reply insert did not return a row");
+    if (reply) {
+      return { type: "created", reply };
     }
 
-    return reply;
+    return (await this.findById(ticketId))
+      ? { type: "ticket-closed" }
+      : { type: "ticket-not-found" };
   }
 
   async listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]> {
@@ -84,6 +99,28 @@ export class PostgresTicketRepository implements TicketRepository {
       .limit(limit);
 
     return newestFirst.reverse();
+  }
+
+  async updateReplyStatus(
+    ticketId: string,
+    ownerUserId: string,
+    replyStatus: TicketReplyStatus
+  ): Promise<UpdateReplyStatusResult> {
+    const [ticket] = await this.database
+      .update(tickets)
+      .set({ replyStatus, updatedAt: new Date() })
+      .where(and(eq(tickets.id, ticketId), eq(tickets.creatorUserId, ownerUserId)))
+      .returning({ id: tickets.id });
+
+    if (ticket) {
+      const updatedTicket = await this.findById(ticketId);
+      if (!updatedTicket) {
+        throw new Error("Ticket update could not be read");
+      }
+      return { type: "updated", ticket: updatedTicket };
+    }
+
+    return (await this.findById(ticketId)) ? { type: "not-owner" } : { type: "ticket-not-found" };
   }
 
   async assignTechnician(

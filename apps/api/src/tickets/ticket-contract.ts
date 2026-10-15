@@ -8,6 +8,10 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketReplyStatuses = ["OPEN", "CLOSED"] as const;
+
+export type TicketReplyStatus = (typeof ticketReplyStatuses)[number];
+
 export interface CreateTicketInput {
   title: string;
   description: string;
@@ -23,6 +27,8 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  replyStatus: TicketReplyStatus;
+  canManageReplyStatus: boolean;
   assignedTechnicianId: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -35,6 +41,10 @@ export interface TicketAssignmentParams {
 
 export interface AssignTechnicianInput {
   assignedTechnicianId: string | null;
+}
+
+export interface UpdateTicketReplyStatusInput {
+  replyStatus: TicketReplyStatus;
 }
 
 const requiredText = (maxLength: number) => ({
@@ -67,6 +77,8 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "replyStatus",
+    "canManageReplyStatus",
     "assignedTechnicianId",
     "createdByName",
     "createdAt",
@@ -79,6 +91,8 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    replyStatus: { type: "string", enum: ticketReplyStatuses },
+    canManageReplyStatus: { type: "boolean" },
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdByName: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
@@ -115,6 +129,15 @@ export const ticketParamsSchema = {
   required: ["id"],
   properties: {
     id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const updateTicketReplyStatusBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["replyStatus"],
+  properties: {
+    replyStatus: { type: "string", enum: ticketReplyStatuses }
   }
 } as const;
 

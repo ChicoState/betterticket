@@ -6,7 +6,7 @@ Let a visitor track the current progress of a public ticket from its individual 
 
 ## Contract
 
-Ticket responses continue to expose `status` and `updatedAt`. The only approved status values are `OPEN`, `UNDER_REVIEW`, `IN_PROGRESS`, `RESOLVED`, and `COMPLETED`. New tickets always start `OPEN`.
+Ticket responses continue to expose `status` and `updatedAt`. The only approved status values are `OPEN`, `UNDER_REVIEW`, `IN_PROGRESS`, `RESOLVED`, and `COMPLETED`. New tickets always start `OPEN`. Reply closure is an independent lifecycle defined in [ticket closure](ticket-closure.md) and does not alter progress status.
 
 The approved forward-only lifecycle is:
 

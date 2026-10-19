@@ -42,6 +42,7 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      visibility: "PUBLIC",
       assignedTechnicianId: null
     });
     expect(created.id).toMatch(

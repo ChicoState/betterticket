@@ -96,11 +96,35 @@ The command requests a name, username, password, and either the `USER` or `TECHN
 
 See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
 
+## IT accounts
+
+An IT account is a user whose stored role is `TECHNICIAN`; the account menu labels it "IT". IT
+accounts are managed only from the command line by an operator with database access. The website's
+registration form always creates regular `USER` accounts and cannot grant IT access.
+
+To create a new IT account, run the following and enter `TECHNICIAN` when prompted for the role:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm user:create
+```
+
+To upgrade an existing account (for example, one created through the website) to IT, run the
+following and enter the username and `TECHNICIAN`. Enter `USER` instead to return an IT account to a
+regular account:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm user:set-role
+```
+
+Both commands are interactive and require applied migrations. A role change applies on the user's
+next request without signing them out. IT-only API routes use the shared `requireTechnician` guard.
+See [the IT accounts spec](docs/specs/it-accounts.md) and [ADR-006](docs/decisions/006-it-account-designation.md).
+
 ## Public registration and login
 
 The homepage (`/`) lets a visitor sign in, create a regular-user account, or continue anonymously
 to `/tickets`. `POST /api/users` creates only `USER` accounts; it never accepts a role from the
-browser. Technician accounts must still be created with `pnpm user:create`. New accounts return to
+browser. Technician (IT) accounts are created with `pnpm user:create` or promoted with `pnpm user:set-role`. New accounts return to
 the login form rather than creating a session automatically. See [the feature spec](docs/specs/public-registration-and-login.md) and [ADR-004](docs/decisions/004-public-regular-user-registration.md).
 
 ## Tooling and CI

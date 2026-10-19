@@ -1,4 +1,4 @@
-import type { TicketStatus } from "./ticket-api.js";
+import type { Ticket, TicketStatus } from "./ticket-api.js";
 
 const statusLabels: Record<TicketStatus, string> = {
   OPEN: "Open",
@@ -25,6 +25,14 @@ const createdAtFormat = new Intl.DateTimeFormat(undefined, {
 
 export function formatStatus(status: TicketStatus): string {
   return statusLabels[status];
+}
+
+export function formatVisibility(visibility: Ticket["visibility"]): string {
+  return {
+    PUBLIC: "Public",
+    AUTHENTICATED: "Logged-in users",
+    PRIVATE: "You and IT only"
+  }[visibility];
 }
 
 export function getProgressStageState(

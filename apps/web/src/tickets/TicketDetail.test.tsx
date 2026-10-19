@@ -12,6 +12,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"

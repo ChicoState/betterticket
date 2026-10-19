@@ -4,7 +4,11 @@ export interface CreateTicketInput {
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  visibility?: TicketVisibility;
 }
+
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
 
 export const ticketStatuses = [
   "OPEN",
@@ -52,6 +56,8 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  visibility: TicketVisibility;
+  canReply: boolean;
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -75,6 +81,8 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
+    ticketVisibilities.includes(ticket.visibility as TicketVisibility) &&
+    typeof ticket.canReply === "boolean" &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"

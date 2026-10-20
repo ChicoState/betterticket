@@ -48,11 +48,13 @@ in the account menu. See `docs/specs/it-accounts.md`.
 ### Task 4: Shared IT authorization guard
 
 - [x] Extract session resolution and the role check into `requireTechnician(authRepository, request)` in
+
       `apps/api/src/auth/`. Replace the inline check in technician-only ticket routes.
   - Acceptance: assignment and status responses are unchanged. A role change applies on the next
     request.
   - Verify: route tests cover the assignment and status routes through the shared guard, plus a
     demoted-session test.
+
   - Files: new guard module, `ticket-route.ts`, `ticket-route.test.ts`. Scope: S.
 
 ### Task 5: Show IT designation in the account menu
@@ -65,8 +67,10 @@ in the account menu. See `docs/specs/it-accounts.md`.
 
 ### Task 6: Documentation
 
+
 - [x] Document `pnpm user:set-role` in README and AGENTS.md (local verification/provisioning) and
       point the technician-assignment spec at the new command.
+
   - Files: `README.md`, `AGENTS.md`, `docs/specs/technician-assignment.md`. Scope: XS.
 
 ### Checkpoint B

@@ -10,6 +10,7 @@ export type TechnicianAccess =
 // Resolves the caller's role from the server-side session on every request so technician-only
 // routes never trust client-supplied identity and role changes, including demotion, take effect
 // on the next request.
+
 export async function requireTechnician(
   authRepository: AuthRepository,
   request: FastifyRequest

@@ -37,7 +37,9 @@ self-registration to `USER`. The gaps are:
   user or invalid role.
 - A shared `requireTechnician` guard in `apps/api/src/auth/` returns either the authenticated
   technician or the `401 AUTHENTICATION_REQUIRED` / `403 FORBIDDEN` response for the route to send.
+
   Technician-only ticket routes use it with unchanged responses.
+
 - The account menu shows an "IT" badge for signed-in `TECHNICIAN` users. Its accessible label
   becomes `Account: Signed in as <name> (IT)`. Regular users and anonymous visitors see no change.
 - Public API contracts are unchanged. `POST /api/users` still creates only `USER`.
@@ -54,8 +56,10 @@ self-registration to `USER`. The gaps are:
 ## Verification
 
 - Repository integration test: a role update persists, and the update reports when no user matches.
+
 - Route tests: assignment and status `401`/`403` tests pass through the shared guard. Unauthenticated
   requests receive `401`, unauthorized users receive `403`, and a user demoted mid-session receives
   `403` on the next request. Existing assignment and status API responses remain unchanged.
+
 - Component test: the IT badge and accessible label appear only for `TECHNICIAN`.
 - Pinned format, lint, typecheck, migrate, test, coverage, build, and smoke gates pass.

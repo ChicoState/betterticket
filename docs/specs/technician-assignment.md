@@ -35,6 +35,7 @@ from a ticket without changing the ticket's status.
 
 `pnpm user:create` interactively requests name, username, password, and role. It uses the same
 Argon2id hashing implementation as login. `pnpm user:set-role` promotes or demotes an existing
+
 account (see ADR-006), and public regular-user registration is defined by ADR-004.
 
 ## Tech Stack and Structure

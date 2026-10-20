@@ -400,6 +400,32 @@ main {
   font-size: 1rem;
 }
 
+.ticket-progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.status-update-button {
+  border: 1px solid #0b5967;
+  border-radius: 0.25rem;
+  background: #ffffff;
+  color: #0b5967;
+  padding: 0.55rem 0.8rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.status-update-button:hover:not(:disabled) {
+  background: #eef8f2;
+}
+
+.status-update-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .progress-timeline {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -616,6 +642,15 @@ textarea {
 
 textarea {
   resize: vertical;
+}
+
+.account-it-badge {
+  border-radius: 0.2rem;
+  background: #0b5967;
+  color: #ffffff;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
 }
 
 input:focus-visible,

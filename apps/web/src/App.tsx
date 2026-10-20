@@ -121,7 +121,10 @@ export function App() {
             ← All tickets
           </a>
 
-          <TicketDetail ticketId={page.ticketId} />
+          <TicketDetail
+            ticketId={page.ticketId}
+            currentUser={session?.type === "authenticated" ? session.user : null}
+          />
         </main>
       ) : isNewTicketPage ? (
         <main className="form-page">

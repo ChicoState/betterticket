@@ -76,7 +76,7 @@ The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`,
 
 ## Ticket progress
 
-Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Status changes require a future authenticated, authorized staff workflow; this baseline provides no status-update endpoint. See [the feature spec](docs/specs/ticket-progress.md) and [ADR-003](docs/decisions/003-ticket-progress-statuses.md).
+Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and `COMPLETED` is terminal. See [the feature spec](docs/specs/ticket-progress.md) and [the technician status-update ADR](docs/decisions/007-technician-status-updates.md).
 
 ## Ticket replies baseline
 
@@ -96,11 +96,33 @@ The command requests a name, username, password, and either the `USER` or `TECHN
 
 See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
 
+## IT accounts
+
+An IT account is a user whose stored role is `TECHNICIAN`; the account menu labels it "IT". IT
+accounts are managed only from the command line by an operator with database access. The website's
+registration form always creates regular `USER` accounts and cannot grant IT access.
+
+To create a new IT account, run the following and enter `TECHNICIAN` when prompted for the role:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm user:create
+```
+
+To upgrade or demote an existing account, run the following and enter the username and role:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm user:set-role
+```
+
+Both commands are interactive and require applied migrations. A role change applies on the user's
+next request without signing them out. IT-only API routes use the shared `requireTechnician` guard.
+See [the IT accounts spec](docs/specs/it-accounts.md) and [ADR-006](docs/decisions/006-it-account-designation.md).
+
 ## Public registration and login
 
 The homepage (`/`) lets a visitor sign in, create a regular-user account, or continue anonymously
 to `/tickets`. `POST /api/users` creates only `USER` accounts; it never accepts a role from the
-browser. Technician accounts must still be created with `pnpm user:create`. New accounts return to
+browser. Technician (IT) accounts are created with `pnpm user:create` or promoted with `pnpm user:set-role`. New accounts return to
 the login form rather than creating a session automatically. See [the feature spec](docs/specs/public-registration-and-login.md) and [ADR-004](docs/decisions/004-public-regular-user-registration.md).
 
 ## Tooling and CI

@@ -108,7 +108,9 @@ To create a new IT account, run the following and enter `TECHNICIAN` when prompt
 docker compose --profile tools run --rm toolchain pnpm user:create
 ```
 
-To upgrade or demote an existing account, run the following and enter the username and role:
+To upgrade an existing account (for example, one created through the website) to IT, or to return
+an IT account to a regular account, run the following and enter the username and either
+`TECHNICIAN` or `USER`:
 
 ```sh
 docker compose --profile tools run --rm toolchain pnpm user:set-role

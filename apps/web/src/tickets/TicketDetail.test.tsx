@@ -123,16 +123,16 @@ describe("TicketDetail", () => {
     expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
   });
 
-  it("does not show a status control after the ticket is completed", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status: "COMPLETED" }))
-    );
-    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+  it.each(["RESOLVED", "COMPLETED"])(
+    "does not show a status control for a %s ticket",
+    async (status) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status })));
+      render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
 
-    await screen.findByRole("heading", { level: 1 });
-    expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
-  });
+      await screen.findByRole("heading", { level: 1 });
+      expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
+    }
+  );
 
   it("updates the timeline after a technician advances the ticket", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
@@ -149,8 +149,9 @@ describe("TicketDetail", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Move to Under review" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Ticket status updated to Under review."
+    expect(await screen.findByText("Ticket status updated to Under review.")).toHaveAttribute(
+      "role",
+      "status"
     );
     expect(screen.getByText("Under review", { selector: ".status-badge" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move to In progress" })).toBeInTheDocument();
@@ -183,7 +184,10 @@ describe("TicketDetail", () => {
 
     expect(screen.getByRole("button", { name: "Updating status…" })).toBeDisabled();
     resolveUpdate(jsonResponse({ ...ticket, status: "UNDER_REVIEW" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Ticket status updated");
+    expect(await screen.findByText("Ticket status updated to Under review.")).toHaveAttribute(
+      "role",
+      "status"
+    );
   });
 
   it("shows an accessible error when the status update is rejected", async () => {

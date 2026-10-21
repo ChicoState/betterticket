@@ -68,7 +68,7 @@ export class TicketStatusUpdateError extends Error {
   }
 }
 
-function isTicketStatus(value: unknown): value is TicketStatus {
+export function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
 

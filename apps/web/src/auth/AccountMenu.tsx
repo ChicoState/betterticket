@@ -75,7 +75,7 @@ export function AccountMenu({ session, onLogout }: AccountMenuProps) {
       >
         <ProfileIcon />
         <span aria-hidden="true" className="account-status-label">
-          {isAuthenticated ? "Signed in" : "Anonymous"}
+          {isAuthenticated ? session.user.name : "Anonymous"}
         </span>
         {isItAccount ? (
           <span aria-hidden="true" className="account-it-badge">

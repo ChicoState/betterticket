@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AccountMenu, type AccountSession } from "./auth/AccountMenu.js";
 import { AuthGateway } from "./auth/AuthGateway.js";
 import { getCurrentUser, logout } from "./auth/auth-api.js";
+import { NotificationPane } from "./notifications/NotificationPane.js";
 import { TicketDetail } from "./tickets/TicketDetail.js";
 import { TicketForm } from "./tickets/TicketForm.js";
 import { TicketList } from "./tickets/TicketList.js";
@@ -110,6 +111,7 @@ export function App() {
                 New ticket
               </a>
             </nav>
+            {session?.type === "authenticated" ? <NotificationPane /> : null}
             {session ? <AccountMenu session={session} onLogout={handleLogout} /> : null}
           </div>
         )}

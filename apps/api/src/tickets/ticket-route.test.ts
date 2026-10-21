@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../app.js";
-import { ticketStatuses, type TicketStatus } from "./ticket-contract.js";
+import { canTechnicianChangeStatus, ticketStatuses, type TicketStatus } from "./ticket-contract.js";
 import type { AuthenticatedUser, UserRole } from "../auth/auth-contract.js";
 import type { AuthRepository, CreatedSession } from "../auth/auth-repository.js";
 import type {
@@ -13,6 +13,7 @@ import type {
   TicketRecord,
   TicketRepository
 } from "./ticket-repository.js";
+import type { NotificationRepository } from "../notifications/notification-repository.js";
 
 const technicianId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 const ticketId = "cc04d84c-9aee-4d35-8af3-999d861aaed6";
@@ -131,6 +132,11 @@ class FakeTicketRepository implements TicketRepository {
   }
 }
 
+const notificationRepository: NotificationRepository = {
+  listRecent: vi.fn(),
+  markAllRead: vi.fn()
+};
+
 describe("POST /api/tickets", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
 
@@ -140,7 +146,12 @@ describe("POST /api/tickets", () => {
 
   it("creates an anonymous ticket with normalized input", async () => {
     const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({
@@ -179,7 +190,12 @@ describe("POST /api/tickets", () => {
 
   it("retains a signed-in anonymous poster privately without exposing their name", async () => {
     const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({
@@ -203,7 +219,12 @@ describe("POST /api/tickets", () => {
 
   it("shows the signed-in poster's display name when they do not choose anonymity", async () => {
     const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({
@@ -235,7 +256,12 @@ describe("POST /api/tickets", () => {
     ["oversized description", { title: "Issue", description: "x".repeat(5_001), setup: "Setup" }]
   ])("rejects %s without writing", async (_name, payload) => {
     const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({
@@ -256,7 +282,12 @@ describe("POST /api/tickets", () => {
 
   it("stores omitted additional information as null", async () => {
     const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({
@@ -283,7 +314,12 @@ describe("POST /api/tickets", () => {
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({
@@ -341,7 +377,12 @@ describe("GET /api/tickets", () => {
         updatedAt: new Date("2026-09-28T18:00:00.000Z")
       }
     ]);
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({ method: "GET", url: "/api/tickets" });
@@ -382,6 +423,7 @@ describe("GET /api/tickets", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: new FakeTicketRepository(),
+      notificationRepository,
       logger: false
     });
     apps.push(app);
@@ -407,7 +449,12 @@ describe("GET /api/tickets", () => {
         updatedAt: new Date("2026-09-30T10:15:00.000Z")
       }
     ]);
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({ method: "GET", url: "/api/tickets" });
@@ -426,7 +473,12 @@ describe("GET /api/tickets", () => {
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({ method: "GET", url: "/api/tickets" });
@@ -465,6 +517,7 @@ describe("GET /api/tickets/:id", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: new FakeTicketRepository([storedTicket]),
+      notificationRepository,
       logger: false
     });
     apps.push(app);
@@ -483,6 +536,7 @@ describe("GET /api/tickets/:id", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: new FakeTicketRepository(),
+      notificationRepository,
       logger: false
     });
     apps.push(app);
@@ -508,7 +562,12 @@ describe("GET /api/tickets/:id", () => {
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({ method: "GET", url: "/api/tickets/not-a-uuid" });
@@ -528,7 +587,12 @@ describe("GET /api/tickets/:id", () => {
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     const response = await app.inject({ method: "GET", url: `/api/tickets/${storedTicket.id}` });
@@ -567,6 +631,7 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
     const app = buildApp({
       authRepository: sessionRepository,
       ticketRepository: repository,
+      notificationRepository,
       logger: false
     });
     apps.push(app);
@@ -712,6 +777,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
     const app = buildApp({
       authRepository: sessionRepository,
       ticketRepository: repository,
+      notificationRepository,
       logger: false
     });
     apps.push(app);
@@ -772,7 +838,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(repository.updateStatus).toHaveBeenCalledWith(ticketId, "UNDER_REVIEW");
+    expect(repository.updateStatus).toHaveBeenCalledWith(ticketId, "UNDER_REVIEW", technicianId);
     expect(response.json()).toMatchObject({ status: "UNDER_REVIEW" });
   });
 
@@ -787,7 +853,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(repository.updateStatus).toHaveBeenCalledWith(ticketId, "UNDER_REVIEW");
+    expect(repository.updateStatus).toHaveBeenCalledWith(ticketId, "UNDER_REVIEW", technicianId);
     expect(response.json()).toMatchObject({ status: "UNDER_REVIEW" });
   });
 
@@ -805,7 +871,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
     expect(response.json()).toEqual({
       error: {
         code: "INVALID_STATUS_TRANSITION",
-        message: "The ticket status transition is invalid"
+        message: "Technicians can only advance a ticket one stage, up to resolved"
       }
     });
   });
@@ -845,6 +911,21 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
   );
 });
 
+describe("canTechnicianChangeStatus", () => {
+  it.each([
+    ["OPEN", "UNDER_REVIEW", true],
+    ["UNDER_REVIEW", "IN_PROGRESS", true],
+    ["IN_PROGRESS", "RESOLVED", true],
+    ["OPEN", "RESOLVED", false],
+    ["IN_PROGRESS", "IN_PROGRESS", false],
+    ["RESOLVED", "IN_PROGRESS", false],
+    ["RESOLVED", "COMPLETED", false],
+    ["OPEN", "COMPLETED", false]
+  ] as const)("%s → %s is %s", (from, to, allowed) => {
+    expect(canTechnicianChangeStatus(from, to)).toBe(allowed);
+  });
+});
+
 describe("ticket replies", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
   const storedTicket: TicketRecord = {
@@ -872,7 +953,12 @@ describe("ticket replies", () => {
   });
 
   function build(repository: TicketRepository) {
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      logger: false
+    });
     apps.push(app);
 
     return app;

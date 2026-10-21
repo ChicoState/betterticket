@@ -1,6 +1,6 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, replies, users, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician-assignment and status-update backend, and ticket status notifications. Tickets, replies, users, notifications, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
@@ -76,7 +76,11 @@ The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`,
 
 ## Ticket progress
 
-Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and `COMPLETED` is terminal. See [the feature spec](docs/specs/ticket-progress.md) and [the technician status-update ADR](docs/decisions/007-technician-status-updates.md).
+Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and technicians stop at `RESOLVED`; `COMPLETED` is reserved for the ticket owner's confirmation in a later issue #8 slice. See [the feature spec](docs/specs/ticket-progress.md), [ADR-007](docs/decisions/007-technician-status-updates.md), and [ADR-008](docs/decisions/008-technician-status-updates-and-owner-notifications.md).
+
+## Ticket status notifications
+
+Each technician status change notifies the signed-in user who created the ticket, including anonymous posts, whose notifications stay private. Signed-in users see a notification button in the header with an unread count. The browser polls `GET /api/notifications` every 30 seconds and when the window regains focus, and opening the pane calls `POST /api/notifications/read`. See [the feature spec](docs/specs/ticket-status-notifications.md) and [ADR-008](docs/decisions/008-technician-status-updates-and-owner-notifications.md).
 
 ## Ticket replies baseline
 

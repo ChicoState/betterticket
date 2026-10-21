@@ -71,6 +71,47 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/tickets");
   });
 
+  it("shows notifications only to signed-in visitors", async () => {
+    window.history.pushState({}, "", "/tickets");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify(
+              path === "/api/sessions/current"
+                ? {
+                    id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+                    name: "Uma User",
+                    username: "uma",
+                    role: "USER"
+                  }
+                : path === "/api/notifications"
+                  ? { notifications: [], unreadCount: 2 }
+                  : { tickets: [] }
+            ),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        )
+      )
+    );
+    render(<App />);
+
+    expect(
+      await screen.findByRole("button", { name: "Notifications: 2 unread" })
+    ).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith("/api/notifications");
+  });
+
+  it("does not show notifications to anonymous visitors", async () => {
+    window.history.pushState({}, "", "/tickets");
+    render(<App />);
+
+    expect(await screen.findByRole("button", { name: "Account: Anonymous" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Notifications/ })).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalledWith("/api/notifications");
+  });
+
   it("shows the submitted tickets at /tickets", async () => {
     window.history.pushState({}, "", "/tickets");
     render(<App />);

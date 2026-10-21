@@ -10,6 +10,7 @@ import type {
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
+import type { NotificationRepository } from "../notifications/notification-repository.js";
 
 const technician: AuthenticatedUser = {
   id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -87,6 +88,15 @@ const unusedTicketRepository: TicketRepository = {
   }
 };
 
+const unusedNotificationRepository: NotificationRepository = {
+  listRecent: async () => {
+    throw new Error("not used");
+  },
+  markAllRead: async () => {
+    throw new Error("not used");
+  }
+};
+
 describe("session routes", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
 
@@ -99,6 +109,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -123,6 +134,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -141,6 +153,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -163,6 +176,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -185,6 +199,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -209,6 +224,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -230,6 +246,7 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -262,6 +279,7 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -296,6 +314,7 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -318,6 +337,7 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);
@@ -338,6 +358,7 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
       logger: false
     });
     apps.push(app);

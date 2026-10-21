@@ -8,6 +8,14 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+/**
+ * Technicians may only advance a ticket one stage at a time and never close it; the owner
+ * confirms completion.
+ */
+export function canTechnicianChangeStatus(from: TicketStatus, to: TicketStatus): boolean {
+  return to !== "COMPLETED" && ticketStatuses.indexOf(to) === ticketStatuses.indexOf(from) + 1;
+}
+
 export interface CreateTicketInput {
   title: string;
   description: string;

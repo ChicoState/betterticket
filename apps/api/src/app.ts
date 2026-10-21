@@ -4,16 +4,24 @@ import Fastify, { type FastifyServerOptions } from "fastify";
 
 import { authRoutes } from "./auth/auth-route.js";
 import type { AuthRepository } from "./auth/auth-repository.js";
+import type { NotificationRepository } from "./notifications/notification-repository.js";
+import { notificationRoutes } from "./notifications/notification-route.js";
 import { ticketRoutes } from "./tickets/ticket-route.js";
 import type { TicketRepository } from "./tickets/ticket-repository.js";
 
 interface BuildAppOptions {
   authRepository: AuthRepository;
   ticketRepository: TicketRepository;
+  notificationRepository: NotificationRepository;
   logger?: FastifyServerOptions["logger"];
 }
 
-export function buildApp({ authRepository, ticketRepository, logger = true }: BuildAppOptions) {
+export function buildApp({
+  authRepository,
+  ticketRepository,
+  notificationRepository,
+  logger = true
+}: BuildAppOptions) {
   const app = Fastify({
     logger,
     ajv: {
@@ -76,6 +84,7 @@ export function buildApp({ authRepository, ticketRepository, logger = true }: Bu
   void app.register(rateLimit, { global: false });
   void app.register(authRoutes, { authRepository });
   void app.register(ticketRoutes, { authRepository, ticketRepository });
+  void app.register(notificationRoutes, { authRepository, notificationRepository });
 
   return app;
 }

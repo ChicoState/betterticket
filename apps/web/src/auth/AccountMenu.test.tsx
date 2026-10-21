@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AccountMenu } from "./AccountMenu.js";
@@ -23,6 +23,14 @@ describe("AccountMenu", () => {
     expect(screen.getByRole("button", { name: "Settings (coming soon)" })).toBeDisabled();
   });
 
+  it("shows the signed-in user's name on the menu button", () => {
+    render(<AccountMenu session={{ type: "authenticated", user }} onLogout={vi.fn()} />);
+
+    expect(
+      screen.getByRole("button", { name: "Account: Signed in as Uma User" })
+    ).toHaveTextContent("Uma User");
+  });
+
   it("shows the signed-in identity and logs out", async () => {
     const onLogout = vi.fn().mockResolvedValue(undefined);
     render(<AccountMenu session={{ type: "authenticated", user }} onLogout={onLogout} />);
@@ -31,8 +39,9 @@ describe("AccountMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 
     await waitFor(() => expect(onLogout).toHaveBeenCalledOnce());
-    expect(screen.getByText("Uma User")).toBeInTheDocument();
-    expect(screen.getByText("@uma")).toBeInTheDocument();
+    const options = screen.getByLabelText("Account options");
+    expect(within(options).getByText("Uma User")).toBeInTheDocument();
+    expect(within(options).getByText("@uma")).toBeInTheDocument();
   });
 
   it("keeps the menu available when logout fails", async () => {

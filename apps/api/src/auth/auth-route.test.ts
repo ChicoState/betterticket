@@ -310,6 +310,30 @@ describe("public user registration", () => {
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
+  it("accepts short passwords but rejects empty ones", async () => {
+    const app = buildApp({
+      authRepository: new FakeAuthRepository(),
+      ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const shortPassword = await app.inject({
+      method: "POST",
+      url: "/api/users",
+      payload: { name: "Uma User", username: "uma", password: "a" }
+    });
+    const emptyPassword = await app.inject({
+      method: "POST",
+      url: "/api/users",
+      payload: { name: "Uma User", username: "uma-empty", password: "" }
+    });
+
+    expect(shortPassword.statusCode).toBe(201);
+    expect(emptyPassword.statusCode).toBe(400);
+  });
+
   it("rejects a role supplied by the browser", async () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),

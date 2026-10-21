@@ -100,6 +100,21 @@ The command requests a name, username, password, and either the `USER` or `TECHN
 
 See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
 
+## Example data
+
+For local testing, load a small example dataset (users, tickets in every status, replies, and
+notifications) after applying migrations:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm db:example
+```
+
+It creates the accounts `alice` and `bob` (`USER`) and `terry` and `tina` (`TECHNICIAN`), all with
+the password `password`. The command refuses to run against a database that already has users or
+tickets; add `--reset` to delete all existing users, sessions, tickets, replies, and
+notifications first. It refuses to run when `NODE_ENV=production`. Never load example data into a
+shared or production database.
+
 ## IT accounts
 
 An IT account is a user whose stored role is `TECHNICIAN`; the account menu labels it "IT". IT

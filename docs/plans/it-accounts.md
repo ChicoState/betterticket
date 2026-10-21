@@ -67,7 +67,6 @@ in the account menu. See `docs/specs/it-accounts.md`.
 
 ### Task 6: Documentation
 
-
 - [x] Document `pnpm user:set-role` in README and AGENTS.md (local verification/provisioning) and
       point the technician-assignment spec at the new command.
 

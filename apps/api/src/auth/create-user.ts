@@ -48,9 +48,12 @@ async function readUserInput(): Promise<CreateUserInput> {
     output.muted = false;
     process.stdout.write("\n");
 
-    const role = parseUserRole(await prompt.question("Role (USER or TECHNICIAN): "));
-
-    const input: CreateUserInput = { name, username, password, role };
+    const input: CreateUserInput = {
+      name,
+      username,
+      password,
+      role: parseUserRole(await prompt.question("Role (USER or TECHNICIAN): "))
+    };
     validateInput(input);
     return input;
   } finally {

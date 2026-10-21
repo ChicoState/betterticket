@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
@@ -91,6 +91,97 @@ describe("PostgresTicketRepository", () => {
       .orderBy(asc(tickets.createdAt));
 
     expect(storedStatuses.map((ticket) => ticket.status)).toEqual(ticketStatuses);
+  });
+
+  it("advances through every adjacent status and updates the timestamp", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create({
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42"
+    });
+    const initialUpdatedAt = new Date("2026-09-01T12:00:00.000Z");
+    await database
+      .update(tickets)
+      .set({ updatedAt: initialUpdatedAt })
+      .where(eq(tickets.id, ticket.id));
+
+    for (const status of ticketStatuses.slice(1)) {
+      const result = await repository.updateStatus(ticket.id, status);
+
+      expect(result).toMatchObject({ type: "updated", ticket: { status } });
+      if (result.type !== "updated") {
+        throw new Error("Expected a successful status update");
+      }
+    }
+
+    const finalTicket = await repository.findById(ticket.id);
+    expect(finalTicket?.updatedAt.getTime()).toBeGreaterThan(initialUpdatedAt.getTime());
+  });
+
+  it("rejects skipped, backward, and terminal transitions", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create({
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42"
+    });
+
+    expect(await repository.updateStatus(ticket.id, "IN_PROGRESS")).toEqual({
+      type: "invalid-transition"
+    });
+    expect(await repository.updateStatus(ticket.id, "UNDER_REVIEW")).toMatchObject({
+      type: "updated",
+      ticket: { status: "UNDER_REVIEW" }
+    });
+    expect(await repository.updateStatus(ticket.id, "OPEN")).toEqual({
+      type: "invalid-transition"
+    });
+
+    for (const status of ["IN_PROGRESS", "RESOLVED", "COMPLETED"] as const) {
+      expect(await repository.updateStatus(ticket.id, status)).toMatchObject({
+        type: "updated",
+        ticket: { status }
+      });
+    }
+
+    expect(await repository.updateStatus(ticket.id, "COMPLETED")).toMatchObject({
+      type: "unchanged",
+      ticket: { status: "COMPLETED" }
+    });
+    expect(await repository.updateStatus(ticket.id, "RESOLVED")).toEqual({
+      type: "invalid-transition"
+    });
+  });
+
+  it("treats the current status as idempotent without changing updatedAt", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create({
+      title: "Laptop will not start",
+      description: "The power light flashes once.",
+      setup: "Framework Laptop 13, Fedora 42"
+    });
+    const updatedAt = new Date("2026-09-01T12:00:00.000Z");
+    await database
+      .update(tickets)
+      .set({ status: "IN_PROGRESS", updatedAt })
+      .where(eq(tickets.id, ticket.id));
+
+    const result = await repository.updateStatus(ticket.id, "IN_PROGRESS");
+
+    expect(result).toMatchObject({ type: "unchanged", ticket: { status: "IN_PROGRESS" } });
+    if (result.type !== "unchanged") {
+      throw new Error("Expected an unchanged status update");
+    }
+    expect(result.ticket.updatedAt).toEqual(updatedAt);
+  });
+
+  it("reports an unknown ticket when updating status", async () => {
+    const repository = new PostgresTicketRepository(database);
+
+    expect(
+      await repository.updateStatus("00000000-0000-4000-8000-000000000000", "UNDER_REVIEW")
+    ).toEqual({ type: "ticket-not-found" });
   });
 
   it("finds a ticket by ID and returns null for an unknown ID", async () => {

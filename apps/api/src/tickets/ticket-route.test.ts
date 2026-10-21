@@ -9,6 +9,7 @@ import type {
   CreateTicketInput,
   TicketCreator,
   ReplyRecord,
+  StatusUpdateResult,
   TicketRecord,
   TicketRepository
 } from "./ticket-repository.js";
@@ -122,6 +123,10 @@ class FakeTicketRepository implements TicketRepository {
   }
 
   async assignTechnician(): Promise<AssignmentResult> {
+    throw new Error("not used");
+  }
+
+  async updateStatus(): Promise<StatusUpdateResult> {
     throw new Error("not used");
   }
 }
@@ -275,7 +280,8 @@ describe("POST /api/tickets", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
-      assignTechnician: vi.fn()
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn()
     };
     const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
     apps.push(app);
@@ -417,7 +423,8 @@ describe("GET /api/tickets", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
-      assignTechnician: vi.fn()
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn()
     };
     const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
     apps.push(app);
@@ -498,7 +505,8 @@ describe("GET /api/tickets/:id", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
-      assignTechnician: vi.fn()
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn()
     };
     const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
     apps.push(app);
@@ -517,7 +525,8 @@ describe("GET /api/tickets/:id", () => {
       findById: vi.fn().mockRejectedValue(new Error("password=database-secret")),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
-      assignTechnician: vi.fn()
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn()
     };
     const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
     apps.push(app);
@@ -552,7 +561,8 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
-      assignTechnician: vi.fn().mockResolvedValue(result)
+      assignTechnician: vi.fn().mockResolvedValue(result),
+      updateStatus: vi.fn()
     };
     const app = buildApp({
       authRepository: sessionRepository,
@@ -667,6 +677,174 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
   });
 });
 
+describe("PATCH /api/tickets/:ticketId/status", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+  const updatedTicket: TicketRecord = {
+    id: ticketId,
+    title: "Laptop will not start",
+    description: "The power light flashes once.",
+    setup: "Framework Laptop 13, Fedora 42",
+    additionalInformation: null,
+    status: "UNDER_REVIEW",
+    assignedTechnicianId: null,
+    createdByName: null,
+    createdAt: new Date("2026-09-28T18:00:00.000Z"),
+    updatedAt: new Date("2026-10-08T18:00:00.000Z")
+  };
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  function buildStatusApp(
+    result: StatusUpdateResult,
+    sessionRepository: AuthRepository = authRepository
+  ) {
+    const repository: TicketRepository = {
+      create: vi.fn(),
+      listRecent: vi.fn(),
+      findById: vi.fn(),
+      createReply: vi.fn(),
+      listRecentReplies: vi.fn(),
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn().mockResolvedValue(result)
+    };
+    const app = buildApp({
+      authRepository: sessionRepository,
+      ticketRepository: repository,
+      logger: false
+    });
+    apps.push(app);
+    return { app, repository };
+  }
+
+  it("requires a valid session", async () => {
+    const { app, repository } = buildStatusApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      payload: { status: "UNDER_REVIEW" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(repository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("rejects authenticated regular users", async () => {
+    const { app, repository } = buildStatusApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      headers: { cookie: "betterticket_session=user-session" },
+      payload: { status: "UNDER_REVIEW" }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(repository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("rejects a technician session after the account is demoted", async () => {
+    const sessionRepository = new FakeAuthRepository();
+    const { app, repository } = buildStatusApp({ type: "ticket-not-found" }, sessionRepository);
+    await sessionRepository.setUserRole("terry", "USER");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { status: "UNDER_REVIEW" }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(repository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("allows a technician to update status and returns the ticket contract", async () => {
+    const { app, repository } = buildStatusApp({ type: "updated", ticket: updatedTicket });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { status: "UNDER_REVIEW" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(repository.updateStatus).toHaveBeenCalledWith(ticketId, "UNDER_REVIEW");
+    expect(response.json()).toMatchObject({ status: "UNDER_REVIEW" });
+  });
+
+  it("returns an unchanged ticket for an idempotent status update", async () => {
+    const { app, repository } = buildStatusApp({ type: "unchanged", ticket: updatedTicket });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { status: "UNDER_REVIEW" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(repository.updateStatus).toHaveBeenCalledWith(ticketId, "UNDER_REVIEW");
+    expect(response.json()).toMatchObject({ status: "UNDER_REVIEW" });
+  });
+
+  it("returns a stable error for an invalid transition", async () => {
+    const { app } = buildStatusApp({ type: "invalid-transition" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { status: "RESOLVED" }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "INVALID_STATUS_TRANSITION",
+        message: "The ticket status transition is invalid"
+      }
+    });
+  });
+
+  it("returns not found for an unknown ticket", async () => {
+    const { app } = buildStatusApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/status`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { status: "UNDER_REVIEW" }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: { code: "NOT_FOUND", message: "The ticket was not found" }
+    });
+  });
+
+  it.each([{ status: "CLOSED" }, { status: "UNDER_REVIEW", extra: true }, {}])(
+    "rejects invalid request bodies: %j",
+    async (payload) => {
+      const { app, repository } = buildStatusApp({ type: "updated", ticket: updatedTicket });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/tickets/${ticketId}/status`,
+        headers: { cookie: "betterticket_session=technician-session" },
+        payload
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    }
+  );
+});
+
 describe("ticket replies", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
   const storedTicket: TicketRecord = {
@@ -742,7 +920,8 @@ describe("ticket replies", () => {
         findById: vi.fn(),
         createReply: vi.fn(),
         listRecentReplies: vi.fn(),
-        assignTechnician: vi.fn()
+        assignTechnician: vi.fn(),
+        updateStatus: vi.fn()
       };
 
       const response = await build(repository).inject({
@@ -820,7 +999,8 @@ describe("ticket replies", () => {
         findById: vi.fn().mockResolvedValue(storedTicket),
         createReply: vi.fn().mockRejectedValue(new Error("password=database-secret")),
         listRecentReplies: vi.fn(),
-        assignTechnician: vi.fn()
+        assignTechnician: vi.fn(),
+        updateStatus: vi.fn()
       };
 
       const response = await build(repository).inject({

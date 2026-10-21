@@ -41,6 +41,11 @@ export function getProgressStageState(
   return stageIndex === currentStage ? "current" : "upcoming";
 }
 
+export function getNextProgressStatus(status: TicketStatus): TicketStatus | null {
+  const nextStage = ticketProgress[ticketProgress.indexOf(status) + 1];
+  return nextStage ?? null;
+}
+
 export function formatCreatedAt(createdAt: string): string {
   const date = new Date(createdAt);
 

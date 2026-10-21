@@ -6,6 +6,7 @@ import type { AuthRepository, CreatedSession } from "./auth-repository.js";
 import type {
   AssignmentResult,
   ReplyRecord,
+  StatusUpdateResult,
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
@@ -54,7 +55,11 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   async setUserRole(username: string, role: UserRole): Promise<AuthenticatedUser | null> {
-    return username === technician.username ? { ...technician, role } : null;
+    if (username.trim().toLowerCase() !== technician.username) {
+      return null;
+    }
+
+    return { ...technician, role };
   }
 }
 
@@ -75,6 +80,9 @@ const unusedTicketRepository: TicketRepository = {
     throw new Error("not used");
   },
   assignTechnician: async (): Promise<AssignmentResult> => {
+    throw new Error("not used");
+  },
+  updateStatus: async (): Promise<StatusUpdateResult> => {
     throw new Error("not used");
   }
 };

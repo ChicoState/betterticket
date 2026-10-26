@@ -13,6 +13,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
@@ -73,6 +75,14 @@ describe("TicketDetail", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
+  it("labels a private ticket with the concise visibility badge", async () => {
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, visibility: "PRIVATE" }));
+    render(<TicketDetail ticketId={ticketId} />);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText("Private", { selector: ".visibility-badge" })).toBeInTheDocument();
   });
 
   it("omits additional information when none was submitted", async () => {
@@ -155,7 +165,8 @@ describe("TicketDetail", () => {
     );
     expect(screen.getByText("Under review", { selector: ".status-badge" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move to In progress" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith(`/api/tickets/${ticketId}/status`, {
+    // The replies panel may fetch after the click, so check the PATCH was sent, not its order.
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/status`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: "UNDER_REVIEW" })

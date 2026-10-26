@@ -1,66 +1,9 @@
 {
-  "id": "63cc8527-546b-4ce8-8683-d05a53302893",
-  "prevId": "8dba38f1-96b4-4429-8cd9-7e5a22c58af7",
+  "id": "b5c8fd33-1f70-4378-a3d5-2188bc615d38",
+  "prevId": "f6e5bd7d-d6e6-441d-8a12-bd105a65be10",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.notification_settings": {
-      "name": "notification_settings",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(254)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email_enabled": {
-          "name": "email_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "email_statuses": {
-          "name": "email_statuses",
-          "type": "ticket_status[]",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{\"RESOLVED\"}'"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "notification_settings_user_id_users_id_fk": {
-          "name": "notification_settings_user_id_users_id_fk",
-          "tableFrom": "notification_settings",
-          "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.notifications": {
       "name": "notifications",
       "schema": "",
@@ -316,6 +259,14 @@
           "notNull": true,
           "default": "'OPEN'"
         },
+        "visibility": {
+          "name": "visibility",
+          "type": "ticket_visibility",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PUBLIC'"
+        },
         "creator_user_id": {
           "name": "creator_user_id",
           "type": "uuid",
@@ -434,6 +385,11 @@
       "name": "ticket_status",
       "schema": "public",
       "values": ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "COMPLETED"]
+    },
+    "public.ticket_visibility": {
+      "name": "ticket_visibility",
+      "schema": "public",
+      "values": ["PUBLIC", "AUTHENTICATED", "PRIVATE"]
     },
     "public.user_role": {
       "name": "user_role",

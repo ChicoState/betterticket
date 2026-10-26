@@ -30,19 +30,42 @@ import {
   type TicketParams,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
-import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
+import type {
+  ReplyRecord,
+  TicketRecord,
+  TicketRepository,
+  TicketViewer
+} from "./ticket-repository.js";
+import { canAccessTicket } from "./ticket-access.js";
 
 interface TicketRoutesOptions {
   authRepository: AuthRepository;
   ticketRepository: TicketRepository;
 }
 
-function toTicket(ticket: TicketRecord): Ticket {
+function toTicket(ticket: TicketRecord, viewer: TicketViewer | null): Ticket {
   return {
-    ...ticket,
+    id: ticket.id,
+    title: ticket.title,
+    description: ticket.description,
+    setup: ticket.setup,
+    additionalInformation: ticket.additionalInformation,
+    status: ticket.status,
+    visibility: ticket.visibility,
+    canReply: canAccessTicket(ticket, viewer),
+    assignedTechnicianId: ticket.assignedTechnicianId,
+    createdByName: ticket.createdByName,
     createdAt: ticket.createdAt.toISOString(),
     updatedAt: ticket.updatedAt.toISOString()
   };
+}
+
+async function currentUser(
+  request: { cookies: Record<string, string | undefined> },
+  authRepository: AuthRepository
+) {
+  const token = request.cookies[sessionCookieName];
+  return token ? authRepository.findUserBySession(token) : null;
 }
 
 function toReply(reply: ReplyRecord): Reply {
@@ -63,7 +86,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
   { authRepository, ticketRepository }
 ) => {
-  app.post<{ Body: CreateTicketInput; Reply: Ticket }>(
+  app.post<{ Body: CreateTicketInput; Reply: Ticket | ApiError }>(
     "/api/tickets",
     {
       schema: {
@@ -71,16 +94,22 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         response: {
           201: ticketResponseSchema,
           400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
       }
     },
     async (request, reply) => {
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-      const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body), user);
+      const user = await currentUser(request, authRepository);
+      const input = normalizeCreateTicketInput(request.body);
+      if ((input.visibility ?? "PUBLIC") !== "PUBLIC" && !user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+      const ticket = await ticketRepository.create(input, user);
 
-      return reply.status(201).send(toTicket(ticket));
+      return reply.status(201).send(toTicket(ticket, user));
     }
   );
 
@@ -128,7 +157,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         });
       }
 
-      return reply.status(200).send(toTicket(result.ticket));
+      return reply.status(200).send(toTicket(result.ticket, access.user));
     }
   );
 
@@ -142,10 +171,14 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         }
       }
     },
-    async () => {
-      const tickets = await ticketRepository.listRecent(ticketListLimit);
-
-      return { tickets: tickets.map(toTicket) };
+    async (request) => {
+      const viewer = await currentUser(request, authRepository);
+      const tickets = await ticketRepository.listRecent(ticketListLimit, viewer);
+      return {
+        tickets: tickets
+          .filter((ticket) => canAccessTicket(ticket, viewer))
+          .map((ticket) => toTicket(ticket, viewer))
+      };
     }
   );
 
@@ -164,12 +197,13 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
-      return toTicket(ticket);
+      return toTicket(ticket, viewer);
     }
   );
 
@@ -188,8 +222,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
@@ -215,8 +250,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
@@ -268,7 +304,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         });
       }
 
-      return reply.status(200).send(toTicket(result.ticket));
+      return reply.status(200).send(toTicket(result.ticket, access.user));
     }
   );
 };

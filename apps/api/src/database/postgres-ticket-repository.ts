@@ -9,9 +9,9 @@ import type {
   ReplyRecord,
   StatusUpdateResult,
   TicketRecord,
-  TicketRepository
+  TicketRepository,
+  TicketViewer
 } from "../tickets/ticket-repository.js";
-import type { TicketViewer } from "../tickets/ticket-repository.js";
 import type { TicketStatus } from "../tickets/ticket-contract.js";
 
 export class PostgresTicketRepository implements TicketRepository {

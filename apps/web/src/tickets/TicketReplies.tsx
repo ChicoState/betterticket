@@ -10,11 +10,10 @@ type SubmissionState =
 
 interface TicketRepliesProps {
   ticketId: string;
-  canReply: boolean;
   visibility: TicketVisibility;
 }
 
-export function TicketReplies({ ticketId, canReply, visibility }: TicketRepliesProps) {
+export function TicketReplies({ ticketId, visibility }: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [submission, setSubmission] = useState<SubmissionState>({ type: "idle" });
@@ -102,48 +101,44 @@ export function TicketReplies({ ticketId, canReply, visibility }: TicketRepliesP
             </ol>
           )}
 
-          {canReply ? (
-            <form className="reply-form" onSubmit={handleSubmit}>
-              <fieldset disabled={submission.type === "submitting"}>
-                <legend>Add a reply</legend>
+          <form className="reply-form" onSubmit={handleSubmit}>
+            <fieldset disabled={submission.type === "submitting"}>
+              <legend>Add a reply</legend>
 
-                <div className="field">
-                  <label htmlFor="reply-body">Your reply</label>
-                  <p className="field-hint" id="reply-body-hint">
-                    {visibility === "PUBLIC"
-                      ? "Replies are anonymous and publicly visible. You can reply without an account."
-                      : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
-                  </p>
-                  <textarea
-                    id="reply-body"
-                    name="body"
-                    rows={4}
-                    maxLength={5_000}
-                    aria-describedby="reply-body-hint"
-                    required
-                  />
-                </div>
-
-                <button className="submit-button" type="submit">
-                  {submission.type === "submitting" ? "Posting reply…" : "Post reply"}
-                </button>
-              </fieldset>
-
-              <div className="submission-message" aria-live="polite">
-                {submission.type === "success" ? (
-                  <p className="success-message">Your reply has been posted.</p>
-                ) : null}
+              <div className="field">
+                <label htmlFor="reply-body">Your reply</label>
+                <p className="field-hint" id="reply-body-hint">
+                  {visibility === "PUBLIC"
+                    ? "Replies are anonymous and publicly visible. You can reply without an account."
+                    : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
+                </p>
+                <textarea
+                  id="reply-body"
+                  name="body"
+                  rows={4}
+                  maxLength={5_000}
+                  aria-describedby="reply-body-hint"
+                  required
+                />
               </div>
 
-              {submission.type === "error" ? (
-                <p className="error-message" role="alert">
-                  We couldn&apos;t post your reply. Please try again.
-                </p>
+              <button className="submit-button" type="submit">
+                {submission.type === "submitting" ? "Posting reply…" : "Post reply"}
+              </button>
+            </fieldset>
+
+            <div className="submission-message" aria-live="polite">
+              {submission.type === "success" ? (
+                <p className="success-message">Your reply has been posted.</p>
               ) : null}
-            </form>
-          ) : (
-            <p className="field-hint">You can view this conversation, but you cannot reply.</p>
-          )}
+            </div>
+
+            {submission.type === "error" ? (
+              <p className="error-message" role="alert">
+                We couldn&apos;t post your reply. Please try again.
+              </p>
+            ) : null}
+          </form>
         </>
       ) : null}
     </section>

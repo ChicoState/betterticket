@@ -49,7 +49,7 @@ describe("TicketReplies", () => {
       .fn()
       .mockResolvedValue(jsonResponse({ replies: [firstReply, secondReply] }));
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading replies…");
 
@@ -67,21 +67,10 @@ describe("TicketReplies", () => {
 
   it("shows an empty state with the reply form when there are no replies", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ replies: [] })));
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
 
     expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
     expect(screen.getByLabelText("Your reply")).toBeRequired();
-  });
-
-  it("hides the reply form when the server denies reply access", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ replies: [] })));
-    render(<TicketReplies ticketId={ticketId} canReply={false} visibility="PRIVATE" />);
-
-    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Your reply")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("You can view this conversation, but you cannot reply.")
-    ).toBeInTheDocument();
   });
 
   it("shows an accessible error and retries on request", async () => {
@@ -90,7 +79,7 @@ describe("TicketReplies", () => {
       .mockResolvedValueOnce(failure())
       .mockResolvedValueOnce(jsonResponse({ replies: [firstReply] }));
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "We couldn't load the replies. Please try again."
@@ -104,7 +93,7 @@ describe("TicketReplies", () => {
 
   it("rejects a malformed reply list", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ replies: [{ id: 1 }] })));
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load the replies.");
   });
@@ -115,7 +104,7 @@ describe("TicketReplies", () => {
       .mockResolvedValueOnce(jsonResponse({ replies: [firstReply] }))
       .mockResolvedValueOnce(jsonResponse(secondReply, 201));
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
     await screen.findByText(firstReply.body);
 
     writeReply(`  ${secondReply.body}  `);
@@ -143,7 +132,7 @@ describe("TicketReplies", () => {
           })
       );
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
     await screen.findByText("No replies yet.");
 
     writeReply(secondReply.body);
@@ -160,7 +149,7 @@ describe("TicketReplies", () => {
       .mockResolvedValueOnce(jsonResponse({ replies: [] }))
       .mockResolvedValueOnce(failure());
     vi.stubGlobal("fetch", fetchMock);
-    render(<TicketReplies ticketId={ticketId} canReply={true} visibility="PUBLIC" />);
+    render(<TicketReplies ticketId={ticketId} visibility="PUBLIC" />);
     await screen.findByText("No replies yet.");
 
     writeReply(secondReply.body);

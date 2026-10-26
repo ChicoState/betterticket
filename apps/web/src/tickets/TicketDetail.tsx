@@ -199,11 +199,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
           ) : null}
         </dl>
       </article>
-      <TicketReplies
-        ticketId={ticket.id}
-        canReply={ticket.canReply}
-        visibility={ticket.visibility}
-      />
+      <TicketReplies ticketId={ticket.id} visibility={ticket.visibility} />
     </>
   );
 }

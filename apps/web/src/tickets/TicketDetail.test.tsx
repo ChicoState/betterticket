@@ -77,6 +77,14 @@ describe("TicketDetail", () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
   });
 
+  it("labels a private ticket with the concise visibility badge", async () => {
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, visibility: "PRIVATE" }));
+    render(<TicketDetail ticketId={ticketId} />);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText("Private", { selector: ".visibility-badge" })).toBeInTheDocument();
+  });
+
   it("omits additional information when none was submitted", async () => {
     vi.stubGlobal("fetch", ticketFetch({ ...ticket, additionalInformation: null }));
     render(<TicketDetail ticketId={ticketId} />);

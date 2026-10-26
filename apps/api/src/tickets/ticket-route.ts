@@ -30,9 +30,13 @@ import {
   type TicketParams,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
-import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
+import type {
+  ReplyRecord,
+  TicketRecord,
+  TicketRepository,
+  TicketViewer
+} from "./ticket-repository.js";
 import { canAccessTicket } from "./ticket-access.js";
-import type { TicketViewer } from "./ticket-repository.js";
 
 interface TicketRoutesOptions {
   authRepository: AuthRepository;

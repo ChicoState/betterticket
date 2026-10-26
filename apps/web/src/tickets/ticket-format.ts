@@ -31,7 +31,7 @@ export function formatVisibility(visibility: Ticket["visibility"]): string {
   return {
     PUBLIC: "Public",
     AUTHENTICATED: "Logged-in users",
-    PRIVATE: "You and IT only"
+    PRIVATE: "Private"
   }[visibility];
 }
 

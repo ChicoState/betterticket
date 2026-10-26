@@ -94,6 +94,15 @@ textarea {
   stroke-width: 1.8;
 }
 
+.account-it-badge {
+  border-radius: 0.2rem;
+  background: #0b5967;
+  color: #ffffff;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
 .account-menu-popover {
   position: absolute;
   z-index: 1;

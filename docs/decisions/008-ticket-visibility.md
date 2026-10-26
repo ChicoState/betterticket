@@ -1,4 +1,4 @@
-# ADR-006: Enforce Ticket Visibility Through Stored Policy and Session Ownership
+# ADR-008: Enforce Ticket Visibility Through Stored Policy and Session Ownership
 
 ## Status
 

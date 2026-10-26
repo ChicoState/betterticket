@@ -74,6 +74,61 @@ describe("PostgresTicketRepository", () => {
     expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
   });
 
+  it("filters tickets by visibility for anonymous users, owners, and technicians", async () => {
+    const [owner, otherUser, technician] = await database
+      .insert(users)
+      .values([
+        {
+          name: "Ticket Owner",
+          username: "ticket.owner",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "Other User",
+          username: "other.user",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "IT Technician",
+          username: "it.technician",
+          passwordHash: "not-used",
+          role: "TECHNICIAN"
+        }
+      ])
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public", visibility: "PUBLIC" });
+    await repository.create(
+      { ...input, title: "Authenticated", visibility: "AUTHENTICATED" },
+      owner!
+    );
+    await repository.create({ ...input, title: "Private owner", visibility: "PRIVATE" }, owner!);
+    await repository.create(
+      { ...input, title: "Private other", visibility: "PRIVATE" },
+      otherUser!
+    );
+
+    const titles = async (viewer: { id: string; role: "USER" | "TECHNICIAN" } | null) =>
+      (await repository.listRecent(10, viewer)).map((ticket) => ticket.title).sort();
+
+    expect(await titles(null)).toEqual(["Public"]);
+    expect(await titles({ id: otherUser!.id, role: "USER" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Public"
+    ]);
+    expect(await titles({ id: technician!.id, role: "TECHNICIAN" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Private owner",
+      "Public"
+    ]);
+  });
+
   it("persists and returns every approved ticket status", async () => {
     await database.insert(tickets).values(
       ticketStatuses.map((status, index) => ({

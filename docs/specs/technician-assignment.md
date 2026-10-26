@@ -34,8 +34,8 @@ from a ticket without changing the ticket's status.
 ## Provisioning
 
 `pnpm user:create` interactively requests name, username, password, and role. It uses the same
-Argon2id hashing implementation as login and remains the only technician-account creation mechanism.
-Public regular-user registration is defined by ADR-004.
+Argon2id hashing implementation as login. `pnpm user:set-role` promotes or demotes an existing
+account (ADR-006). Public regular-user registration is defined by ADR-004.
 
 ## Tech Stack and Structure
 

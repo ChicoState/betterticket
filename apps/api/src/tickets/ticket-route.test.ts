@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../app.js";
 import { ticketStatuses, type TicketStatus } from "./ticket-contract.js";
-import type { AuthenticatedUser } from "../auth/auth-contract.js";
+import type { AuthenticatedUser, UserRole } from "../auth/auth-contract.js";
 import type { AuthRepository, CreatedSession } from "../auth/auth-repository.js";
 import type {
   AssignmentResult,
@@ -18,31 +18,38 @@ const technicianId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 const ticketId = "cc04d84c-9aee-4d35-8af3-999d861aaed6";
 
 class FakeAuthRepository implements AuthRepository {
+  private readonly sessions = new Map<string, AuthenticatedUser>([
+    [
+      "technician-session",
+      { id: technicianId, name: "Terry Technician", username: "terry", role: "TECHNICIAN" }
+    ],
+    [
+      "user-session",
+      {
+        id: "bb97588e-0e8b-49e1-980b-4b9207121898",
+        name: "Uma User",
+        username: "uma",
+        role: "USER"
+      }
+    ],
+    [
+      "other-user-session",
+      {
+        id: "cc086f3d-2c21-4c63-a4d4-5a5d0d3e7b9c",
+        name: "Oliver Other",
+        username: "oliver",
+        role: "USER"
+      }
+    ]
+  ]);
+
   async createSession(): Promise<CreatedSession | null> {
     throw new Error("not used");
   }
 
   async findUserBySession(token: string): Promise<AuthenticatedUser | null> {
-    if (token === "technician-session") {
-      return { id: technicianId, name: "Terry Technician", username: "terry", role: "TECHNICIAN" };
-    }
-    if (token === "user-session") {
-      return {
-        id: "bb97588e-0e8b-49e1-980b-4b9207121898",
-        name: "Uma User",
-        username: "uma",
-        role: "USER"
-      };
-    }
-    if (token === "other-user-session") {
-      return {
-        id: "cc086f3d-2c21-4c63-a4d4-5a5d0d3e7b9c",
-        name: "Oliver Other",
-        username: "oliver",
-        role: "USER"
-      };
-    }
-    return null;
+    const user = this.sessions.get(token);
+    return user ? { ...user } : null;
   }
 
   async deleteSession(): Promise<void> {
@@ -51,6 +58,16 @@ class FakeAuthRepository implements AuthRepository {
 
   async createUser(): Promise<AuthenticatedUser | null> {
     throw new Error("not used");
+  }
+
+  async setUserRole(username: string, role: UserRole): Promise<AuthenticatedUser | null> {
+    const user = [...this.sessions.values()].find((stored) => stored.username === username);
+    if (!user) {
+      return null;
+    }
+
+    user.role = role;
+    return { ...user };
   }
 }
 
@@ -759,7 +776,10 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
   });
 
-  function buildAssignmentApp(result: AssignmentResult) {
+  function buildAssignmentApp(
+    result: AssignmentResult,
+    sessionRepository: AuthRepository = authRepository
+  ) {
     const repository: TicketRepository = {
       create: vi.fn(),
       listRecent: vi.fn(),
@@ -768,7 +788,11 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn().mockResolvedValue(result)
     };
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    const app = buildApp({
+      authRepository: sessionRepository,
+      ticketRepository: repository,
+      logger: false
+    });
     apps.push(app);
     return { app, repository };
   }
@@ -794,6 +818,22 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       url: `/api/tickets/${ticketId}/assignment`,
       headers: { cookie: "betterticket_session=user-session" },
       payload: { assignedTechnicianId: technicianId }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(repository.assignTechnician).not.toHaveBeenCalled();
+  });
+
+  it("rejects a technician session after the account is demoted", async () => {
+    const sessionRepository = new FakeAuthRepository();
+    const { app, repository } = buildAssignmentApp({ type: "ticket-not-found" }, sessionRepository);
+    await sessionRepository.setUserRole("terry", "USER");
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/assignment`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { assignedTechnicianId: null }
     });
 
     expect(response.statusCode).toBe(403);

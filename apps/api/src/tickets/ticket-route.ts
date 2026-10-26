@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 
 import { sessionCookieName } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
+import { requireTechnician } from "../auth/require-technician.js";
 import {
   apiErrorResponseSchema,
   createReplyBodySchema,
@@ -228,18 +229,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       }
     },
     async (request, reply) => {
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-
-      if (!user) {
-        return reply.status(401).send({
-          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
-        });
-      }
-      if (user.role !== "TECHNICIAN") {
-        return reply.status(403).send({
-          error: { code: "FORBIDDEN", message: "Technician access is required" }
-        });
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
       }
 
       const result = await ticketRepository.assignTechnician(
@@ -258,7 +250,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         });
       }
 
-      return reply.status(200).send(toTicket(result.ticket, user));
+      return reply.status(200).send(toTicket(result.ticket, access.user));
     }
   );
 };

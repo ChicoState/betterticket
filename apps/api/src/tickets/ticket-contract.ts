@@ -43,6 +43,10 @@ export interface AssignTechnicianInput {
   assignedTechnicianId: string | null;
 }
 
+export interface UpdateTicketStatusInput {
+  status: TicketStatus;
+}
+
 const requiredText = (maxLength: number) => ({
   type: "string",
   minLength: 1,
@@ -202,6 +206,15 @@ export const assignTechnicianBodySchema = {
   required: ["assignedTechnicianId"],
   properties: {
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" }
+  }
+} as const;
+
+export const updateTicketStatusBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status"],
+  properties: {
+    status: { type: "string", enum: ticketStatuses }
   }
 } as const;
 

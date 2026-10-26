@@ -17,6 +17,7 @@ import {
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
+  updateTicketStatusBodySchema,
   type ApiError,
   type CreateReplyInput,
   type AssignTechnicianInput,
@@ -26,7 +27,8 @@ import {
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
-  type TicketParams
+  type TicketParams,
+  type UpdateTicketStatusInput
 } from "./ticket-contract.js";
 import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
 import { canAccessTicket } from "./ticket-access.js";
@@ -104,6 +106,53 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       const ticket = await ticketRepository.create(input, user);
 
       return reply.status(201).send(toTicket(ticket, user));
+    }
+  );
+
+  app.patch<{
+    Params: TicketAssignmentParams;
+    Body: UpdateTicketStatusInput;
+    Reply: Ticket | ApiError;
+  }>(
+    "/api/tickets/:ticketId/status",
+    {
+      schema: {
+        params: ticketAssignmentParamsSchema,
+        body: updateTicketStatusBodySchema,
+        response: {
+          200: ticketResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
+      }
+
+      const result = await ticketRepository.updateStatus(
+        request.params.ticketId,
+        request.body.status
+      );
+
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
+      }
+      if (result.type === "invalid-transition") {
+        return reply.status(400).send({
+          error: {
+            code: "INVALID_STATUS_TRANSITION",
+            message: "The ticket status transition is invalid"
+          }
+        });
+      }
+
+      return reply.status(200).send(toTicket(result.ticket, access.user));
     }
   );
 

@@ -7,8 +7,10 @@ export type TechnicianAccess =
   | { type: "allowed"; user: AuthenticatedUser }
   | { type: "denied"; statusCode: 401 | 403; body: ApiError };
 
-// Resolves the caller's role from the server-side session on every request so IT-only routes
-// never trust client-supplied identity and see role changes immediately.
+// Resolves the caller's role from the server-side session on every request so technician-only
+// routes never trust client-supplied identity and role changes, including demotion, take effect
+// on the next request.
+
 export async function requireTechnician(
   authRepository: AuthRepository,
   request: FastifyRequest

@@ -76,7 +76,7 @@ The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`,
 
 ## Ticket progress
 
-Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Status changes require a future authenticated, authorized staff workflow; this baseline provides no status-update endpoint. See [the feature spec](docs/specs/ticket-progress.md) and [ADR-003](docs/decisions/003-ticket-progress-statuses.md).
+Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and `COMPLETED` is terminal. See [the feature spec](docs/specs/ticket-progress.md) and [the technician status-update ADR](docs/decisions/007-technician-status-updates.md).
 
 ## Ticket replies baseline
 
@@ -108,9 +108,9 @@ To create a new IT account, run the following and enter `TECHNICIAN` when prompt
 docker compose --profile tools run --rm toolchain pnpm user:create
 ```
 
-To upgrade an existing account (for example, one created through the website) to IT, run the
-following and enter the username and `TECHNICIAN`. Enter `USER` instead to return an IT account to a
-regular account:
+To upgrade an existing account (for example, one created through the website) to IT, or to return
+an IT account to a regular account, run the following and enter the username and either
+`TECHNICIAN` or `USER`:
 
 ```sh
 docker compose --profile tools run --rm toolchain pnpm user:set-role

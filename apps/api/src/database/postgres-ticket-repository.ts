@@ -7,10 +7,12 @@ import type {
   CreateTicketInput,
   TicketCreator,
   ReplyRecord,
+  StatusUpdateResult,
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
 import type { TicketViewer } from "../tickets/ticket-repository.js";
+import type { TicketStatus } from "../tickets/ticket-contract.js";
 
 export class PostgresTicketRepository implements TicketRepository {
   constructor(private readonly database: NodePgDatabase) {}
@@ -135,6 +137,70 @@ export class PostgresTicketRepository implements TicketRepository {
 
     return { type: "updated", ticket: updatedTicket };
   }
+
+  async updateStatus(ticketId: string, status: TicketStatus): Promise<StatusUpdateResult> {
+    return this.database.transaction(async (transaction) => {
+      const readTicket = async (): Promise<TicketRecord | null> => {
+        const [ticket] = await transaction
+          .select({ ...getTableColumns(tickets), creatorName: users.name })
+          .from(tickets)
+          .leftJoin(users, eq(tickets.creatorUserId, users.id))
+          .where(eq(tickets.id, ticketId))
+          .limit(1);
+
+        return ticket ? toTicketRecord(ticket) : null;
+      };
+
+      const [existing] = await transaction
+        .select()
+        .from(tickets)
+        .where(eq(tickets.id, ticketId))
+        .for("update")
+        .limit(1);
+
+      if (!existing) {
+        return { type: "ticket-not-found" };
+      }
+      if (existing.status === status) {
+        const currentTicket = await readTicket();
+        if (!currentTicket) {
+          throw new Error("Ticket status update could not be read");
+        }
+
+        return { type: "unchanged", ticket: currentTicket };
+      }
+      if (!isAdjacentForwardTransition(existing.status, status)) {
+        return { type: "invalid-transition" };
+      }
+
+      const [updated] = await transaction
+        .update(tickets)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(tickets.id, ticketId))
+        .returning({ id: tickets.id });
+
+      if (!updated) {
+        throw new Error("Ticket status update did not return a row");
+      }
+
+      const updatedTicket = await readTicket();
+
+      if (!updatedTicket) {
+        throw new Error("Ticket status update could not be read");
+      }
+
+      return { type: "updated", ticket: updatedTicket };
+    });
+  }
+}
+
+function isAdjacentForwardTransition(current: TicketStatus, next: TicketStatus): boolean {
+  return (
+    (current === "OPEN" && next === "UNDER_REVIEW") ||
+    (current === "UNDER_REVIEW" && next === "IN_PROGRESS") ||
+    (current === "IN_PROGRESS" && next === "RESOLVED") ||
+    (current === "RESOLVED" && next === "COMPLETED")
+  );
 }
 
 function toTicketRecord(

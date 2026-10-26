@@ -27,15 +27,16 @@ from a ticket without changing the ticket's status.
 - PostgreSQL stores a SHA-256 hash of each random session token, its user id, and its expiration.
 - The raw session token is sent only in an HttpOnly, SameSite=Strict cookie that is Secure in
   production.
-- Every assignment request resolves the session and role from PostgreSQL; client-supplied identity
-  or role data is never trusted.
+- Every technician-only request uses the shared `requireTechnician` guard to resolve the session and
+  role from PostgreSQL; client-supplied identity or role data is never trusted.
 - The target user is independently verified as a technician before assignment.
 
 ## Provisioning
 
 `pnpm user:create` interactively requests name, username, password, and role. It uses the same
 Argon2id hashing implementation as login. `pnpm user:set-role` promotes or demotes an existing
-account (ADR-006). Public regular-user registration is defined by ADR-004.
+
+account (see ADR-006), and public regular-user registration is defined by ADR-004.
 
 ## Tech Stack and Structure
 

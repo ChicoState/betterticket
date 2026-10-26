@@ -1,12 +1,16 @@
-# Spec: Ticket Progress
+# Spec: Technician Ticket Status Updates
 
 ## Objective
 
-Let a visitor track the current progress of a public ticket from its individual page. The page shows the current status, a clear lifecycle timeline, and the date and time the ticket was last updated.
+Let an IT Technician update a ticket's status so the public ticket page accurately reflects the
+progress of work. Visitors continue to see the current status, the ordered lifecycle timeline, and
+the date and time the ticket was last updated.
 
 ## Contract
 
-Ticket responses continue to expose `status` and `updatedAt`. The only approved status values are `OPEN`, `UNDER_REVIEW`, `IN_PROGRESS`, `RESOLVED`, and `COMPLETED`. New tickets always start `OPEN`.
+Ticket responses continue to expose `status` and `updatedAt`. The only approved status values are
+`OPEN`, `UNDER_REVIEW`, `IN_PROGRESS`, `RESOLVED`, and `COMPLETED`. New tickets always start
+`OPEN`.
 
 The approved forward-only lifecycle is:
 
@@ -14,13 +18,33 @@ The approved forward-only lifecycle is:
 OPEN → UNDER_REVIEW → IN_PROGRESS → RESOLVED → COMPLETED
 ```
 
-The existing public read routes remain unchanged. This feature does not add a status mutation route, a status history, notifications, assignment, hold, cancellation, authentication, or a staff interface.
+Add the technician-protected endpoint:
+
+```text
+PATCH /api/tickets/:ticketId/status
+Body: { "status": "UNDER_REVIEW" }
+Response: the existing ticket response contract
+```
+
+The endpoint resolves the caller through the existing server-side session. Only an authenticated
+user with the existing `TECHNICIAN` role may change status. The endpoint does not restrict updates
+to the assigned technician.
+
+Status changes may move only to the next adjacent stage in the lifecycle. Skipped stages,
+backward transitions, and changes from `COMPLETED` are rejected. Setting the current status again
+is an idempotent success and does not change `updatedAt`.
+
+Existing public read routes and the public progress timeline remain available. This feature does
+not add notifications, status history or audit records, new roles, assignment rules, hold states,
+cancellation states, or a separate progress endpoint.
 
 ## Tech Stack and Structure
 
-- `apps/api`: Fastify response contract and Drizzle PostgreSQL enum migration.
-- `apps/web`: React ticket detail presentation, API-response validation, and existing ticket component styles.
-- `apps/api/drizzle`: versioned migration generated from the Drizzle schema.
+- `apps/api`: Fastify status route, shared contract, repository transition validation, and existing
+  session authorization.
+- `apps/web`: React ticket detail presentation, technician status controls, API-response validation,
+  and existing ticket component styles.
+- `apps/api/drizzle`: existing status enum and `updatedAt` schema; no new migration is expected.
 
 ## Commands
 
@@ -37,24 +61,42 @@ bash scripts/smoke.sh
 
 ## Testing Strategy
 
-- API route tests cover each approved status in public responses and confirm ticket creation remains `OPEN`.
-- PostgreSQL integration tests prove every approved enum value persists and reads back.
-- React component tests cover each current timeline stage and the last-updated timestamp.
+- API route tests cover authentication, technician authorization, request validation, success,
+  missing tickets, invalid transitions, and the existing ticket response contract.
+- Repository and PostgreSQL integration tests cover every adjacent transition, rejected skips and
+  backwards moves, terminal `COMPLETED`, idempotent same-status updates, and `updatedAt` behavior.
+- React component tests cover the public timeline, technician-only controls, successful updates,
+  loading/disabled states, authorization errors, invalid-transition errors, and retry behavior.
+- Accessibility checks verify that status controls have clear labels, keyboard operation, and
+  announced errors/status changes without relying on color alone.
 
 ## Boundaries
 
-- Always: display the finite server status set with text as well as visual state, retain React escaping, and version schema changes.
-- Ask first: add authentication, authorization, a technician interface, status mutation, notifications, a history feed, or any other ticket status.
-- Never: expose an anonymous status-change endpoint or add `ASSIGNED`, `ON_HOLD`, or `CANCELLED`.
+- Always: resolve authorization from the server-side session, validate the finite server status set,
+  enforce adjacent forward transitions in the repository, preserve React escaping, and keep the
+  public timeline text-accessible as well as visual.
+- Ask first: add a database migration, status history/audit records, notifications, new roles,
+  assigned-technician restrictions, or any status outside the approved five-stage lifecycle.
+- Never: trust a client-supplied role or user ID, expose an anonymous status-change endpoint, allow
+  skipped or backward transitions, or add `ASSIGNED`, `ON_HOLD`, or `CANCELLED`.
 
 ## Success Criteria
 
 - A ticket detail page shows all five ordered progress stages and identifies the current one.
-- A ticket detail page exposes an accessible, formatted last-updated time.
-- New tickets remain `OPEN`.
-- PostgreSQL and public API contracts accept exactly the five approved statuses.
-- Quality, migration, coverage, build, and smoke checks pass.
+- An authenticated `TECHNICIAN` can update a ticket through each adjacent forward stage using the
+  protected endpoint and technician controls.
+- Unauthenticated users and authenticated `USER` accounts cannot change status.
+- Skipped, backward, and post-`COMPLETED` transitions are rejected.
+- Same-status updates succeed without changing `updatedAt`.
+- A ticket detail page exposes an accessible, formatted last-updated time and reflects successful
+  status changes.
+- New tickets remain `OPEN`, and public responses continue to accept exactly the five statuses.
+- Notifications and status history remain absent from this sprint.
+- Quality, coverage, build, and smoke checks pass; no new migration is required unless implementation
+  proves one necessary.
 
-## Open Questions
+## Deferred Decisions
 
-Which authenticated roles may make forward-only transitions, and how those transitions should be audited, remain deferred.
+Status updates are authorized for any authenticated `TECHNICIAN`, matching the existing assignment
+authorization model. Assignment-based restrictions and status history/audit semantics remain out of
+scope.

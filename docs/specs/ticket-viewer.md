@@ -12,7 +12,14 @@ Let any visitor see the tickets that have been submitted and open any one of the
 { "tickets": [] }
 ```
 
-Each entry has the same shape as the `POST /api/tickets` response: UUID, `title`, `description`, `setup`, `additionalInformation` (string or `null`), `status`, `createdByName` (string or `null`), and ISO-8601 `createdAt`/`updatedAt`. A null creator name is displayed as `Anonymous`; usernames, user IDs, and private anonymous attribution are never public. Tickets are ordered newest first by creation time and limited to the 100 most recent. Unexpected failures return `500` with the stable error object and no database details.
+Each entry has the same shape as the `POST /api/tickets` response, including `visibility` and the
+server-computed `canReply` flag. Public tickets are visible to everyone, authenticated tickets are
+visible only to signed-in users, and private tickets are visible only to their creator and
+technicians. Unauthorized tickets are omitted from lists and return the generic not-found response
+from direct lookup. A null creator name is displayed as `Anonymous`; usernames, user IDs, and private
+anonymous attribution are never public. Tickets are ordered newest first by creation time and limited
+to the 100 most recent. Unexpected failures return `500` with the stable error object and no database
+details.
 
 `GET /api/tickets/:id` returns `200` with a single ticket in that same shape. An ID that is not a UUID returns `400` with the `VALIDATION_ERROR` object and is never sent to the database. A well-formed ID with no ticket returns `404` with:
 

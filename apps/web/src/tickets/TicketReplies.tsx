@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 
-import { createReply, listReplies, type Reply } from "./ticket-api.js";
+import { createReply, listReplies, type Reply, type TicketVisibility } from "./ticket-api.js";
 import { formatCreatedAt } from "./ticket-format.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; replies: Reply[] } | { type: "error" };
@@ -10,9 +10,10 @@ type SubmissionState =
 
 interface TicketRepliesProps {
   ticketId: string;
+  visibility: TicketVisibility;
 }
 
-export function TicketReplies({ ticketId }: TicketRepliesProps) {
+export function TicketReplies({ ticketId, visibility }: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [submission, setSubmission] = useState<SubmissionState>({ type: "idle" });
@@ -107,7 +108,9 @@ export function TicketReplies({ ticketId }: TicketRepliesProps) {
               <div className="field">
                 <label htmlFor="reply-body">Your reply</label>
                 <p className="field-hint" id="reply-body-hint">
-                  Replies are anonymous and publicly visible. You can reply without an account.
+                  {visibility === "PUBLIC"
+                    ? "Replies are anonymous and publicly visible. You can reply without an account."
+                    : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
                 </p>
                 <textarea
                   id="reply-body"

@@ -17,7 +17,11 @@ A reply has this shape:
 }
 ```
 
-`GET /api/tickets/:id/replies` returns `200` with `{ "replies": [] }`. Replies are ordered oldest first and limited to the 200 most recent for the ticket.
+`GET /api/tickets/:id/replies` returns `200` with `{ "replies": [] }` only when the current viewer
+can access the ticket. Replies are ordered oldest first and limited to the 200 most recent for the
+ticket. Posting follows the same visibility rule: public tickets allow anonymous replies,
+authenticated tickets allow any signed-in user, and private tickets allow only the creator and
+technicians.
 
 `POST /api/tickets/:id/replies` accepts `{ "body": "..." }` and returns `201` with the stored reply. `body` is required, must contain a non-whitespace character, and is at most 5,000 characters; surrounding whitespace is trimmed before storage. Unknown fields are rejected.
 

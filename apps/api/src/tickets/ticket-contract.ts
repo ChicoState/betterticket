@@ -8,12 +8,16 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
+
 export interface CreateTicketInput {
   title: string;
   description: string;
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  visibility?: TicketVisibility;
 }
 
 export interface Ticket {
@@ -23,6 +27,8 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  visibility: TicketVisibility;
+  canReply: boolean;
   assignedTechnicianId: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -57,7 +63,8 @@ export const createTicketBodySchema = {
     description: requiredText(5_000),
     setup: requiredText(3_000),
     additionalInformation: requiredText(3_000),
-    postAnonymously: { type: "boolean" }
+    postAnonymously: { type: "boolean" },
+    visibility: { type: "string", enum: ticketVisibilities }
   }
 } as const;
 
@@ -71,6 +78,8 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "visibility",
+    "canReply",
     "assignedTechnicianId",
     "createdByName",
     "createdAt",
@@ -83,6 +92,8 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    visibility: { type: "string", enum: ticketVisibilities },
+    canReply: { type: "boolean" },
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdByName: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
@@ -232,6 +243,7 @@ export function normalizeCreateTicketInput(input: CreateTicketInput): CreateTick
     ...(input.additionalInformation === undefined
       ? {}
       : { additionalInformation: input.additionalInformation.trim() }),
-    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously })
+    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously }),
+    ...(input.visibility === undefined ? {} : { visibility: input.visibility })
   };
 }

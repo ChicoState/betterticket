@@ -11,6 +11,7 @@ import {
 import {
   formatCreatedAt,
   formatStatus,
+  formatVisibility,
   getNextProgressStatus,
   getProgressStageState,
   ticketProgress
@@ -121,7 +122,10 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
       <article className="ticket-card ticket-detail" aria-labelledby="page-title">
         <header className="ticket-card-header">
           <h1 id="page-title">{ticket.title}</h1>
-          <span className="status-badge">{formatStatus(ticket.status)}</span>
+          <span className="ticket-badges">
+            <span className="status-badge">{formatStatus(ticket.status)}</span>
+            <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
+          </span>
         </header>
         <p className="ticket-meta">
           Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
@@ -195,7 +199,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
           ) : null}
         </dl>
       </article>
-      <TicketReplies ticketId={ticket.id} />
+      <TicketReplies ticketId={ticket.id} visibility={ticket.visibility} />
     </>
   );
 }

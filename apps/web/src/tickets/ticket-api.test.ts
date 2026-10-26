@@ -9,6 +9,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: null,
   status: "UNDER_REVIEW",
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: null,
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:01:00.000Z"

@@ -13,6 +13,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
@@ -73,6 +75,14 @@ describe("TicketDetail", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
+  it("labels a private ticket with the concise visibility badge", async () => {
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, visibility: "PRIVATE" }));
+    render(<TicketDetail ticketId={ticketId} />);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText("Private", { selector: ".visibility-badge" })).toBeInTheDocument();
   });
 
   it("omits additional information when none was submitted", async () => {
@@ -183,7 +193,7 @@ describe("TicketDetail", () => {
 
     expect(screen.getByRole("button", { name: "Updating status…" })).toBeDisabled();
     resolveUpdate(jsonResponse({ ...ticket, status: "UNDER_REVIEW" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Ticket status updated");
+    expect(await screen.findByText("Ticket status updated to Under review.")).toBeInTheDocument();
   });
 
   it("shows an accessible error when the status update is rejected", async () => {

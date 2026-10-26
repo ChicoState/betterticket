@@ -3,7 +3,14 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createDatabase } from "./client.js";
 import { ExampleDataConflictError, exampleUsers, loadExampleData } from "./example-data.js";
 import { PostgresAuthRepository } from "./postgres-auth-repository.js";
-import { notifications, sessions, ticketReplies, tickets, users } from "./schema.js";
+import {
+  notificationSettings,
+  notifications,
+  sessions,
+  ticketReplies,
+  tickets,
+  users
+} from "./schema.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -24,7 +31,7 @@ describe("example data", () => {
 
   afterAll(close);
 
-  it("loads users who can log in alongside tickets, replies, and notifications", async () => {
+  it("loads users who can log in alongside tickets, replies, notifications, and settings", async () => {
     await loadExampleData(database);
 
     const session = await new PostgresAuthRepository(database).createSession({
@@ -36,6 +43,9 @@ describe("example data", () => {
     expect((await database.select().from(tickets)).length).toBeGreaterThan(0);
     expect((await database.select().from(ticketReplies)).length).toBeGreaterThan(0);
     expect((await database.select().from(notifications)).length).toBeGreaterThan(0);
+    expect(await database.select().from(notificationSettings)).toEqual([
+      expect.objectContaining({ email: "alice@example.com", emailEnabled: true })
+    ]);
     expect(session?.user.role).toBe("TECHNICIAN");
   });
 

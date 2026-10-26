@@ -11,6 +11,7 @@ import type {
   TicketRepository
 } from "../tickets/ticket-repository.js";
 import type { NotificationRepository } from "../notifications/notification-repository.js";
+import type { SettingsRepository } from "../settings/settings-repository.js";
 
 const technician: AuthenticatedUser = {
   id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -97,6 +98,15 @@ const unusedNotificationRepository: NotificationRepository = {
   }
 };
 
+const unusedSettingsRepository: SettingsRepository = {
+  findNotificationSettings: async () => {
+    throw new Error("not used");
+  },
+  saveNotificationSettings: async () => {
+    throw new Error("not used");
+  }
+};
+
 describe("session routes", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
 
@@ -110,6 +120,7 @@ describe("session routes", () => {
       authRepository,
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -135,6 +146,7 @@ describe("session routes", () => {
       authRepository,
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -154,6 +166,7 @@ describe("session routes", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -177,6 +190,7 @@ describe("session routes", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -200,6 +214,7 @@ describe("session routes", () => {
       authRepository,
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -225,6 +240,7 @@ describe("session routes", () => {
       authRepository,
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -247,6 +263,7 @@ describe("session routes", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -280,6 +297,7 @@ describe("public user registration", () => {
       authRepository,
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -315,6 +333,7 @@ describe("public user registration", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -339,6 +358,7 @@ describe("public user registration", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -362,6 +382,7 @@ describe("public user registration", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -383,6 +404,7 @@ describe("public user registration", () => {
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
       notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);

@@ -2,7 +2,14 @@ import { argon2id, hash } from "argon2";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import type { TicketStatus } from "../tickets/ticket-contract.js";
-import { notifications, sessions, ticketReplies, tickets, users } from "./schema.js";
+import {
+  notificationSettings,
+  notifications,
+  sessions,
+  ticketReplies,
+  tickets,
+  users
+} from "./schema.js";
 
 // Shared by every example account. Example data is for local testing only.
 export const examplePassword = "password";
@@ -122,6 +129,17 @@ export async function loadExampleData(
     const userIds = new Map(insertedUsers.map((user) => [user.username, user.id]));
     const userId = (username: ExampleUsername | undefined) =>
       username ? userIds.get(username) : undefined;
+
+    const aliceId = userId("alice");
+    if (aliceId) {
+      // example.com is reserved for documentation, so no real mailbox receives these.
+      await transaction.insert(notificationSettings).values({
+        userId: aliceId,
+        email: "alice@example.com",
+        emailEnabled: true,
+        emailStatuses: ["IN_PROGRESS", "RESOLVED"]
+      });
+    }
 
     const now = Date.now();
     for (const example of exampleTickets) {

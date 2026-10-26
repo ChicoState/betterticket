@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import type { TicketRepository } from "../tickets/ticket-repository.js";
 import type { NotificationRecord, NotificationRepository } from "./notification-repository.js";
+import type { SettingsRepository } from "../settings/settings-repository.js";
 
 const user: AuthenticatedUser = {
   id: "bb97588e-0e8b-49e1-980b-4b9207121898",
@@ -41,6 +42,15 @@ const storedNotification: NotificationRecord = {
   readAt: null
 };
 
+const unusedSettingsRepository: SettingsRepository = {
+  findNotificationSettings: async () => {
+    throw new Error("not used");
+  },
+  saveNotificationSettings: async () => {
+    throw new Error("not used");
+  }
+};
+
 describe("notification routes", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
 
@@ -59,6 +69,7 @@ describe("notification routes", () => {
       authRepository,
       ticketRepository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);

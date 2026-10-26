@@ -876,3 +876,17 @@ footer p {
     display: grid;
   }
 }
+
+.settings-statuses {
+  gap: 0.75rem;
+}
+
+.settings-statuses legend {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.settings-statuses:disabled {
+  opacity: 0.6;
+}

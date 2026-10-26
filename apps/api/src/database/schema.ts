@@ -82,3 +82,13 @@ export const notifications = pgTable(
   },
   (table) => [index("notifications_user_id_created_at_idx").on(table.userId, table.createdAt)]
 );
+
+export const notificationSettings = pgTable("notification_settings", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: varchar({ length: 254 }),
+  emailEnabled: boolean("email_enabled").default(false).notNull(),
+  emailStatuses: ticketStatus("email_statuses").array().default(["RESOLVED"]).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});

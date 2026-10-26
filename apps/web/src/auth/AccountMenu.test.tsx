@@ -20,7 +20,7 @@ describe("AccountMenu", () => {
 
     expect(screen.getByLabelText("Account options")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("button", { name: "Settings (coming soon)" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
   });
 
   it("shows the signed-in user's name on the menu button", () => {
@@ -40,6 +40,10 @@ describe("AccountMenu", () => {
 
     await waitFor(() => expect(onLogout).toHaveBeenCalledOnce());
     const options = screen.getByLabelText("Account options");
+    expect(within(options).getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings"
+    );
     expect(within(options).getByText("Uma User")).toBeInTheDocument();
     expect(within(options).getByText("@uma")).toBeInTheDocument();
   });

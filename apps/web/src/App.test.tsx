@@ -112,6 +112,45 @@ describe("App", () => {
     expect(fetch).not.toHaveBeenCalledWith("/api/notifications");
   });
 
+  it("shows notification settings to signed-in visitors at /settings", async () => {
+    window.history.pushState({}, "", "/settings");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify(
+              path === "/api/sessions/current"
+                ? {
+                    id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+                    name: "Uma User",
+                    username: "uma",
+                    role: "USER"
+                  }
+                : path === "/api/settings/notifications"
+                  ? { email: "uma@example.com", emailEnabled: true, emailStatuses: ["RESOLVED"] }
+                  : { notifications: [], unreadCount: 0 }
+            ),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        )
+      )
+    );
+    render(<App />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("Email address")).toHaveValue("uma@example.com");
+    expect(document.title).toBe("Settings | BetterTicket");
+  });
+
+  it("asks anonymous visitors to sign in at /settings", async () => {
+    window.history.pushState({}, "", "/settings");
+    render(<App />);
+
+    expect(await screen.findByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/");
+    expect(fetch).not.toHaveBeenCalledWith("/api/settings/notifications");
+  });
+
   it("shows the submitted tickets at /tickets", async () => {
     window.history.pushState({}, "", "/tickets");
     render(<App />);

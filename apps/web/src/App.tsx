@@ -4,22 +4,29 @@ import { AccountMenu, type AccountSession } from "./auth/AccountMenu.js";
 import { AuthGateway } from "./auth/AuthGateway.js";
 import { getCurrentUser, logout } from "./auth/auth-api.js";
 import { NotificationPane } from "./notifications/NotificationPane.js";
+import { SettingsPage } from "./settings/SettingsPage.js";
 import { TicketDetail } from "./tickets/TicketDetail.js";
 import { TicketForm } from "./tickets/TicketForm.js";
 import { TicketList } from "./tickets/TicketList.js";
 
 const newTicketPath = "/new";
 const ticketListPath = "/tickets";
+const settingsPath = "/settings";
 
 const pageTitles = {
   login: "Welcome",
   list: "Tickets",
   new: "Create a ticket",
-  ticket: "Ticket details"
+  ticket: "Ticket details",
+  settings: "Settings"
 };
 
 type Page =
-  { type: "login" } | { type: "list" } | { type: "new" } | { type: "ticket"; ticketId: string };
+  | { type: "login" }
+  | { type: "list" }
+  | { type: "new" }
+  | { type: "settings" }
+  | { type: "ticket"; ticketId: string };
 
 function readPage(pathname: string): Page {
   const path = pathname.replace(/\/+$/, "");
@@ -31,6 +38,10 @@ function readPage(pathname: string): Page {
 
   if (path === ticketListPath) {
     return { type: "list" };
+  }
+
+  if (path === settingsPath) {
+    return { type: "settings" };
   }
 
   return path === newTicketPath ? { type: "new" } : { type: "login" };
@@ -128,6 +139,8 @@ export function App() {
             currentUser={session?.type === "authenticated" ? session.user : null}
           />
         </main>
+      ) : page.type === "settings" ? (
+        <SettingsPage session={session} />
       ) : isNewTicketPage ? (
         <main className="form-page">
           <section className="intro" aria-labelledby="page-title">

@@ -11,6 +11,7 @@ const tickets = [
     setup: "Office printer, macOS 15",
     additionalInformation: null,
     status: "IN_PROGRESS",
+    priority: "HIGH",
     createdByName: "Terry Technician",
     createdAt: "2026-09-29T09:30:00.000Z",
     updatedAt: "2026-09-29T09:30:00.000Z"
@@ -22,6 +23,7 @@ const tickets = [
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: "Started after an update.",
     status: "OPEN",
+    priority: "LOW",
     createdByName: null,
     createdAt: "2026-09-28T18:00:00.000Z",
     updatedAt: "2026-09-28T18:00:00.000Z"
@@ -42,7 +44,7 @@ describe("TicketList", () => {
   });
 
   it("shows a loading status and then the tickets in API order", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tickets }));
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketList />);
 
@@ -56,6 +58,7 @@ describe("TicketList", () => {
 
     const [printer, laptop] = items as [HTMLElement, HTMLElement];
     expect(within(printer).getByText("In progress")).toBeInTheDocument();
+    expect(within(printer).getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
     expect(within(printer).getByText(/Created by Terry Technician/)).toBeInTheDocument();
@@ -69,6 +72,18 @@ describe("TicketList", () => {
       "href",
       "/tickets/cc04d84c-9aee-4d35-8af3-999d861aaed6"
     );
+  });
+
+  it("requests priority sorting when the sorting control changes", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
+
+    await screen.findAllByRole("article");
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=priority");
   });
 
   it("shows an empty state when no tickets exist", async () => {

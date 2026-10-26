@@ -42,6 +42,7 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
       assignedTechnicianId: null
     });
     expect(created.id).toMatch(
@@ -49,6 +50,45 @@ describe("PostgresTicketRepository", () => {
     );
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it.each(["LOW", "MEDIUM", "HIGH"] as const)("persists %s priority", async (priority) => {
+    const repository = new PostgresTicketRepository(database);
+    const created = await repository.create({
+      title: `${priority} ticket`,
+      description: "Description",
+      setup: "Setup",
+      priority
+    });
+
+    expect((await database.select({ priority: tickets.priority }).from(tickets))[0]?.priority).toBe(
+      priority
+    );
+    expect(created.priority).toBe(priority);
+  });
+
+  it("sorts by priority before applying the limit, then by newest and id", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = (title: string, priority: "LOW" | "MEDIUM" | "HIGH", createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      priority,
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    await database
+      .insert(tickets)
+      .values([
+        ticket("Old high", "HIGH", "2026-09-27T12:00:00.000Z"),
+        ticket("Newest low", "LOW", "2026-09-30T12:00:00.000Z"),
+        ticket("Newest high", "HIGH", "2026-09-29T12:00:00.000Z"),
+        ticket("Medium", "MEDIUM", "2026-09-30T11:00:00.000Z")
+      ]);
+
+    const listed = await repository.listRecent(3, "priority");
+
+    expect(listed.map(({ title }) => title)).toEqual(["Newest high", "Old high", "Medium"]);
   });
 
   it("lists the most recently created tickets first up to the limit", async () => {

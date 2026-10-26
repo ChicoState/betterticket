@@ -8,12 +8,21 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
+
+export type TicketPriority = (typeof ticketPriorities)[number];
+
+export const ticketSorts = ["newest", "priority"] as const;
+
+export type TicketSort = (typeof ticketSorts)[number];
+
 export interface CreateTicketInput {
   title: string;
   description: string;
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  priority?: TicketPriority;
 }
 
 export interface Ticket {
@@ -23,6 +32,7 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  priority: TicketPriority;
   assignedTechnicianId: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -57,7 +67,8 @@ export const createTicketBodySchema = {
     description: requiredText(5_000),
     setup: requiredText(3_000),
     additionalInformation: requiredText(3_000),
-    postAnonymously: { type: "boolean" }
+    postAnonymously: { type: "boolean" },
+    priority: { type: "string", enum: ticketPriorities }
   }
 } as const;
 
@@ -71,6 +82,7 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "priority",
     "assignedTechnicianId",
     "createdByName",
     "createdAt",
@@ -83,6 +95,7 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    priority: { type: "string", enum: ticketPriorities },
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdByName: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
@@ -106,6 +119,14 @@ export const ticketListResponseSchema = {
       maxItems: ticketListLimit,
       items: ticketResponseSchema
     }
+  }
+} as const;
+
+export const ticketListQuerySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    sort: { type: "string", enum: ticketSorts, default: "newest" }
   }
 } as const;
 
@@ -232,6 +253,9 @@ export function normalizeCreateTicketInput(input: CreateTicketInput): CreateTick
     ...(input.additionalInformation === undefined
       ? {}
       : { additionalInformation: input.additionalInformation.trim() }),
-    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously })
+    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously }),
+    ...(input.priority === undefined
+      ? { priority: "MEDIUM" as const }
+      : { priority: input.priority })
   };
 }

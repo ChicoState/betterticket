@@ -61,9 +61,25 @@ describe("TicketForm", () => {
         title: "Laptop will not start",
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
+        priority: "MEDIUM",
         additionalInformation: "Started after an update."
       })
     });
+  });
+
+  it.each(["LOW", "MEDIUM", "HIGH"] as const)("submits %s priority", async (priority) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(ticketResponse), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketForm />);
+
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText("Priority"), { target: { value: priority } });
+    fireEvent.click(screen.getByRole("button", { name: "Create ticket" }));
+
+    await screen.findByText("Your ticket has been created.");
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toMatchObject({ priority });
   });
 
   it("disables duplicate submission while the request is pending", async () => {
@@ -127,6 +143,7 @@ describe("TicketForm", () => {
         title: "Laptop will not start",
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
+        priority: "MEDIUM",
         postAnonymously: true
       })
     });

@@ -1,4 +1,4 @@
-import { and, desc, eq, getTableColumns } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { ticketReplies, tickets, users } from "./schema.js";
@@ -9,7 +9,8 @@ import type {
   ReplyRecord,
   StatusUpdateResult,
   TicketRecord,
-  TicketRepository
+  TicketRepository,
+  TicketSort
 } from "../tickets/ticket-repository.js";
 import type { TicketStatus } from "../tickets/ticket-contract.js";
 
@@ -28,7 +29,8 @@ export class PostgresTicketRepository implements TicketRepository {
         setup: input.setup,
         additionalInformation: input.additionalInformation,
         creatorUserId: creator?.id,
-        isAnonymous: input.postAnonymously ?? false
+        isAnonymous: input.postAnonymously ?? false,
+        priority: input.priority ?? "MEDIUM"
       })
       .returning();
 
@@ -42,12 +44,20 @@ export class PostgresTicketRepository implements TicketRepository {
     };
   }
 
-  async listRecent(limit: number): Promise<TicketRecord[]> {
+  async listRecent(limit: number, sort: TicketSort = "newest"): Promise<TicketRecord[]> {
+    const orderBy =
+      sort === "priority"
+        ? [
+            sql`CASE ${tickets.priority} WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END`,
+            desc(tickets.createdAt),
+            desc(tickets.id)
+          ]
+        : [desc(tickets.createdAt), desc(tickets.id)];
     const results = await this.database
       .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)
       .leftJoin(users, eq(tickets.creatorUserId, users.id))
-      .orderBy(desc(tickets.createdAt), desc(tickets.id))
+      .orderBy(...orderBy)
       .limit(limit);
 
     return results.map(toTicketRecord);

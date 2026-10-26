@@ -19,6 +19,7 @@ function readFormInput(form: HTMLFormElement): CreateTicketInput {
     title: String(formData.get("title") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
     setup: String(formData.get("setup") ?? "").trim(),
+    priority: String(formData.get("priority") ?? "MEDIUM") as CreateTicketInput["priority"],
     ...(additionalInformation ? { additionalInformation } : {}),
     ...(formData.get("postAnonymously") === "on" ? { postAnonymously: true } : {})
   };
@@ -65,6 +66,23 @@ export function TicketForm({ currentUser = null }: TicketFormProps) {
             aria-describedby="title-hint"
             required
           />
+        </div>
+
+        <div className="field">
+          <label htmlFor="priority">Priority</label>
+          <p className="field-hint" id="priority-hint">
+            Choose the urgency that best describes the impact of this issue.
+          </p>
+          <select
+            id="priority"
+            name="priority"
+            defaultValue="MEDIUM"
+            aria-describedby="priority-hint"
+          >
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+          </select>
         </div>
 
         <div className="field">

@@ -13,6 +13,7 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  priority: "HIGH",
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
@@ -56,6 +57,7 @@ describe("TicketDetail", () => {
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}`);
     expect(screen.getByText("Open", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
     expect(screen.getByText("cc04d84c")).toBeInTheDocument();
     expect(screen.getByText("The power light flashes once.")).toBeInTheDocument();
     expect(screen.getByText("Framework Laptop 13, Fedora 42")).toBeInTheDocument();

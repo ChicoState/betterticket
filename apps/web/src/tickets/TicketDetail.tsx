@@ -122,6 +122,9 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
         <header className="ticket-card-header">
           <h1 id="page-title">{ticket.title}</h1>
           <span className="status-badge">{formatStatus(ticket.status)}</span>
+          <span className="priority-badge">
+            {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
+          </span>
         </header>
         <p className="ticket-meta">
           Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}

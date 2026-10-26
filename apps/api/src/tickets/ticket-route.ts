@@ -14,6 +14,7 @@ import {
   assignTechnicianBodySchema,
   ticketAssignmentParamsSchema,
   ticketListLimit,
+  ticketListQuerySchema,
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
@@ -27,6 +28,7 @@ import {
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
+  type TicketSort,
   type TicketParams,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
@@ -131,18 +133,19 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     }
   );
 
-  app.get<{ Reply: TicketList }>(
+  app.get<{ Querystring: { sort?: TicketSort }; Reply: TicketList }>(
     "/api/tickets",
     {
       schema: {
+        querystring: ticketListQuerySchema,
         response: {
           200: ticketListResponseSchema,
           500: apiErrorResponseSchema
         }
       }
     },
-    async () => {
-      const tickets = await ticketRepository.listRecent(ticketListLimit);
+    async (request) => {
+      const tickets = await ticketRepository.listRecent(ticketListLimit, request.query.sort);
 
       return { tickets: tickets.map(toTicket) };
     }

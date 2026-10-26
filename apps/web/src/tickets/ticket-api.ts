@@ -4,7 +4,13 @@ export interface CreateTicketInput {
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  priority?: TicketPriority;
 }
+
+export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
+export type TicketPriority = (typeof ticketPriorities)[number];
+export const ticketSorts = ["newest", "priority"] as const;
+export type TicketSort = (typeof ticketSorts)[number];
 
 export const ticketStatuses = [
   "OPEN",
@@ -52,6 +58,7 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  priority: TicketPriority;
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -72,6 +79,10 @@ function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
 
+function isTicketPriority(value: unknown): value is TicketPriority {
+  return typeof value === "string" && ticketPriorities.includes(value as TicketPriority);
+}
+
 function isTicket(value: unknown): value is Ticket {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -86,14 +97,15 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
+    isTicketPriority(ticket.priority) &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"
   );
 }
 
-export async function listTickets(): Promise<Ticket[]> {
-  const response = await fetch("/api/tickets");
+export async function listTickets(sort: TicketSort = "newest"): Promise<Ticket[]> {
+  const response = await fetch(sort === "priority" ? "/api/tickets?sort=priority" : "/api/tickets");
 
   if (!response.ok) {
     throw new Error("Ticket listing failed");

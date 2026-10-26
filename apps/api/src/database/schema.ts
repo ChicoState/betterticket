@@ -17,6 +17,7 @@ export const ticketStatus = pgEnum("ticket_status", [
   "COMPLETED"
 ]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
+export const ticketPriority = pgEnum("ticket_priority", ["LOW", "MEDIUM", "HIGH"]);
 
 export const users = pgTable("users", {
   id: uuid().defaultRandom().primaryKey(),
@@ -41,6 +42,7 @@ export const tickets = pgTable("tickets", {
   setup: text().notNull(),
   additionalInformation: text("additional_information"),
   status: ticketStatus().default("OPEN").notNull(),
+  priority: ticketPriority().default("MEDIUM").notNull(),
   creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
   isAnonymous: boolean("is_anonymous").default(false).notNull(),
   assignedTechnicianId: uuid("assigned_technician_id").references(() => users.id, {

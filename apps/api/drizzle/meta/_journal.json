@@ -43,6 +43,13 @@
       "when": 1792442179815,
       "tag": "0005_ticket_status_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793045882187,
+      "tag": "0006_notification_settings",
+      "breakpoints": true
     }
   ]
 }

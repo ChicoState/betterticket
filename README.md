@@ -1,6 +1,6 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician-assignment and status-update backend, and ticket status notifications. Tickets, replies, users, notifications, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, and per-user notification settings. Tickets, replies, users, notifications, notification settings, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
@@ -81,6 +81,10 @@ Ticket detail pages show the current public status, a five-stage progress timeli
 ## Ticket status notifications
 
 Each technician status change notifies the signed-in user who created the ticket, including anonymous posts, whose notifications stay private. Signed-in users see a notification button in the header with an unread count. The browser polls `GET /api/notifications` every 30 seconds and when the window regains focus, and opening the pane calls `POST /api/notifications/read`. See [the feature spec](docs/specs/ticket-status-notifications.md) and [ADR-008](docs/decisions/008-technician-status-updates-and-owner-notifications.md).
+
+## Notification settings
+
+Signed-in users can open **Settings** from the account menu (`/settings`) to save an email address, turn email updates on or off, and choose which status changes (Under review, In progress, Resolved) should send an email. Email is opt-in, and in-app notifications stay on either way. The page uses `GET`/`PUT /api/settings/notifications`, which are scoped to the session user. Email delivery is not active yet; see [the settings spec](docs/specs/notification-settings.md) and [ADR-009](docs/decisions/009-notification-settings-and-email-preferences.md).
 
 ## Ticket replies baseline
 

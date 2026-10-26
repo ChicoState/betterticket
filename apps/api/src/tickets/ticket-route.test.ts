@@ -14,6 +14,7 @@ import type {
   TicketRepository
 } from "./ticket-repository.js";
 import type { NotificationRepository } from "../notifications/notification-repository.js";
+import type { SettingsRepository } from "../settings/settings-repository.js";
 
 const technicianId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 const ticketId = "cc04d84c-9aee-4d35-8af3-999d861aaed6";
@@ -137,6 +138,15 @@ const notificationRepository: NotificationRepository = {
   markAllRead: vi.fn()
 };
 
+const unusedSettingsRepository: SettingsRepository = {
+  findNotificationSettings: async () => {
+    throw new Error("not used");
+  },
+  saveNotificationSettings: async () => {
+    throw new Error("not used");
+  }
+};
+
 describe("POST /api/tickets", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
 
@@ -150,6 +160,7 @@ describe("POST /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -194,6 +205,7 @@ describe("POST /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -223,6 +235,7 @@ describe("POST /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -260,6 +273,7 @@ describe("POST /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -286,6 +300,7 @@ describe("POST /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -318,6 +333,7 @@ describe("POST /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -381,6 +397,7 @@ describe("GET /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -424,6 +441,7 @@ describe("GET /api/tickets", () => {
       authRepository,
       ticketRepository: new FakeTicketRepository(),
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -453,6 +471,7 @@ describe("GET /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -477,6 +496,7 @@ describe("GET /api/tickets", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -518,6 +538,7 @@ describe("GET /api/tickets/:id", () => {
       authRepository,
       ticketRepository: new FakeTicketRepository([storedTicket]),
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -537,6 +558,7 @@ describe("GET /api/tickets/:id", () => {
       authRepository,
       ticketRepository: new FakeTicketRepository(),
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -566,6 +588,7 @@ describe("GET /api/tickets/:id", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -591,6 +614,7 @@ describe("GET /api/tickets/:id", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -632,6 +656,7 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       authRepository: sessionRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -778,6 +803,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
       authRepository: sessionRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -957,6 +983,7 @@ describe("ticket replies", () => {
       authRepository,
       ticketRepository: repository,
       notificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);

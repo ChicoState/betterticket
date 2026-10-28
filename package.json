@@ -26,6 +26,7 @@
     "test:smoke": "bash scripts/smoke.sh",
     "user:create": "pnpm --filter @betterticket/api user:create",
     "user:set-role": "pnpm --filter @betterticket/api user:set-role",
+    "db:example": "pnpm --filter @betterticket/api db:example",
     "docker:up": "docker compose up --detach postgres object-storage",
     "docker:down": "docker compose down"
   },

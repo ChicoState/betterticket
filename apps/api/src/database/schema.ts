@@ -64,3 +64,31 @@ export const ticketReplies = pgTable(
   },
   (table) => [index("ticket_replies_ticket_id_created_at_idx").on(table.ticketId, table.createdAt)]
 );
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    previousStatus: ticketStatus("previous_status").notNull(),
+    newStatus: ticketStatus("new_status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    readAt: timestamp("read_at", { withTimezone: true })
+  },
+  (table) => [index("notifications_user_id_created_at_idx").on(table.userId, table.createdAt)]
+);
+
+export const notificationSettings = pgTable("notification_settings", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: varchar({ length: 254 }),
+  emailEnabled: boolean("email_enabled").default(false).notNull(),
+  emailStatuses: ticketStatus("email_statuses").array().default(["RESOLVED"]).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});

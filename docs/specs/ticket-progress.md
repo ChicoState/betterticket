@@ -34,6 +34,10 @@ Status changes may move only to the next adjacent stage in the lifecycle. Skippe
 backward transitions, and changes from `COMPLETED` are rejected. Setting the current status again
 is an idempotent success and does not change `updatedAt`.
 
+> **Amended by ADR-008:** technicians may advance a ticket only as far as `RESOLVED`.
+> `RESOLVED → COMPLETED` is reserved for the ticket owner's confirmation, and each status change
+> notifies the ticket creator. See `docs/specs/ticket-status-notifications.md`.
+
 Existing public read routes and the public progress timeline remain available. This feature does
 not add notifications, status history or audit records, new roles, assignment rules, hold states,
 cancellation states, or a separate progress endpoint.

@@ -45,7 +45,12 @@ export interface TicketRepository {
     ticketId: string,
     assignedTechnicianId: string | null
   ): Promise<AssignmentResult>;
-  updateStatus(ticketId: string, status: TicketStatus): Promise<StatusUpdateResult>;
+  /** Applies a technician status change and notifies the ticket's creator in one transaction. */
+  updateStatus(
+    ticketId: string,
+    status: TicketStatus,
+    actorUserId: string
+  ): Promise<StatusUpdateResult>;
 }
 
 export interface TicketCreator {

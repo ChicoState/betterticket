@@ -141,7 +141,8 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
 
       const result = await ticketRepository.updateStatus(
         request.params.ticketId,
-        request.body.status
+        request.body.status,
+        access.user.id
       );
 
       if (result.type === "ticket-not-found") {
@@ -151,7 +152,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(400).send({
           error: {
             code: "INVALID_STATUS_TRANSITION",
-            message: "The ticket status transition is invalid"
+            message: "Technicians can only advance a ticket one stage, up to resolved"
           }
         });
       }

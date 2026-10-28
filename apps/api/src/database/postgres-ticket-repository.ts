@@ -1,7 +1,8 @@
 import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { ticketReplies, tickets, users } from "./schema.js";
+import { notifications, ticketReplies, tickets, users } from "./schema.js";
+import { canTechnicianChangeStatus, type TicketStatus } from "../tickets/ticket-contract.js";
 import type {
   AssignmentResult,
   CreateTicketInput,
@@ -13,7 +14,6 @@ import type {
   TicketSort,
   TicketViewer
 } from "../tickets/ticket-repository.js";
-import type { TicketStatus } from "../tickets/ticket-contract.js";
 
 export class PostgresTicketRepository implements TicketRepository {
   constructor(private readonly database: NodePgDatabase) {}
@@ -152,9 +152,13 @@ export class PostgresTicketRepository implements TicketRepository {
     return { type: "updated", ticket: updatedTicket };
   }
 
-  async updateStatus(ticketId: string, status: TicketStatus): Promise<StatusUpdateResult> {
+  async updateStatus(
+    ticketId: string,
+    status: TicketStatus,
+    actorUserId: string
+  ): Promise<StatusUpdateResult> {
     return this.database.transaction(async (transaction) => {
-      const readTicket = async (): Promise<TicketRecord | null> => {
+      const readTicket = async (): Promise<TicketRecord> => {
         const [ticket] = await transaction
           .select({ ...getTableColumns(tickets), creatorName: users.name })
           .from(tickets)
@@ -162,11 +166,15 @@ export class PostgresTicketRepository implements TicketRepository {
           .where(eq(tickets.id, ticketId))
           .limit(1);
 
-        return ticket ? toTicketRecord(ticket) : null;
+        if (!ticket) {
+          throw new Error("Ticket status update could not be read");
+        }
+        return toTicketRecord(ticket);
       };
 
+      // Lock the row so concurrent changes cannot both pass the transition check.
       const [existing] = await transaction
-        .select()
+        .select({ status: tickets.status, creatorUserId: tickets.creatorUserId })
         .from(tickets)
         .where(eq(tickets.id, ticketId))
         .for("update")
@@ -176,45 +184,29 @@ export class PostgresTicketRepository implements TicketRepository {
         return { type: "ticket-not-found" };
       }
       if (existing.status === status) {
-        const currentTicket = await readTicket();
-        if (!currentTicket) {
-          throw new Error("Ticket status update could not be read");
-        }
-
-        return { type: "unchanged", ticket: currentTicket };
+        return { type: "unchanged", ticket: await readTicket() };
       }
-      if (!isAdjacentForwardTransition(existing.status, status)) {
+      if (!canTechnicianChangeStatus(existing.status, status)) {
         return { type: "invalid-transition" };
       }
 
-      const [updated] = await transaction
+      await transaction
         .update(tickets)
         .set({ status, updatedAt: new Date() })
-        .where(eq(tickets.id, ticketId))
-        .returning({ id: tickets.id });
+        .where(eq(tickets.id, ticketId));
 
-      if (!updated) {
-        throw new Error("Ticket status update did not return a row");
+      if (existing.creatorUserId && existing.creatorUserId !== actorUserId) {
+        await transaction.insert(notifications).values({
+          userId: existing.creatorUserId,
+          ticketId,
+          previousStatus: existing.status,
+          newStatus: status
+        });
       }
 
-      const updatedTicket = await readTicket();
-
-      if (!updatedTicket) {
-        throw new Error("Ticket status update could not be read");
-      }
-
-      return { type: "updated", ticket: updatedTicket };
+      return { type: "updated", ticket: await readTicket() };
     });
   }
-}
-
-function isAdjacentForwardTransition(current: TicketStatus, next: TicketStatus): boolean {
-  return (
-    (current === "OPEN" && next === "UNDER_REVIEW") ||
-    (current === "UNDER_REVIEW" && next === "IN_PROGRESS") ||
-    (current === "IN_PROGRESS" && next === "RESOLVED") ||
-    (current === "RESOLVED" && next === "COMPLETED")
-  );
 }
 
 function toTicketRecord(

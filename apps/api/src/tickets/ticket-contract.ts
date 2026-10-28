@@ -15,6 +15,15 @@ export type TicketPriority = (typeof ticketPriorities)[number];
 export const ticketSorts = ["newest", "priority"] as const;
 
 export type TicketSort = (typeof ticketSorts)[number];
+
+/**
+ * Technicians may only advance a ticket one stage at a time and never close it; the owner
+ * confirms completion.
+ */
+export function canTechnicianChangeStatus(from: TicketStatus, to: TicketStatus): boolean {
+  return to !== "COMPLETED" && ticketStatuses.indexOf(to) === ticketStatuses.indexOf(from) + 1;
+}
+
 export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
 export type TicketVisibility = (typeof ticketVisibilities)[number];
 

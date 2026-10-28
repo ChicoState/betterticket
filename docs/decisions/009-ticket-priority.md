@@ -35,4 +35,5 @@ Priority is creation-only; it does not change status or technician assignment.
 
 Existing rows receive `MEDIUM` through the migration default. Migration `0005`
 remains the released ticket visibility migration; priority is migration
-`0006`. Neither released migration is rewritten.
+`0008`. Neither released migration is rewritten; the previously applied priority SQL is
+carried forward under the new migration number without replaying it.

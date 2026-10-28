@@ -47,8 +47,22 @@
     {
       "idx": 6,
       "version": "7",
+      "when": 1793046893786,
+      "tag": "0006_ticket_status_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793047028368,
+      "tag": "0007_notification_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
       "when": 1793022318253,
-      "tag": "0006_wonderful_puppet_master",
+      "tag": "0008_ticket_priority",
       "breakpoints": true
     }
   ]

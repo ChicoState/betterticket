@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "user:create": "tsx src/auth/create-user.ts",
-    "user:set-role": "tsx src/auth/set-user-role.ts"
+    "user:set-role": "tsx src/auth/set-user-role.ts",
+    "db:example": "tsx src/database/load-example-data.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.0",

@@ -31,5 +31,5 @@ indicators, and the sorting control.
 ## Migration Integration
 
 Ticket visibility owns migration `0005_ticket_visibility.sql`. Priority is the
-additive migration `0006_wonderful_puppet_master.sql`; released migrations are
+additive migration `0008_ticket_priority.sql`; released migrations are
 not rewritten.

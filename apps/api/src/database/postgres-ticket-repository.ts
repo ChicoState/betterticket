@@ -1,4 +1,4 @@
-import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { ticketReplies, tickets, users } from "./schema.js";
@@ -10,7 +10,8 @@ import type {
   StatusUpdateResult,
   TicketRecord,
   TicketRepository,
-  TicketSort
+  TicketSort,
+  TicketViewer
 } from "../tickets/ticket-repository.js";
 import type { TicketStatus } from "../tickets/ticket-contract.js";
 
@@ -28,6 +29,7 @@ export class PostgresTicketRepository implements TicketRepository {
         description: input.description,
         setup: input.setup,
         additionalInformation: input.additionalInformation,
+        visibility: input.visibility ?? "PUBLIC",
         creatorUserId: creator?.id,
         isAnonymous: input.postAnonymously ?? false,
         priority: input.priority ?? "MEDIUM"
@@ -44,7 +46,25 @@ export class PostgresTicketRepository implements TicketRepository {
     };
   }
 
-  async listRecent(limit: number, sort: TicketSort = "newest"): Promise<TicketRecord[]> {
+  async listRecent(
+    limit: number,
+    viewer: TicketViewer | null = null,
+    sort: TicketSort = "newest"
+  ): Promise<TicketRecord[]> {
+    const visibilityFilter =
+      viewer?.role === "TECHNICIAN"
+        ? or(
+            eq(tickets.visibility, "PUBLIC"),
+            eq(tickets.visibility, "AUTHENTICATED"),
+            eq(tickets.visibility, "PRIVATE")
+          )
+        : viewer
+          ? or(
+              eq(tickets.visibility, "PUBLIC"),
+              eq(tickets.visibility, "AUTHENTICATED"),
+              and(eq(tickets.visibility, "PRIVATE"), eq(tickets.creatorUserId, viewer.id))
+            )
+          : eq(tickets.visibility, "PUBLIC");
     const orderBy =
       sort === "priority"
         ? [
@@ -57,6 +77,7 @@ export class PostgresTicketRepository implements TicketRepository {
       .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)
       .leftJoin(users, eq(tickets.creatorUserId, users.id))
+      .where(visibilityFilter)
       .orderBy(...orderBy)
       .limit(limit);
 
@@ -203,6 +224,7 @@ function toTicketRecord(
 
   return {
     ...ticketRecord,
+    creatorUserId: ticket.creatorUserId,
     createdByName: ticket.isAnonymous ? null : creatorName
   };
 }

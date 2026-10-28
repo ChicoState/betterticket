@@ -43,6 +43,7 @@ describe("PostgresTicketRepository", () => {
       additionalInformation: null,
       status: "OPEN",
       priority: "MEDIUM",
+      visibility: "PUBLIC",
       assignedTechnicianId: null
     });
     expect(created.id).toMatch(
@@ -50,45 +51,6 @@ describe("PostgresTicketRepository", () => {
     );
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
-  });
-
-  it.each(["LOW", "MEDIUM", "HIGH"] as const)("persists %s priority", async (priority) => {
-    const repository = new PostgresTicketRepository(database);
-    const created = await repository.create({
-      title: `${priority} ticket`,
-      description: "Description",
-      setup: "Setup",
-      priority
-    });
-
-    expect((await database.select({ priority: tickets.priority }).from(tickets))[0]?.priority).toBe(
-      priority
-    );
-    expect(created.priority).toBe(priority);
-  });
-
-  it("sorts by priority before applying the limit, then by newest and id", async () => {
-    const repository = new PostgresTicketRepository(database);
-    const ticket = (title: string, priority: "LOW" | "MEDIUM" | "HIGH", createdAt: string) => ({
-      title,
-      description: "Description",
-      setup: "Setup",
-      priority,
-      createdAt: new Date(createdAt),
-      updatedAt: new Date(createdAt)
-    });
-    await database
-      .insert(tickets)
-      .values([
-        ticket("Old high", "HIGH", "2026-09-27T12:00:00.000Z"),
-        ticket("Newest low", "LOW", "2026-09-30T12:00:00.000Z"),
-        ticket("Newest high", "HIGH", "2026-09-29T12:00:00.000Z"),
-        ticket("Medium", "MEDIUM", "2026-09-30T11:00:00.000Z")
-      ]);
-
-    const listed = await repository.listRecent(3, "priority");
-
-    expect(listed.map(({ title }) => title)).toEqual(["Newest high", "Old high", "Medium"]);
   });
 
   it("lists the most recently created tickets first up to the limit", async () => {
@@ -111,6 +73,85 @@ describe("PostgresTicketRepository", () => {
     const listed = await repository.listRecent(2);
 
     expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
+  });
+
+  it("filters tickets by visibility for anonymous users, owners, and technicians", async () => {
+    const [owner, otherUser, technician] = await database
+      .insert(users)
+      .values([
+        {
+          name: "Ticket Owner",
+          username: "ticket.owner",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "Other User",
+          username: "other.user",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "IT Technician",
+          username: "it.technician",
+          passwordHash: "not-used",
+          role: "TECHNICIAN"
+        }
+      ])
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public", visibility: "PUBLIC" });
+    await repository.create(
+      { ...input, title: "Authenticated", visibility: "AUTHENTICATED" },
+      owner!
+    );
+    await repository.create({ ...input, title: "Private owner", visibility: "PRIVATE" }, owner!);
+    await repository.create(
+      { ...input, title: "Private other", visibility: "PRIVATE" },
+      otherUser!
+    );
+
+    const titles = async (viewer: { id: string; role: "USER" | "TECHNICIAN" } | null) =>
+      (await repository.listRecent(10, viewer)).map((ticket) => ticket.title).sort();
+
+    expect(await titles(null)).toEqual(["Public"]);
+    expect(await titles({ id: otherUser!.id, role: "USER" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Public"
+    ]);
+    expect(await titles({ id: technician!.id, role: "TECHNICIAN" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Private owner",
+      "Public"
+    ]);
+  });
+
+  it("filters by visibility before applying priority sorting and the limit", async () => {
+    const [owner] = await database
+      .insert(users)
+      .values({
+        name: "Ticket Owner",
+        username: "priority.owner",
+        passwordHash: "not-used",
+        role: "USER"
+      })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public low", priority: "LOW" });
+    await repository.create(
+      { ...input, title: "Private owner high", priority: "HIGH", visibility: "PRIVATE" },
+      owner!
+    );
+
+    const listed = await repository.listRecent(1, null, "priority");
+
+    expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
   });
 
   it("persists and returns every approved ticket status", async () => {

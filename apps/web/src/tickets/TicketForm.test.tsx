@@ -62,7 +62,8 @@ describe("TicketForm", () => {
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
         priority: "MEDIUM",
-        additionalInformation: "Started after an update."
+        additionalInformation: "Started after an update.",
+        visibility: "PUBLIC"
       })
     });
   });
@@ -144,6 +145,7 @@ describe("TicketForm", () => {
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
         priority: "MEDIUM",
+        visibility: "PUBLIC",
         postAnonymously: true
       })
     });

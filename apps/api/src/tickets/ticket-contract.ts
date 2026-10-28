@@ -15,6 +15,8 @@ export type TicketPriority = (typeof ticketPriorities)[number];
 export const ticketSorts = ["newest", "priority"] as const;
 
 export type TicketSort = (typeof ticketSorts)[number];
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
 
 export interface CreateTicketInput {
   title: string;
@@ -23,6 +25,7 @@ export interface CreateTicketInput {
   additionalInformation?: string;
   postAnonymously?: boolean;
   priority?: TicketPriority;
+  visibility?: TicketVisibility;
 }
 
 export interface Ticket {
@@ -33,6 +36,8 @@ export interface Ticket {
   additionalInformation: string | null;
   status: TicketStatus;
   priority: TicketPriority;
+  visibility: TicketVisibility;
+  canReply: boolean;
   assignedTechnicianId: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -68,7 +73,8 @@ export const createTicketBodySchema = {
     setup: requiredText(3_000),
     additionalInformation: requiredText(3_000),
     postAnonymously: { type: "boolean" },
-    priority: { type: "string", enum: ticketPriorities }
+    priority: { type: "string", enum: ticketPriorities },
+    visibility: { type: "string", enum: ticketVisibilities }
   }
 } as const;
 
@@ -83,6 +89,8 @@ export const ticketResponseSchema = {
     "additionalInformation",
     "status",
     "priority",
+    "visibility",
+    "canReply",
     "assignedTechnicianId",
     "createdByName",
     "createdAt",
@@ -96,6 +104,8 @@ export const ticketResponseSchema = {
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
     priority: { type: "string", enum: ticketPriorities },
+    visibility: { type: "string", enum: ticketVisibilities },
+    canReply: { type: "boolean" },
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdByName: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
@@ -256,6 +266,7 @@ export function normalizeCreateTicketInput(input: CreateTicketInput): CreateTick
     ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously }),
     ...(input.priority === undefined
       ? { priority: "MEDIUM" as const }
-      : { priority: input.priority })
+      : { priority: input.priority }),
+    ...(input.visibility === undefined ? {} : { visibility: input.visibility })
   };
 }

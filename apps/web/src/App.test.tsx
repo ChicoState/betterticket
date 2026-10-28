@@ -105,6 +105,9 @@ describe("App", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
+      visibility: "PUBLIC",
+      canReply: true,
       createdByName: null,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
@@ -140,6 +143,9 @@ describe("App", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
+      visibility: "PUBLIC",
+      canReply: true,
       createdByName: null,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"

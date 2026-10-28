@@ -162,8 +162,8 @@ export function App() {
 
       <footer>
         <p>
-          Tickets are publicly visible. Do not include passwords, access keys, or other sensitive
-          information.
+          Choose ticket visibility when creating a request. Do not include passwords, access keys,
+          or other sensitive information.
         </p>
       </footer>
     </>

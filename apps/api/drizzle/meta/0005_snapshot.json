@@ -1,5 +1,5 @@
 {
-  "id": "89b402f8-93ea-40bd-aecc-03c71b4331dd",
+  "id": "f6e5bd7d-d6e6-441d-8a12-bd105a65be10",
   "prevId": "f306961d-c926-4121-9fa5-bcbd972e3acf",
   "version": "7",
   "dialect": "postgresql",
@@ -159,13 +159,13 @@
           "notNull": true,
           "default": "'OPEN'"
         },
-        "priority": {
-          "name": "priority",
-          "type": "ticket_priority",
+        "visibility": {
+          "name": "visibility",
+          "type": "ticket_visibility",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'MEDIUM'"
+          "default": "'PUBLIC'"
         },
         "creator_user_id": {
           "name": "creator_user_id",
@@ -281,15 +281,15 @@
     }
   },
   "enums": {
-    "public.ticket_priority": {
-      "name": "ticket_priority",
-      "schema": "public",
-      "values": ["LOW", "MEDIUM", "HIGH"]
-    },
     "public.ticket_status": {
       "name": "ticket_status",
       "schema": "public",
       "values": ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "COMPLETED"]
+    },
+    "public.ticket_visibility": {
+      "name": "ticket_visibility",
+      "schema": "public",
+      "values": ["PUBLIC", "AUTHENTICATED", "PRIVATE"]
     },
     "public.user_role": {
       "name": "user_role",

@@ -25,8 +25,7 @@ body {
 
 button,
 input,
-textarea,
-select {
+textarea {
   font: inherit;
 }
 
@@ -339,8 +338,23 @@ main {
   text-transform: uppercase;
 }
 
+.ticket-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.35rem;
+}
+
+.visibility-badge {
+  border: 1px solid #b7c9d5;
+  border-radius: 999px;
+  color: #285268;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
 .priority-badge {
-  flex-shrink: 0;
   border: 1px solid #d6dcda;
   border-radius: 999px;
   background: #f6f7f7;

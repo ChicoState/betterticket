@@ -13,8 +13,14 @@ Deliver issue #30 as the first BetterTicket product slice. An anonymous visitor 
 - `setup`: required, trimmed, 1–3,000 characters.
 - `additionalInformation`: optional, trimmed, at most 3,000 characters.
 - `postAnonymously`: optional boolean; when true, a signed-in creator is retained privately but is not publicly identified.
+- `visibility`: optional `PUBLIC`, `AUTHENTICATED`, or `PRIVATE`; defaults to `PUBLIC`. Restricted
+  visibility requires a signed-in creator.
 
-Unknown fields are rejected. A successful response is `201` and contains the stored ticket's UUID, submitted fields, `OPEN` status, nullable `createdByName`, and ISO-8601 creation/update timestamps. The server derives creator attribution only from the session; a client cannot submit a creator identity. Invalid requests return `400` with a stable error object and are not persisted.
+Unknown fields are rejected. A successful response is `201` and contains the stored ticket's UUID,
+submitted fields, `OPEN` status, selected visibility, computed `canReply`, nullable `createdByName`,
+and ISO-8601 creation/update timestamps. The server derives creator attribution only from the session;
+a client cannot submit a creator identity. Invalid requests return `400` with a stable error object
+and are not persisted.
 
 ## Tech Stack and Structure
 

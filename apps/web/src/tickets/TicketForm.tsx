@@ -21,6 +21,7 @@ function readFormInput(form: HTMLFormElement): CreateTicketInput {
     setup: String(formData.get("setup") ?? "").trim(),
     priority: String(formData.get("priority") ?? "MEDIUM") as CreateTicketInput["priority"],
     ...(additionalInformation ? { additionalInformation } : {}),
+    visibility: String(formData.get("visibility") ?? "PUBLIC") as CreateTicketInput["visibility"],
     ...(formData.get("postAnonymously") === "on" ? { postAnonymously: true } : {})
   };
 }
@@ -136,6 +137,34 @@ export function TicketForm({ currentUser = null }: TicketFormProps) {
             <p className="field-hint">Your name will not appear on this public ticket.</p>
           </div>
         ) : null}
+
+        <div className="field">
+          <label htmlFor="visibility">Ticket visibility</label>
+          <p className="field-hint" id="visibility-hint">
+            {currentUser
+              ? "Choose who can view and reply to this ticket."
+              : "Sign in to choose a restricted visibility. Anonymous visitors can create public tickets only."}
+          </p>
+          <select
+            id="visibility"
+            name="visibility"
+            aria-describedby="visibility-hint"
+            defaultValue="PUBLIC"
+          >
+            <option value="PUBLIC">Public (Everyone)</option>
+            <option value="AUTHENTICATED" disabled={!currentUser}>
+              Logged-in Users Only
+            </option>
+            <option value="PRIVATE" disabled={!currentUser}>
+              Private (You and IT Only)
+            </option>
+          </select>
+          <ul className="field-hint visibility-help">
+            <li>Public: everyone can view and reply, including anonymous visitors.</li>
+            <li>Logged-in Users Only: signed-in users can view and reply.</li>
+            <li>Private: only you and IT technicians can view and reply.</li>
+          </ul>
+        </div>
 
         <button className="submit-button" type="submit">
           {isSubmitting ? "Creating ticket…" : "Create ticket"}

@@ -5,12 +5,16 @@ export interface CreateTicketInput {
   additionalInformation?: string;
   postAnonymously?: boolean;
   priority?: TicketPriority;
+  visibility?: TicketVisibility;
 }
 
 export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
 export type TicketPriority = (typeof ticketPriorities)[number];
 export const ticketSorts = ["newest", "priority"] as const;
 export type TicketSort = (typeof ticketSorts)[number];
+
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
 
 export const ticketStatuses = [
   "OPEN",
@@ -59,6 +63,8 @@ export interface Ticket {
   additionalInformation: string | null;
   status: TicketStatus;
   priority: TicketPriority;
+  visibility: TicketVisibility;
+  canReply: boolean;
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -98,6 +104,8 @@ function isTicket(value: unknown): value is Ticket {
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
     isTicketPriority(ticket.priority) &&
+    ticketVisibilities.includes(ticket.visibility as TicketVisibility) &&
+    typeof ticket.canReply === "boolean" &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"

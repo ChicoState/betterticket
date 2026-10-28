@@ -12,6 +12,8 @@ const tickets = [
     additionalInformation: null,
     status: "IN_PROGRESS",
     priority: "HIGH",
+    visibility: "AUTHENTICATED",
+    canReply: true,
     createdByName: "Terry Technician",
     createdAt: "2026-09-29T09:30:00.000Z",
     updatedAt: "2026-09-29T09:30:00.000Z"
@@ -24,6 +26,8 @@ const tickets = [
     additionalInformation: "Started after an update.",
     status: "OPEN",
     priority: "LOW",
+    visibility: "PUBLIC",
+    canReply: true,
     createdByName: null,
     createdAt: "2026-09-28T18:00:00.000Z",
     updatedAt: "2026-09-28T18:00:00.000Z"
@@ -44,7 +48,7 @@ describe("TicketList", () => {
   });
 
   it("shows a loading status and then the tickets in API order", async () => {
-    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tickets }));
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketList />);
 
@@ -81,8 +85,8 @@ describe("TicketList", () => {
 
     await screen.findAllByRole("article");
     fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
-
     await screen.findAllByRole("article");
+
     expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=priority");
   });
 

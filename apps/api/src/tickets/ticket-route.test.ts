@@ -13,6 +13,7 @@ import type {
   TicketRecord,
   TicketRepository
 } from "./ticket-repository.js";
+import type { Ticket } from "./ticket-contract.js";
 
 const technicianId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 const ticketId = "cc04d84c-9aee-4d35-8af3-999d861aaed6";
@@ -29,6 +30,15 @@ class FakeAuthRepository implements AuthRepository {
         id: "bb97588e-0e8b-49e1-980b-4b9207121898",
         name: "Uma User",
         username: "uma",
+        role: "USER"
+      }
+    ],
+    [
+      "other-user-session",
+      {
+        id: "cc086f3d-2c21-4c63-a4d4-5a5d0d3e7b9c",
+        name: "Oliver Other",
+        username: "oliver",
         role: "USER"
       }
     ]
@@ -90,6 +100,8 @@ class FakeTicketRepository implements TicketRepository {
       additionalInformation: input.additionalInformation ?? null,
       status: "OPEN",
       priority: input.priority ?? "MEDIUM",
+      visibility: input.visibility ?? "PUBLIC",
+      creatorUserId: creator?.id ?? null,
       assignedTechnicianId: null,
       createdByName: input.postAnonymously ? null : (creator?.name ?? null),
       createdAt: new Date("2026-09-28T18:00:00.000Z"),
@@ -97,7 +109,11 @@ class FakeTicketRepository implements TicketRepository {
     };
   }
 
-  async listRecent(limit: number, sort?: "newest" | "priority"): Promise<TicketRecord[]> {
+  async listRecent(
+    limit: number,
+    _viewer?: { id: string; role: "USER" | "TECHNICIAN" } | null,
+    sort?: "newest" | "priority"
+  ): Promise<TicketRecord[]> {
     this.listLimits.push(limit);
     this.listSorts.push(sort);
 
@@ -175,73 +191,13 @@ describe("POST /api/tickets", () => {
       additionalInformation: "Started after an update.",
       status: "OPEN",
       priority: "MEDIUM",
+      visibility: "PUBLIC",
+      canReply: true,
       assignedTechnicianId: null,
       createdByName: null,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
     });
-  });
-
-  it.each(["LOW", "MEDIUM", "HIGH"] as const)(
-    "accepts %s priority and returns it in the response",
-    async (priority) => {
-      const repository = new FakeTicketRepository();
-      const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
-      apps.push(app);
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/api/tickets",
-        payload: {
-          title: "Laptop will not start",
-          description: "The power light flashes once.",
-          setup: "Framework Laptop 13, Fedora 42",
-          priority
-        }
-      });
-
-      expect(response.statusCode).toBe(201);
-      expect(repository.created[0]?.priority).toBe(priority);
-      expect(response.json()).toMatchObject({ priority });
-    }
-  );
-
-  it("defaults omitted priority to MEDIUM before persistence", async () => {
-    const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
-    apps.push(app);
-
-    await app.inject({
-      method: "POST",
-      url: "/api/tickets",
-      payload: {
-        title: "Laptop will not start",
-        description: "The power light flashes once.",
-        setup: "Framework Laptop 13, Fedora 42"
-      }
-    });
-
-    expect(repository.created[0]?.priority).toBe("MEDIUM");
-  });
-
-  it("rejects an invalid priority without writing", async () => {
-    const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
-    apps.push(app);
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/tickets",
-      payload: {
-        title: "Laptop will not start",
-        description: "The power light flashes once.",
-        setup: "Framework Laptop 13, Fedora 42",
-        priority: "URGENT"
-      }
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(repository.created).toHaveLength(0);
   });
 
   it("retains a signed-in anonymous poster privately without exposing their name", async () => {
@@ -266,6 +222,50 @@ describe("POST /api/tickets", () => {
       { id: "bb97588e-0e8b-49e1-980b-4b9207121898", name: "Uma User" }
     ]);
     expect(response.json()).toMatchObject({ createdByName: null });
+  });
+
+  it.each(["LOW", "MEDIUM", "HIGH"] as const)(
+    "accepts %s priority and returns it",
+    async (priority) => {
+      const repository = new FakeTicketRepository();
+      const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+      apps.push(app);
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/tickets",
+        payload: {
+          title: "Laptop will not start",
+          description: "The power light flashes once.",
+          setup: "Framework Laptop 13, Fedora 42",
+          priority
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(repository.created[0]?.priority).toBe(priority);
+      expect(response.json()).toMatchObject({ priority });
+    }
+  );
+
+  it("rejects invalid priority values without writing", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      payload: {
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42",
+        priority: "URGENT"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(repository.created).toHaveLength(0);
   });
 
   it("shows the signed-in poster's display name when they do not choose anonymity", async () => {
@@ -298,6 +298,10 @@ describe("POST /api/tickets", () => {
         setup: "Setup",
         status: "CLOSED"
       }
+    ],
+    [
+      "invalid visibility",
+      { title: "Issue", description: "Description", setup: "Setup", visibility: "FRIENDS" }
     ],
     ["oversized description", { title: "Issue", description: "x".repeat(5_001), setup: "Setup" }]
   ])("rejects %s without writing", async (_name, payload) => {
@@ -391,6 +395,8 @@ describe("GET /api/tickets", () => {
         additionalInformation: null,
         status: "OPEN",
         priority: "MEDIUM",
+        visibility: "PUBLIC",
+        creatorUserId: null,
         assignedTechnicianId: null,
         createdByName: null,
         createdAt: new Date("2026-09-29T09:30:00.000Z"),
@@ -404,6 +410,8 @@ describe("GET /api/tickets", () => {
         additionalInformation: "Started after an update.",
         status: "OPEN",
         priority: "MEDIUM",
+        visibility: "PUBLIC",
+        creatorUserId: null,
         assignedTechnicianId: null,
         createdByName: null,
         createdAt: new Date("2026-09-28T18:00:00.000Z"),
@@ -427,6 +435,8 @@ describe("GET /api/tickets", () => {
           additionalInformation: null,
           status: "OPEN",
           priority: "MEDIUM",
+          visibility: "PUBLIC",
+          canReply: true,
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-29T09:30:00.000Z",
@@ -440,6 +450,8 @@ describe("GET /api/tickets", () => {
           additionalInformation: "Started after an update.",
           status: "OPEN",
           priority: "MEDIUM",
+          visibility: "PUBLIC",
+          canReply: true,
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-28T18:00:00.000Z",
@@ -447,17 +459,6 @@ describe("GET /api/tickets", () => {
         }
       ]
     });
-  });
-
-  it("passes priority sorting to the repository when requested", async () => {
-    const repository = new FakeTicketRepository();
-    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
-    apps.push(app);
-
-    const response = await app.inject({ method: "GET", url: "/api/tickets?sort=priority" });
-
-    expect(response.statusCode).toBe(200);
-    expect(repository.listSorts).toEqual(["priority"]);
   });
 
   it("returns an empty list when no tickets exist", async () => {
@@ -474,6 +475,22 @@ describe("GET /api/tickets", () => {
     expect(response.json()).toEqual({ tickets: [] });
   });
 
+  it("passes priority sorting to the repository while preserving visibility context", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/tickets?sort=priority",
+      headers: { cookie: "betterticket_session=user-session" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(repository.listLimits).toEqual([100]);
+    expect(repository.listSorts).toEqual(["priority"]);
+  });
+
   it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {
     const repository = new FakeTicketRepository([
       {
@@ -484,6 +501,8 @@ describe("GET /api/tickets", () => {
         additionalInformation: null,
         status: status as TicketStatus,
         priority: "MEDIUM",
+        visibility: "PUBLIC",
+        creatorUserId: null,
         assignedTechnicianId: null,
         createdByName: null,
         createdAt: new Date("2026-09-28T18:00:00.000Z"),
@@ -525,6 +544,208 @@ describe("GET /api/tickets", () => {
   });
 });
 
+describe("ticket visibility authorization", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+  const publicTicket: TicketRecord = {
+    id: "2f1c5b0e-6f0a-4c59-9a55-0f6f2f4c8f11",
+    title: "Public ticket",
+    description: "Description",
+    setup: "Setup",
+    additionalInformation: null,
+    status: "OPEN",
+    priority: "MEDIUM",
+    visibility: "PUBLIC",
+    creatorUserId: null,
+    assignedTechnicianId: null,
+    createdByName: null,
+    createdAt: new Date("2026-09-29T09:30:00.000Z"),
+    updatedAt: new Date("2026-09-29T09:30:00.000Z")
+  };
+  const authenticatedTicket: TicketRecord = {
+    ...publicTicket,
+    id: ticketId,
+    visibility: "AUTHENTICATED"
+  };
+  const privateTicket: TicketRecord = {
+    ...publicTicket,
+    id: "7b2e4d5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f",
+    visibility: "PRIVATE",
+    creatorUserId: "bb97588e-0e8b-49e1-980b-4b9207121898"
+  };
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  it("allows public tickets to be listed and read anonymously", async () => {
+    const app = buildApp({
+      authRepository,
+      ticketRepository: new FakeTicketRepository([publicTicket]),
+      logger: false
+    });
+    apps.push(app);
+
+    expect((await app.inject({ method: "GET", url: "/api/tickets" })).json().tickets).toHaveLength(
+      1
+    );
+    expect(
+      (await app.inject({ method: "GET", url: `/api/tickets/${publicTicket.id}` })).statusCode
+    ).toBe(200);
+  });
+
+  it("hides authenticated and private tickets from anonymous users", async () => {
+    const app = buildApp({
+      authRepository,
+      ticketRepository: new FakeTicketRepository([
+        publicTicket,
+        authenticatedTicket,
+        privateTicket
+      ]),
+      logger: false
+    });
+    apps.push(app);
+
+    const list = await app.inject({ method: "GET", url: "/api/tickets" });
+    expect(list.json().tickets.map((ticket: Ticket) => ticket.id)).toEqual([publicTicket.id]);
+    expect(
+      (await app.inject({ method: "GET", url: `/api/tickets/${privateTicket.id}` })).statusCode
+    ).toBe(404);
+  });
+
+  it.each([undefined, "UNKNOWN"] as const)(
+    "fails closed when a ticket has invalid visibility data (%s)",
+    async (visibility) => {
+      const malformedTicket = {
+        ...publicTicket,
+        visibility
+      } as unknown as TicketRecord;
+      const app = buildApp({
+        authRepository,
+        ticketRepository: new FakeTicketRepository([malformedTicket]),
+        logger: false
+      });
+      apps.push(app);
+
+      const list = await app.inject({ method: "GET", url: "/api/tickets" });
+      expect(list.json().tickets).toEqual([]);
+      expect(
+        (await app.inject({ method: "GET", url: `/api/tickets/${malformedTicket.id}` })).statusCode
+      ).toBe(404);
+    }
+  );
+
+  it("allows authenticated users to access authenticated tickets and only the private owner or technicians to access private tickets", async () => {
+    const app = buildApp({
+      authRepository,
+      ticketRepository: new FakeTicketRepository([authenticatedTicket, privateTicket]),
+      logger: false
+    });
+    apps.push(app);
+
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/api/tickets/${authenticatedTicket.id}`,
+          headers: { cookie: "betterticket_session=user-session" }
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/api/tickets/${privateTicket.id}`,
+          headers: { cookie: "betterticket_session=user-session" }
+        })
+      ).statusCode
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/api/tickets/${privateTicket.id}`,
+          headers: { cookie: "betterticket_session=technician-session" }
+        })
+      ).statusCode
+    ).toBe(200);
+
+    const otherUserHeaders = { cookie: "betterticket_session=other-user-session" };
+    const otherUserList = await app.inject({
+      method: "GET",
+      url: "/api/tickets",
+      headers: otherUserHeaders
+    });
+    expect(otherUserList.json().tickets.map((ticket: Ticket) => ticket.id)).toEqual([
+      authenticatedTicket.id
+    ]);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/api/tickets/${privateTicket.id}`,
+          headers: otherUserHeaders
+        })
+      ).statusCode
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/api/tickets/${privateTicket.id}/replies`,
+          headers: otherUserHeaders
+        })
+      ).statusCode
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/api/tickets/${privateTicket.id}/replies`,
+          headers: otherUserHeaders,
+          payload: { body: "No access" }
+        })
+      ).statusCode
+    ).toBe(404);
+  });
+
+  it("rejects restricted ticket creation without a session", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      payload: { title: "Private", description: "Details", setup: "Setup", visibility: "PRIVATE" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(repository.created).toHaveLength(0);
+  });
+
+  it("protects private replies with the same owner and technician rule", async () => {
+    const repository = new FakeTicketRepository([privateTicket]);
+    const app = buildApp({ authRepository, ticketRepository: repository, logger: false });
+    apps.push(app);
+
+    const anonymousReply = await app.inject({
+      method: "POST",
+      url: `/api/tickets/${privateTicket.id}/replies`,
+      payload: { body: "No access" }
+    });
+    const ownerReply = await app.inject({
+      method: "POST",
+      url: `/api/tickets/${privateTicket.id}/replies`,
+      headers: { cookie: "betterticket_session=user-session" },
+      payload: { body: "I can reply" }
+    });
+
+    expect(anonymousReply.statusCode).toBe(404);
+    expect(ownerReply.statusCode).toBe(201);
+  });
+});
+
 describe("GET /api/tickets/:id", () => {
   const apps: Array<ReturnType<typeof buildApp>> = [];
   const storedTicket: TicketRecord = {
@@ -535,6 +756,8 @@ describe("GET /api/tickets/:id", () => {
     additionalInformation: null,
     status: "OPEN",
     priority: "MEDIUM",
+    visibility: "PUBLIC",
+    creatorUserId: null,
     assignedTechnicianId: null,
     createdByName: null,
     createdAt: new Date("2026-09-28T18:00:00.000Z"),
@@ -556,8 +779,11 @@ describe("GET /api/tickets/:id", () => {
     const response = await app.inject({ method: "GET", url: `/api/tickets/${storedTicket.id}` });
 
     expect(response.statusCode).toBe(200);
+    const { creatorUserId, ...publicTicketResponse } = storedTicket;
+    expect(creatorUserId).toBeNull();
     expect(response.json()).toEqual({
-      ...storedTicket,
+      ...publicTicketResponse,
+      canReply: true,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
     });
@@ -713,6 +939,8 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       additionalInformation: null,
       status: "OPEN",
       priority: "MEDIUM",
+      visibility: "PUBLIC",
+      creatorUserId: null,
       assignedTechnicianId,
       createdByName: null,
       createdAt: new Date("2026-09-28T18:00:00.000Z"),
@@ -772,6 +1000,8 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
     additionalInformation: null,
     status: "UNDER_REVIEW",
     priority: "MEDIUM",
+    visibility: "PUBLIC",
+    creatorUserId: null,
     assignedTechnicianId: null,
     createdByName: null,
     createdAt: new Date("2026-09-28T18:00:00.000Z"),
@@ -941,6 +1171,8 @@ describe("ticket replies", () => {
     additionalInformation: null,
     status: "OPEN",
     priority: "MEDIUM",
+    visibility: "PUBLIC",
+    creatorUserId: null,
     assignedTechnicianId: null,
     createdByName: null,
     createdAt: new Date("2026-09-28T18:00:00.000Z"),

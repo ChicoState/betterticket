@@ -57,6 +57,13 @@
       "when": 1793047028368,
       "tag": "0007_notification_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793022318253,
+      "tag": "0008_ticket_priority",
+      "breakpoints": true
     }
   ]
 }

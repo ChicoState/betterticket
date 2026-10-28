@@ -11,6 +11,7 @@ const tickets = [
     setup: "Office printer, macOS 15",
     additionalInformation: null,
     status: "IN_PROGRESS",
+    priority: "HIGH",
     visibility: "AUTHENTICATED",
     canReply: true,
     createdByName: "Terry Technician",
@@ -24,6 +25,7 @@ const tickets = [
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: "Started after an update.",
     status: "OPEN",
+    priority: "LOW",
     visibility: "PUBLIC",
     canReply: true,
     createdByName: null,
@@ -60,6 +62,7 @@ describe("TicketList", () => {
 
     const [printer, laptop] = items as [HTMLElement, HTMLElement];
     expect(within(printer).getByText("In progress")).toBeInTheDocument();
+    expect(within(printer).getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
     expect(within(printer).getByText(/Created by Terry Technician/)).toBeInTheDocument();
@@ -73,6 +76,18 @@ describe("TicketList", () => {
       "href",
       "/tickets/cc04d84c-9aee-4d35-8af3-999d861aaed6"
     );
+  });
+
+  it("requests priority sorting when the sorting control changes", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
+    await screen.findAllByRole("article");
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=priority");
   });
 
   it("shows an empty state when no tickets exist", async () => {

@@ -1,6 +1,6 @@
 # Spec: Ticket Status Notifications
 
-> Status: **Approved** 2026-10-19 (ADR-008 accepted).
+> Status: **Approved** 2026-10-19 (ADR-010 accepted).
 
 ## Objective
 

@@ -1,11 +1,11 @@
 # Spec: Notification Settings
 
-> Status: **Approved** 2026-10-26 (ADR-009 accepted).
+> Status: **Approved** 2026-10-26 (ADR-011 accepted).
 
 ## Objective
 
 Prepare for emailing ticket owners when a technician changes a ticket's status (follow-up to
-ADR-008). This slice adds a signed-in **Settings** page where a user saves an email address and
+ADR-010). This slice adds a signed-in **Settings** page where a user saves an email address and
 chooses whether, and for which status changes, they want emails. It stores preferences only. No
 email is sent until the delivery slice ships.
 
@@ -18,7 +18,7 @@ email is sent until the delivery slice ships.
 3. "When to receive emails" means which status changes send one. Users can pick any of
    `UNDER_REVIEW`, `IN_PROGRESS`, and `RESOLVED`. `COMPLETED` is added when the issue #8 slice
    ships. Daily digests are deferred.
-4. In-app notifications (ADR-008) stay on for everyone. These settings control email only.
+4. In-app notifications (ADR-010) stay on for everyone. These settings control email only.
 5. The address is saved unverified. The delivery slice must verify it before sending anything.
 6. Addresses do not need to be unique across accounts, and they never replace the username for
    sign-in.
@@ -146,6 +146,6 @@ bash scripts/smoke.sh
 - An email provider or SMTP adapter, configured through environment variables, with a local mail
   catcher in Compose.
 - Email verification before the first send.
-- A transactional outbox written with the status change and notification (ADR-008), drained by a
+- A transactional outbox written with the status change and notification (ADR-010), drained by a
   worker, so a failed send never rolls back a status change.
 - An unsubscribe link in every email.

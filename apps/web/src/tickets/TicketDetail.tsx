@@ -125,6 +125,9 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
           <span className="ticket-badges">
             <span className="status-badge">{formatStatus(ticket.status)}</span>
             <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
+            <span className="priority-badge">
+              {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
+            </span>
           </span>
         </header>
         <p className="ticket-meta">

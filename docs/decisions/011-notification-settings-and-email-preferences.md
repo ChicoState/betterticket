@@ -1,4 +1,4 @@
-# ADR-009: Notification Settings and Email Preferences
+# ADR-011: Notification Settings and Email Preferences
 
 ## Status
 
@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-ADR-008 notifies ticket owners in the app only and lists email delivery as a later decision.
+ADR-010 notifies ticket owners in the app only and lists email delivery as a later decision.
 Users now want an email when a ticket's status changes. Accounts have no email address
 (ADR-003/004 sign users in by username), and the account menu has had a disabled "Settings"
 placeholder since the registration slice.

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement `docs/specs/ticket-status-notifications.md` and ADR-008. Add a technician-only status
+Implement `docs/specs/ticket-status-notifications.md` and ADR-010. Add a technician-only status
 update API, persist a notification for the ticket owner in the same transaction, and show the
 owner's notifications in a polled header pane.
 

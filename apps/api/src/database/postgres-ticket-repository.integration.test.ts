@@ -43,6 +43,7 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
       visibility: "PUBLIC",
       assignedTechnicianId: null
     });
@@ -128,6 +129,30 @@ describe("PostgresTicketRepository", () => {
       "Private owner",
       "Public"
     ]);
+  });
+
+  it("filters by visibility before applying priority sorting and the limit", async () => {
+    const [owner] = await database
+      .insert(users)
+      .values({
+        name: "Ticket Owner",
+        username: "priority.owner",
+        passwordHash: "not-used",
+        role: "USER"
+      })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public low", priority: "LOW" });
+    await repository.create(
+      { ...input, title: "Private owner high", priority: "HIGH", visibility: "PRIVATE" },
+      owner!
+    );
+
+    const listed = await repository.listRecent(1, null, "priority");
+
+    expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
   });
 
   it("persists and returns every approved ticket status", async () => {

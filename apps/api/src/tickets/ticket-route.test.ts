@@ -80,6 +80,7 @@ class FakeTicketRepository implements TicketRepository {
   readonly created: CreateTicketInput[] = [];
   readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
+  readonly listSorts: Array<"newest" | "priority" | undefined> = [];
   readonly createdReplies: Array<{ ticketId: string; body: string }> = [];
   readonly replyListLimits: number[] = [];
 
@@ -100,6 +101,7 @@ class FakeTicketRepository implements TicketRepository {
       ...input,
       additionalInformation: input.additionalInformation ?? null,
       status: "OPEN",
+      priority: input.priority ?? "MEDIUM",
       visibility: input.visibility ?? "PUBLIC",
       creatorUserId: creator?.id ?? null,
       assignedTechnicianId: null,
@@ -109,8 +111,13 @@ class FakeTicketRepository implements TicketRepository {
     };
   }
 
-  async listRecent(limit: number): Promise<TicketRecord[]> {
+  async listRecent(
+    limit: number,
+    _viewer?: { id: string; role: "USER" | "TECHNICIAN" } | null,
+    sort?: "newest" | "priority"
+  ): Promise<TicketRecord[]> {
     this.listLimits.push(limit);
+    this.listSorts.push(sort);
 
     return this.stored;
   }
@@ -194,6 +201,7 @@ describe("POST /api/tickets", () => {
         title: "Laptop will not start",
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
+        priority: "MEDIUM",
         additionalInformation: "Started after an update."
       }
     ]);
@@ -204,6 +212,7 @@ describe("POST /api/tickets", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: "Started after an update.",
       status: "OPEN",
+      priority: "MEDIUM",
       visibility: "PUBLIC",
       canReply: true,
       assignedTechnicianId: null,
@@ -241,6 +250,62 @@ describe("POST /api/tickets", () => {
       { id: "bb97588e-0e8b-49e1-980b-4b9207121898", name: "Uma User" }
     ]);
     expect(response.json()).toMatchObject({ createdByName: null });
+  });
+
+  it.each(["LOW", "MEDIUM", "HIGH"] as const)(
+    "accepts %s priority and returns it",
+    async (priority) => {
+      const repository = new FakeTicketRepository();
+      const app = buildApp({
+        authRepository,
+        ticketRepository: repository,
+        notificationRepository,
+        settingsRepository: unusedSettingsRepository,
+        logger: false
+      });
+      apps.push(app);
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/tickets",
+        payload: {
+          title: "Laptop will not start",
+          description: "The power light flashes once.",
+          setup: "Framework Laptop 13, Fedora 42",
+          priority
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(repository.created[0]?.priority).toBe(priority);
+      expect(response.json()).toMatchObject({ priority });
+    }
+  );
+
+  it("rejects invalid priority values without writing", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/tickets",
+      payload: {
+        title: "Laptop will not start",
+        description: "The power light flashes once.",
+        setup: "Framework Laptop 13, Fedora 42",
+        priority: "URGENT"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(repository.created).toHaveLength(0);
   });
 
   it("shows the signed-in poster's display name when they do not choose anonymity", async () => {
@@ -393,6 +458,7 @@ describe("GET /api/tickets", () => {
         setup: "Office printer, macOS 15",
         additionalInformation: null,
         status: "OPEN",
+        priority: "MEDIUM",
         visibility: "PUBLIC",
         creatorUserId: null,
         assignedTechnicianId: null,
@@ -407,6 +473,7 @@ describe("GET /api/tickets", () => {
         setup: "Framework Laptop 13, Fedora 42",
         additionalInformation: "Started after an update.",
         status: "OPEN",
+        priority: "MEDIUM",
         visibility: "PUBLIC",
         creatorUserId: null,
         assignedTechnicianId: null,
@@ -437,6 +504,7 @@ describe("GET /api/tickets", () => {
           setup: "Office printer, macOS 15",
           additionalInformation: null,
           status: "OPEN",
+          priority: "MEDIUM",
           visibility: "PUBLIC",
           canReply: true,
           assignedTechnicianId: null,
@@ -451,6 +519,7 @@ describe("GET /api/tickets", () => {
           setup: "Framework Laptop 13, Fedora 42",
           additionalInformation: "Started after an update.",
           status: "OPEN",
+          priority: "MEDIUM",
           visibility: "PUBLIC",
           canReply: true,
           assignedTechnicianId: null,
@@ -478,6 +547,28 @@ describe("GET /api/tickets", () => {
     expect(response.json()).toEqual({ tickets: [] });
   });
 
+  it("passes priority sorting to the repository while preserving visibility context", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/tickets?sort=priority",
+      headers: { cookie: "betterticket_session=user-session" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(repository.listLimits).toEqual([100]);
+    expect(repository.listSorts).toEqual(["priority"]);
+  });
+
   it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {
     const repository = new FakeTicketRepository([
       {
@@ -487,6 +578,7 @@ describe("GET /api/tickets", () => {
         setup: "Framework Laptop 13, Fedora 42",
         additionalInformation: null,
         status: status as TicketStatus,
+        priority: "MEDIUM",
         visibility: "PUBLIC",
         creatorUserId: null,
         assignedTechnicianId: null,
@@ -551,6 +643,7 @@ describe("ticket visibility authorization", () => {
     setup: "Setup",
     additionalInformation: null,
     status: "OPEN",
+    priority: "MEDIUM",
     visibility: "PUBLIC",
     creatorUserId: null,
     assignedTechnicianId: null,
@@ -772,6 +865,7 @@ describe("GET /api/tickets/:id", () => {
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: null,
     status: "OPEN",
+    priority: "MEDIUM",
     visibility: "PUBLIC",
     creatorUserId: null,
     assignedTechnicianId: null,
@@ -972,6 +1066,7 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
       visibility: "PUBLIC",
       creatorUserId: null,
       assignedTechnicianId,
@@ -1032,6 +1127,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: null,
     status: "UNDER_REVIEW",
+    priority: "MEDIUM",
     visibility: "PUBLIC",
     creatorUserId: null,
     assignedTechnicianId: null,
@@ -1219,6 +1315,7 @@ describe("ticket replies", () => {
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: null,
     status: "OPEN",
+    priority: "MEDIUM",
     visibility: "PUBLIC",
     creatorUserId: null,
     assignedTechnicianId: null,

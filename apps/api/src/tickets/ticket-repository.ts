@@ -1,4 +1,5 @@
 import type { CreateTicketInput, TicketReplyStatus, TicketStatus } from "./ticket-contract.js";
+import type { TicketVisibility } from "./ticket-contract.js";
 
 export type { CreateTicketInput } from "./ticket-contract.js";
 
@@ -10,7 +11,8 @@ export interface TicketRecord {
   additionalInformation: string | null;
   status: TicketStatus;
   replyStatus?: TicketReplyStatus;
-  creatorUserId?: string | null;
+  visibility: TicketVisibility;
+  creatorUserId: string | null;
   assignedTechnicianId: string | null;
   createdByName: string | null;
   createdAt: Date;
@@ -45,9 +47,9 @@ export type StatusUpdateResult =
 
 export interface TicketRepository {
   create(input: CreateTicketInput, creator?: TicketCreator | null): Promise<TicketRecord>;
-  listRecent(limit: number): Promise<TicketRecord[]>;
+  listRecent(limit: number, viewer?: TicketViewer | null): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
-  createReply(ticketId: string, body: string): Promise<ReplyCreationResult>;
+  createReply(ticketId: string, body: string): Promise<ReplyRecord | ReplyCreationResult>;
   listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]>;
   updateReplyStatus?(
     ticketId: string,
@@ -58,10 +60,20 @@ export interface TicketRepository {
     ticketId: string,
     assignedTechnicianId: string | null
   ): Promise<AssignmentResult>;
-  updateStatus(ticketId: string, status: TicketStatus): Promise<StatusUpdateResult>;
+  /** Applies a technician status change and notifies the ticket's creator in one transaction. */
+  updateStatus(
+    ticketId: string,
+    status: TicketStatus,
+    actorUserId: string
+  ): Promise<StatusUpdateResult>;
 }
 
 export interface TicketCreator {
   id: string;
   name: string;
+}
+
+export interface TicketViewer {
+  id: string;
+  role: "USER" | "TECHNICIAN";
 }

@@ -14,6 +14,7 @@ import {
   formatCreatedAt,
   formatReplyStatus,
   formatStatus,
+  formatVisibility,
   getNextProgressStatus,
   getProgressStageState,
   ticketProgress
@@ -161,6 +162,9 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
               </button>
             ) : null}
           </div>
+          <span className="ticket-badges">
+            <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
+          </span>
         </header>
         {replyStatusUpdate === "error" ? (
           <p className="error-message" role="alert">
@@ -176,7 +180,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
         <section className="ticket-progress" aria-labelledby="ticket-progress-title">
           <div className="ticket-progress-heading">
             <h2 id="ticket-progress-title">Ticket progress</h2>
-            {currentUser?.role === "TECHNICIAN" && nextStatus ? (
+            {currentUser?.role === "TECHNICIAN" && nextStatus && nextStatus !== "COMPLETED" ? (
               <button
                 className="status-update-button"
                 disabled={statusUpdate.type === "updating"}

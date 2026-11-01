@@ -61,7 +61,8 @@ describe("TicketForm", () => {
         title: "Laptop will not start",
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
-        additionalInformation: "Started after an update."
+        additionalInformation: "Started after an update.",
+        visibility: "PUBLIC"
       })
     });
   });
@@ -127,6 +128,7 @@ describe("TicketForm", () => {
         title: "Laptop will not start",
         description: "The power light flashes once.",
         setup: "Framework Laptop 13, Fedora 42",
+        visibility: "PUBLIC",
         postAnonymously: true
       })
     });

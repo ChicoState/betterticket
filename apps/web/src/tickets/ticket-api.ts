@@ -4,7 +4,11 @@ export interface CreateTicketInput {
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  visibility?: TicketVisibility;
 }
+
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
 
 export const ticketStatuses = [
   "OPEN",
@@ -58,8 +62,10 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
-  replyStatus: TicketReplyStatus;
-  canManageReplyStatus: boolean;
+  replyStatus?: TicketReplyStatus;
+  canManageReplyStatus?: boolean;
+  visibility: TicketVisibility;
+  canReply: boolean;
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -76,7 +82,7 @@ export class TicketStatusUpdateError extends Error {
   }
 }
 
-function isTicketStatus(value: unknown): value is TicketStatus {
+export function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
 
@@ -98,8 +104,11 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
-    isTicketReplyStatus(ticket.replyStatus) &&
-    typeof ticket.canManageReplyStatus === "boolean" &&
+    (ticket.replyStatus === undefined || isTicketReplyStatus(ticket.replyStatus)) &&
+    (ticket.canManageReplyStatus === undefined ||
+      typeof ticket.canManageReplyStatus === "boolean") &&
+    ticketVisibilities.includes(ticket.visibility as TicketVisibility) &&
+    typeof ticket.canReply === "boolean" &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"

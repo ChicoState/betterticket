@@ -129,7 +129,7 @@ export function AuthGateway({ onAuthenticated }: AuthGatewayProps) {
                   autoComplete="current-password"
                   id="login-password"
                   maxLength={128}
-                  minLength={12}
+                  minLength={1}
                   name="password"
                   required
                   type="password"
@@ -171,7 +171,7 @@ export function AuthGateway({ onAuthenticated }: AuthGatewayProps) {
                   autoComplete="new-password"
                   id="registration-password"
                   maxLength={128}
-                  minLength={12}
+                  minLength={1}
                   name="password"
                   required
                   type="password"
@@ -183,7 +183,7 @@ export function AuthGateway({ onAuthenticated }: AuthGatewayProps) {
                   autoComplete="new-password"
                   id="registration-password-confirmation"
                   maxLength={128}
-                  minLength={12}
+                  minLength={1}
                   name="passwordConfirmation"
                   required
                   type="password"

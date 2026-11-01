@@ -48,7 +48,7 @@ export const loginBodySchema = {
   required: ["username", "password"],
   properties: {
     username: { type: "string", minLength: 1, maxLength: 100, pattern: "\\S" },
-    password: { type: "string", minLength: 12, maxLength: 128 }
+    password: { type: "string", minLength: 1, maxLength: 128 }
   }
 } as const;
 
@@ -64,7 +64,7 @@ export const registrationBodySchema = {
       maxLength: 100,
       pattern: "^[\\s]*[A-Za-z0-9._-]+[\\s]*$"
     },
-    password: { type: "string", minLength: 12, maxLength: 128 }
+    password: { type: "string", minLength: 1, maxLength: 128 }
   }
 } as const;
 

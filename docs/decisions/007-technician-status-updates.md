@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted. Partially superseded by
+[ADR-008](008-technician-status-updates-and-owner-notifications.md): technicians may no longer
+set `COMPLETED`, and status changes now notify the ticket creator.
 
 ## Date
 

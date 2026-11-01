@@ -7,6 +7,7 @@ import {
   type Reply,
   type TicketReplyStatus
 } from "./ticket-api.js";
+import type { TicketVisibility } from "./ticket-api.js";
 import { formatCreatedAt } from "./ticket-format.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; replies: Reply[] } | { type: "error" };
@@ -18,12 +19,14 @@ interface TicketRepliesProps {
   ticketId: string;
   replyStatus?: TicketReplyStatus;
   onTicketClosed?: () => void;
+  visibility?: TicketVisibility;
 }
 
 export function TicketReplies({
   ticketId,
   replyStatus = "OPEN",
-  onTicketClosed = () => {}
+  onTicketClosed = () => {},
+  visibility = "PUBLIC"
 }: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -125,7 +128,9 @@ export function TicketReplies({
                 <div className="field">
                   <label htmlFor="reply-body">Your reply</label>
                   <p className="field-hint" id="reply-body-hint">
-                    Replies are anonymous and publicly visible. You can reply without an account.
+                    {visibility === "PUBLIC"
+                      ? "Replies are anonymous and publicly visible. You can reply without an account."
+                      : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
                   </p>
                   <textarea
                     id="reply-body"

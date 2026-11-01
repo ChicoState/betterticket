@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 
-import { sessionCookieName, type AuthenticatedUser } from "../auth/auth-contract.js";
+import { sessionCookieName } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import { requireTechnician } from "../auth/require-technician.js";
 import {
@@ -32,22 +32,44 @@ import {
   type UpdateTicketReplyStatusInput,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
-import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
+import type {
+  ReplyRecord,
+  TicketRecord,
+  TicketRepository,
+  TicketViewer
+} from "./ticket-repository.js";
+import { canAccessTicket } from "./ticket-access.js";
 
 interface TicketRoutesOptions {
   authRepository: AuthRepository;
   ticketRepository: TicketRepository;
 }
 
-function toTicket(ticket: TicketRecord, user: AuthenticatedUser | null = null): Ticket {
-  const { creatorUserId, ...publicTicket } = ticket;
+function toTicket(ticket: TicketRecord, viewer: TicketViewer | null): Ticket {
   return {
-    ...publicTicket,
+    id: ticket.id,
+    title: ticket.title,
+    description: ticket.description,
+    setup: ticket.setup,
+    additionalInformation: ticket.additionalInformation,
+    status: ticket.status,
     replyStatus: ticket.replyStatus ?? "OPEN",
-    canManageReplyStatus: creatorUserId != null && creatorUserId === user?.id,
+    canManageReplyStatus: ticket.creatorUserId != null && ticket.creatorUserId === viewer?.id,
+    visibility: ticket.visibility,
+    canReply: canAccessTicket(ticket, viewer) && ticket.replyStatus !== "CLOSED",
+    assignedTechnicianId: ticket.assignedTechnicianId,
+    createdByName: ticket.createdByName,
     createdAt: ticket.createdAt.toISOString(),
     updatedAt: ticket.updatedAt.toISOString()
   };
+}
+
+async function currentUser(
+  request: { cookies: Record<string, string | undefined> },
+  authRepository: AuthRepository
+) {
+  const token = request.cookies[sessionCookieName];
+  return token ? authRepository.findUserBySession(token) : null;
 }
 
 function toReply(reply: ReplyRecord): Reply {
@@ -68,7 +90,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
   { authRepository, ticketRepository }
 ) => {
-  app.post<{ Body: CreateTicketInput; Reply: Ticket }>(
+  app.post<{ Body: CreateTicketInput; Reply: Ticket | ApiError }>(
     "/api/tickets",
     {
       schema: {
@@ -76,14 +98,20 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         response: {
           201: ticketResponseSchema,
           400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
       }
     },
     async (request, reply) => {
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-      const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body), user);
+      const user = await currentUser(request, authRepository);
+      const input = normalizeCreateTicketInput(request.body);
+      if ((input.visibility ?? "PUBLIC") !== "PUBLIC" && !user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+      const ticket = await ticketRepository.create(input, user);
 
       return reply.status(201).send(toTicket(ticket, user));
     }
@@ -117,7 +145,8 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
 
       const result = await ticketRepository.updateStatus(
         request.params.ticketId,
-        request.body.status
+        request.body.status,
+        access.user.id
       );
 
       if (result.type === "ticket-not-found") {
@@ -127,7 +156,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(400).send({
           error: {
             code: "INVALID_STATUS_TRANSITION",
-            message: "The ticket status transition is invalid"
+            message: "Technicians can only advance a ticket one stage, up to resolved"
           }
         });
       }
@@ -147,11 +176,13 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
       }
     },
     async (request) => {
-      const tickets = await ticketRepository.listRecent(ticketListLimit);
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-
-      return { tickets: tickets.map((ticket) => toTicket(ticket, user)) };
+      const viewer = await currentUser(request, authRepository);
+      const tickets = await ticketRepository.listRecent(ticketListLimit, viewer);
+      return {
+        tickets: tickets
+          .filter((ticket) => canAccessTicket(ticket, viewer))
+          .map((ticket) => toTicket(ticket, viewer))
+      };
     }
   );
 
@@ -170,14 +201,13 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-      return toTicket(ticket, user);
+      return toTicket(ticket, viewer);
     }
   );
 
@@ -196,8 +226,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
@@ -224,12 +255,17 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
       const result = await ticketRepository.createReply(ticket.id, request.body.body.trim());
+
+      if ("id" in result) {
+        return reply.status(201).send(toReply(result));
+      }
 
       if (result.type === "ticket-not-found") {
         return reply.status(404).send(ticketNotFound);

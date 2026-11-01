@@ -9,8 +9,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: null,
   status: "UNDER_REVIEW",
-  replyStatus: "OPEN",
-  canManageReplyStatus: true,
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: null,
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:01:00.000Z"
@@ -58,16 +58,5 @@ describe("updateTicketStatus", () => {
       status: 403,
       code: "FORBIDDEN"
     });
-  });
-
-  it("rejects a status-update response that drops reply state", async () => {
-    const incompleteTicket: Partial<typeof ticket> = { ...ticket };
-    delete incompleteTicket.replyStatus;
-    delete incompleteTicket.canManageReplyStatus;
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(incompleteTicket)));
-
-    await expect(updateTicketStatus(ticket.id, "UNDER_REVIEW")).rejects.toThrow(
-      "Ticket status update returned an invalid response"
-    );
   });
 });

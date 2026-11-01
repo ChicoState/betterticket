@@ -13,6 +13,7 @@ if (!databaseUrl) {
 }
 
 const { database, close } = createDatabase(databaseUrl);
+const actorId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 
 describe("PostgresTicketRepository", () => {
   beforeEach(async () => {
@@ -42,6 +43,7 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      visibility: "PUBLIC",
       assignedTechnicianId: null
     });
     expect(created.id).toMatch(
@@ -74,6 +76,61 @@ describe("PostgresTicketRepository", () => {
     expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
   });
 
+  it("filters tickets by visibility for anonymous users, owners, and technicians", async () => {
+    const [owner, otherUser, technician] = await database
+      .insert(users)
+      .values([
+        {
+          name: "Ticket Owner",
+          username: "ticket.owner",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "Other User",
+          username: "other.user",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "IT Technician",
+          username: "it.technician",
+          passwordHash: "not-used",
+          role: "TECHNICIAN"
+        }
+      ])
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public", visibility: "PUBLIC" });
+    await repository.create(
+      { ...input, title: "Authenticated", visibility: "AUTHENTICATED" },
+      owner!
+    );
+    await repository.create({ ...input, title: "Private owner", visibility: "PRIVATE" }, owner!);
+    await repository.create(
+      { ...input, title: "Private other", visibility: "PRIVATE" },
+      otherUser!
+    );
+
+    const titles = async (viewer: { id: string; role: "USER" | "TECHNICIAN" } | null) =>
+      (await repository.listRecent(10, viewer)).map((ticket) => ticket.title).sort();
+
+    expect(await titles(null)).toEqual(["Public"]);
+    expect(await titles({ id: otherUser!.id, role: "USER" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Public"
+    ]);
+    expect(await titles({ id: technician!.id, role: "TECHNICIAN" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Private owner",
+      "Public"
+    ]);
+  });
+
   it("persists and returns every approved ticket status", async () => {
     await database.insert(tickets).values(
       ticketStatuses.map((status, index) => ({
@@ -94,7 +151,7 @@ describe("PostgresTicketRepository", () => {
     expect(storedStatuses.map((ticket) => ticket.status)).toEqual(ticketStatuses);
   });
 
-  it("advances through every adjacent status and updates the timestamp", async () => {
+  it("advances through each adjacent status up to resolved and updates the timestamp", async () => {
     const repository = new PostgresTicketRepository(database);
     const ticket = await repository.create({
       title: "Laptop will not start",
@@ -107,8 +164,8 @@ describe("PostgresTicketRepository", () => {
       .set({ replyStatus: "CLOSED", updatedAt: initialUpdatedAt })
       .where(eq(tickets.id, ticket.id));
 
-    for (const status of ticketStatuses.slice(1)) {
-      const result = await repository.updateStatus(ticket.id, status);
+    for (const status of ["UNDER_REVIEW", "IN_PROGRESS", "RESOLVED"] as const) {
+      const result = await repository.updateStatus(ticket.id, status, actorId);
 
       expect(result).toMatchObject({
         type: "updated",
@@ -124,7 +181,7 @@ describe("PostgresTicketRepository", () => {
     expect(finalTicket?.updatedAt.getTime()).toBeGreaterThan(initialUpdatedAt.getTime());
   });
 
-  it("rejects skipped, backward, and terminal transitions", async () => {
+  it("rejects skipped, backward, completion, and terminal transitions", async () => {
     const repository = new PostgresTicketRepository(database);
     const ticket = await repository.create({
       title: "Laptop will not start",
@@ -132,29 +189,29 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42"
     });
 
-    expect(await repository.updateStatus(ticket.id, "IN_PROGRESS")).toEqual({
+    expect(await repository.updateStatus(ticket.id, "IN_PROGRESS", actorId)).toEqual({
       type: "invalid-transition"
     });
-    expect(await repository.updateStatus(ticket.id, "UNDER_REVIEW")).toMatchObject({
+    expect(await repository.updateStatus(ticket.id, "UNDER_REVIEW", actorId)).toMatchObject({
       type: "updated",
       ticket: { status: "UNDER_REVIEW" }
     });
-    expect(await repository.updateStatus(ticket.id, "OPEN")).toEqual({
+    expect(await repository.updateStatus(ticket.id, "OPEN", actorId)).toEqual({
       type: "invalid-transition"
     });
 
-    for (const status of ["IN_PROGRESS", "RESOLVED", "COMPLETED"] as const) {
-      expect(await repository.updateStatus(ticket.id, status)).toMatchObject({
+    for (const status of ["IN_PROGRESS", "RESOLVED"] as const) {
+      expect(await repository.updateStatus(ticket.id, status, actorId)).toMatchObject({
         type: "updated",
         ticket: { status }
       });
     }
 
-    expect(await repository.updateStatus(ticket.id, "COMPLETED")).toMatchObject({
-      type: "unchanged",
-      ticket: { status: "COMPLETED" }
+    expect(await repository.updateStatus(ticket.id, "COMPLETED", actorId)).toEqual({
+      type: "invalid-transition"
     });
-    expect(await repository.updateStatus(ticket.id, "RESOLVED")).toEqual({
+    await database.update(tickets).set({ status: "COMPLETED" }).where(eq(tickets.id, ticket.id));
+    expect(await repository.updateStatus(ticket.id, "RESOLVED", actorId)).toEqual({
       type: "invalid-transition"
     });
   });
@@ -172,7 +229,7 @@ describe("PostgresTicketRepository", () => {
       .set({ status: "IN_PROGRESS", updatedAt })
       .where(eq(tickets.id, ticket.id));
 
-    const result = await repository.updateStatus(ticket.id, "IN_PROGRESS");
+    const result = await repository.updateStatus(ticket.id, "IN_PROGRESS", actorId);
 
     expect(result).toMatchObject({ type: "unchanged", ticket: { status: "IN_PROGRESS" } });
     if (result.type !== "unchanged") {
@@ -185,7 +242,7 @@ describe("PostgresTicketRepository", () => {
     const repository = new PostgresTicketRepository(database);
 
     expect(
-      await repository.updateStatus("00000000-0000-4000-8000-000000000000", "UNDER_REVIEW")
+      await repository.updateStatus("00000000-0000-4000-8000-000000000000", "UNDER_REVIEW", actorId)
     ).toEqual({ type: "ticket-not-found" });
   });
 

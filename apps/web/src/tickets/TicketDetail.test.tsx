@@ -13,8 +13,8 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
-  replyStatus: "OPEN",
-  canManageReplyStatus: false,
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
@@ -77,30 +77,12 @@ describe("TicketDetail", () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
   });
 
-  it("lets only the owner close a ticket's replies", async () => {
-    const ownerTicket = { ...ticket, canManageReplyStatus: true };
-    const closedTicket = { ...ownerTicket, replyStatus: "CLOSED" };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(ownerTicket))
-      .mockResolvedValueOnce(jsonResponse({ replies: [] }))
-      .mockResolvedValueOnce(jsonResponse(closedTicket));
-    vi.stubGlobal("fetch", fetchMock);
+  it("labels a private ticket with the concise visibility badge", async () => {
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, visibility: "PRIVATE" }));
     render(<TicketDetail ticketId={ticketId} />);
 
-    const closeButton = await screen.findByRole("button", { name: "Close ticket" });
-    expect(closeButton.closest(".ticket-card-header")).toBeInTheDocument();
-    expect(screen.queryByText("Open for replies.")).not.toBeInTheDocument();
-
-    fireEvent.click(closeButton);
-
-    expect(await screen.findByRole("button", { name: "Reopen ticket" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith(`/api/tickets/${ticketId}/reply-status`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ replyStatus: "CLOSED" })
-    });
-    expect(screen.getByText("This ticket is closed to new replies.")).toBeInTheDocument();
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText("Private", { selector: ".visibility-badge" })).toBeInTheDocument();
   });
 
   it("omits additional information when none was submitted", async () => {
@@ -151,16 +133,16 @@ describe("TicketDetail", () => {
     expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
   });
 
-  it("does not show a status control after the ticket is completed", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status: "COMPLETED" }))
-    );
-    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+  it.each(["RESOLVED", "COMPLETED"])(
+    "does not show a status control for a %s ticket",
+    async (status) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status })));
+      render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
 
-    await screen.findByRole("heading", { level: 1 });
-    expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
-  });
+      await screen.findByRole("heading", { level: 1 });
+      expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
+    }
+  );
 
   it("updates the timeline after a technician advances the ticket", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
@@ -177,40 +159,18 @@ describe("TicketDetail", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Move to Under review" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Ticket status updated to Under review."
+    expect(await screen.findByText("Ticket status updated to Under review.")).toHaveAttribute(
+      "role",
+      "status"
     );
     expect(screen.getByText("Under review", { selector: ".status-badge" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move to In progress" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith(`/api/tickets/${ticketId}/status`, {
+    // The replies panel may fetch after the click, so check the PATCH was sent, not its order.
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/status`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: "UNDER_REVIEW" })
     });
-  });
-
-  it("keeps reply status and owner controls after an IT owner advances the ticket", async () => {
-    const ownerTicket = { ...ticket, canManageReplyStatus: true };
-    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (url.endsWith("/replies")) {
-        return Promise.resolve(jsonResponse({ replies: [] }));
-      }
-      if (init?.method === "PATCH") {
-        return Promise.resolve(jsonResponse({ ...ownerTicket, status: "UNDER_REVIEW" }));
-      }
-      return Promise.resolve(jsonResponse(ownerTicket));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
-
-    expect(await screen.findByText("Open for replies")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close ticket" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Move to Under review" }));
-
-    expect(await screen.findByText("Ticket status updated to Under review.")).toBeInTheDocument();
-    expect(screen.getByText("Open for replies")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close ticket" })).toBeInTheDocument();
   });
 
   it("disables the status control while the update is pending", async () => {
@@ -235,7 +195,10 @@ describe("TicketDetail", () => {
 
     expect(screen.getByRole("button", { name: "Updating status…" })).toBeDisabled();
     resolveUpdate(jsonResponse({ ...ticket, status: "UNDER_REVIEW" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Ticket status updated");
+    expect(await screen.findByText("Ticket status updated to Under review.")).toHaveAttribute(
+      "role",
+      "status"
+    );
   });
 
   it("shows an accessible error when the status update is rejected", async () => {

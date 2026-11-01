@@ -1,4 +1,4 @@
-import type { TicketReplyStatus, TicketStatus } from "./ticket-api.js";
+import type { Ticket, TicketReplyStatus, TicketStatus } from "./ticket-api.js";
 
 const statusLabels: Record<TicketStatus, string> = {
   OPEN: "Open",
@@ -29,6 +29,14 @@ export function formatStatus(status: TicketStatus): string {
 
 export function formatReplyStatus(status: TicketReplyStatus): string {
   return status === "OPEN" ? "Open for replies" : "Closed to replies";
+}
+
+export function formatVisibility(visibility: Ticket["visibility"]): string {
+  return {
+    PUBLIC: "Public",
+    AUTHENTICATED: "Logged-in users",
+    PRIVATE: "Private"
+  }[visibility];
 }
 
 export function getProgressStageState(

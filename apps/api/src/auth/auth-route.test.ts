@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildApp } from "../app.js";
-import type { AuthenticatedUser, CreateUserInput, LoginInput } from "./auth-contract.js";
+import type { AuthenticatedUser, CreateUserInput, LoginInput, UserRole } from "./auth-contract.js";
 import type { AuthRepository, CreatedSession } from "./auth-repository.js";
 import type {
   AssignmentResult,
   ReplyRecord,
+  StatusUpdateResult,
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
@@ -52,6 +53,14 @@ class FakeAuthRepository implements AuthRepository {
       role: input.role
     };
   }
+
+  async setUserRole(username: string, role: UserRole): Promise<AuthenticatedUser | null> {
+    if (username.trim().toLowerCase() !== technician.username) {
+      return null;
+    }
+
+    return { ...technician, role };
+  }
 }
 
 const unusedTicketRepository: TicketRepository = {
@@ -71,6 +80,9 @@ const unusedTicketRepository: TicketRepository = {
     throw new Error("not used");
   },
   assignTechnician: async (): Promise<AssignmentResult> => {
+    throw new Error("not used");
+  },
+  updateStatus: async (): Promise<StatusUpdateResult> => {
     throw new Error("not used");
   }
 };

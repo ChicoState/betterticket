@@ -25,6 +25,7 @@
     "coverage": "vitest run --coverage --passWithNoTests && pnpm --recursive --if-present coverage",
     "test:smoke": "bash scripts/smoke.sh",
     "user:create": "pnpm --filter @betterticket/api user:create",
+    "user:set-role": "pnpm --filter @betterticket/api user:set-role",
     "docker:up": "docker compose up --detach postgres object-storage",
     "docker:down": "docker compose down"
   },

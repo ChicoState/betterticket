@@ -37,6 +37,12 @@ export type ReplyCreationResult =
 export type UpdateReplyStatusResult =
   { type: "updated"; ticket: TicketRecord } | { type: "ticket-not-found" } | { type: "not-owner" };
 
+export type StatusUpdateResult =
+  | { type: "updated"; ticket: TicketRecord }
+  | { type: "unchanged"; ticket: TicketRecord }
+  | { type: "ticket-not-found" }
+  | { type: "invalid-transition" };
+
 export interface TicketRepository {
   create(input: CreateTicketInput, creator?: TicketCreator | null): Promise<TicketRecord>;
   listRecent(limit: number): Promise<TicketRecord[]>;
@@ -52,6 +58,7 @@ export interface TicketRepository {
     ticketId: string,
     assignedTechnicianId: string | null
   ): Promise<AssignmentResult>;
+  updateStatus(ticketId: string, status: TicketStatus): Promise<StatusUpdateResult>;
 }
 
 export interface TicketCreator {

@@ -65,6 +65,17 @@ export interface Ticket {
   updatedAt: string;
 }
 
+export class TicketStatusUpdateError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | undefined
+  ) {
+    super(message);
+    this.name = "TicketStatusUpdateError";
+  }
+}
+
 function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
@@ -87,8 +98,8 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
-    (!("replyStatus" in ticket) || isTicketReplyStatus(ticket.replyStatus)) &&
-    (!("canManageReplyStatus" in ticket) || typeof ticket.canManageReplyStatus === "boolean") &&
+    isTicketReplyStatus(ticket.replyStatus) &&
+    typeof ticket.canManageReplyStatus === "boolean" &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"
@@ -135,6 +146,48 @@ export async function getTicket(id: string): Promise<Ticket | null> {
   const body: unknown = await response.json();
   if (!isTicket(body)) {
     throw new Error("Ticket lookup returned an invalid response");
+  }
+
+  return body;
+}
+
+function isApiError(value: unknown): value is { error: { code?: unknown; message?: unknown } } {
+  if (typeof value !== "object" || value === null || !("error" in value)) {
+    return false;
+  }
+
+  const error = value.error;
+  return typeof error === "object" && error !== null;
+}
+
+export async function updateTicketStatus(ticketId: string, status: TicketStatus): Promise<Ticket> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status })
+  });
+
+  if (!response.ok) {
+    let code: string | undefined;
+    let message = "Ticket status update failed";
+
+    try {
+      const body: unknown = await response.json();
+      if (isApiError(body)) {
+        const error = body.error as { code?: unknown; message?: unknown };
+        code = typeof error.code === "string" ? error.code : undefined;
+        message = typeof error.message === "string" ? error.message : message;
+      }
+    } catch {
+      // Use the stable client message when the server does not return JSON.
+    }
+
+    throw new TicketStatusUpdateError(message, response.status, code);
+  }
+
+  const body: unknown = await response.json();
+  if (!isTicket(body)) {
+    throw new Error("Ticket status update returned an invalid response");
   }
 
   return body;

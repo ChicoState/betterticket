@@ -2,6 +2,15 @@ export const userRoles = ["USER", "TECHNICIAN"] as const;
 
 export type UserRole = (typeof userRoles)[number];
 
+export function parseUserRole(input: string): UserRole {
+  const role = input.trim().toUpperCase();
+  if (!userRoles.includes(role as UserRole)) {
+    throw new Error(`Role must be ${userRoles.join(" or ")}`);
+  }
+
+  return role as UserRole;
+}
+
 export interface AuthenticatedUser {
   id: string;
   name: string;

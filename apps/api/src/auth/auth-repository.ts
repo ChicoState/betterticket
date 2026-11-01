@@ -1,4 +1,4 @@
-import type { AuthenticatedUser, CreateUserInput, LoginInput } from "./auth-contract.js";
+import type { AuthenticatedUser, CreateUserInput, LoginInput, UserRole } from "./auth-contract.js";
 
 export interface CreatedSession {
   token: string;
@@ -10,4 +10,5 @@ export interface AuthRepository {
   findUserBySession(token: string): Promise<AuthenticatedUser | null>;
   deleteSession(token: string): Promise<void>;
   createUser(input: CreateUserInput): Promise<AuthenticatedUser | null>;
+  setUserRole(username: string, role: UserRole): Promise<AuthenticatedUser | null>;
 }

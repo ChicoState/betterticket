@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 
+import type { AuthenticatedUser } from "../auth/auth-api.js";
 import {
   getTicket,
+  TicketStatusUpdateError,
   updateTicketReplyStatus,
+  updateTicketStatus,
   type Ticket,
-  type TicketReplyStatus
+  type TicketReplyStatus,
+  type TicketStatus
 } from "./ticket-api.js";
 import {
   formatCreatedAt,
   formatReplyStatus,
   formatStatus,
+  getNextProgressStatus,
   getProgressStageState,
   ticketProgress
 } from "./ticket-format.js";
@@ -21,14 +26,22 @@ type LoadState =
   | { type: "not-found" }
   | { type: "error" };
 
+type StatusUpdateState =
+  | { type: "idle" }
+  | { type: "updating"; status: TicketStatus }
+  | { type: "success"; status: TicketStatus }
+  | { type: "error"; message: string };
+
 interface TicketDetailProps {
   ticketId: string;
+  currentUser?: AuthenticatedUser | null;
 }
 
-export function TicketDetail({ ticketId }: TicketDetailProps) {
+export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [replyStatusUpdate, setReplyStatusUpdate] = useState<"idle" | "saving" | "error">("idle");
+  const [statusUpdate, setStatusUpdate] = useState<StatusUpdateState>({ type: "idle" });
 
   useEffect(() => {
     let ignore = false;
@@ -70,6 +83,24 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
     }
   }
 
+  async function updateStatus(status: TicketStatus) {
+    setStatusUpdate({ type: "updating", status });
+
+    try {
+      const updatedTicket = await updateTicketStatus(ticketId, status);
+      setLoad({ type: "loaded", ticket: updatedTicket });
+      setStatusUpdate({ type: "success", status: updatedTicket.status });
+    } catch (error) {
+      const message =
+        error instanceof TicketStatusUpdateError && error.code === "INVALID_STATUS_TRANSITION"
+          ? "That status update is no longer valid. Refresh the ticket and try again."
+          : error instanceof TicketStatusUpdateError && error.code === "FORBIDDEN"
+            ? "You need technician access to update this ticket."
+            : "We couldn't update the ticket status. Please try again.";
+      setStatusUpdate({ type: "error", message });
+    }
+  }
+
   if (load.type === "loading") {
     return (
       <p className="list-message" role="status">
@@ -102,6 +133,7 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
   }
 
   const { ticket } = load;
+  const nextStatus = getNextProgressStatus(ticket.status);
   return (
     <>
       <article className="ticket-card ticket-detail" aria-labelledby="page-title">
@@ -142,7 +174,21 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
           <time dateTime={ticket.updatedAt}>{formatCreatedAt(ticket.updatedAt)}</time>
         </p>
         <section className="ticket-progress" aria-labelledby="ticket-progress-title">
-          <h2 id="ticket-progress-title">Ticket progress</h2>
+          <div className="ticket-progress-heading">
+            <h2 id="ticket-progress-title">Ticket progress</h2>
+            {currentUser?.role === "TECHNICIAN" && nextStatus ? (
+              <button
+                className="status-update-button"
+                disabled={statusUpdate.type === "updating"}
+                onClick={() => updateStatus(nextStatus)}
+                type="button"
+              >
+                {statusUpdate.type === "updating"
+                  ? "Updating status…"
+                  : `Move to ${formatStatus(nextStatus)}`}
+              </button>
+            ) : null}
+          </div>
           <ol className="progress-timeline" aria-label="Ticket progress">
             {ticketProgress.map((stage) => {
               const stageState = getProgressStageState(ticket.status, stage);
@@ -167,6 +213,18 @@ export function TicketDetail({ ticketId }: TicketDetailProps) {
               );
             })}
           </ol>
+          <div className="submission-message" aria-live="polite">
+            {statusUpdate.type === "success" ? (
+              <p className="success-message" role="status">
+                Ticket status updated to {formatStatus(statusUpdate.status)}.
+              </p>
+            ) : null}
+          </div>
+          {statusUpdate.type === "error" ? (
+            <p className="error-message" role="alert">
+              {statusUpdate.message}
+            </p>
+          ) : null}
         </section>
         <dl>
           <dt>What is happening</dt>

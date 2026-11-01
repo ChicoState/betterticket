@@ -45,4 +45,27 @@ describe("AccountMenu", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't log you out.");
     expect(screen.getByRole("button", { name: "Log out" })).toBeEnabled();
   });
+
+  it("labels a signed-in technician as an IT account", () => {
+    const { container } = render(
+      <AccountMenu
+        session={{ type: "authenticated", user: { ...user, role: "TECHNICIAN" } }}
+        onLogout={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Account: Signed in as Uma User (IT)" })
+    ).toBeInTheDocument();
+    expect(container.querySelector(".account-it-badge")).toHaveTextContent("IT");
+  });
+
+  it.each([
+    ["a regular user", { type: "authenticated" as const, user }],
+    ["an anonymous visitor", { type: "anonymous" as const }]
+  ])("does not show the IT badge to %s", (_name, session) => {
+    const { container } = render(<AccountMenu session={session} onLogout={vi.fn()} />);
+
+    expect(container.querySelector(".account-it-badge")).toBeNull();
+  });
 });

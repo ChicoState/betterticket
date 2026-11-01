@@ -3,7 +3,7 @@ import { createInterface } from "node:readline/promises";
 
 import { createDatabase } from "../database/client.js";
 import { PostgresAuthRepository } from "../database/postgres-auth-repository.js";
-import { normalizeUsername, userRoles, type CreateUserInput } from "./auth-contract.js";
+import { normalizeUsername, parseUserRole, type CreateUserInput } from "./auth-contract.js";
 
 class PromptOutput extends Writable {
   muted = false;
@@ -48,16 +48,11 @@ async function readUserInput(): Promise<CreateUserInput> {
     output.muted = false;
     process.stdout.write("\n");
 
-    const roleInput = (await prompt.question("Role (USER or TECHNICIAN): ")).trim().toUpperCase();
-    if (!userRoles.includes(roleInput as (typeof userRoles)[number])) {
-      throw new Error("Role must be USER or TECHNICIAN");
-    }
-
     const input: CreateUserInput = {
       name,
       username,
       password,
-      role: roleInput as (typeof userRoles)[number]
+      role: parseUserRole(await prompt.question("Role (USER or TECHNICIAN): "))
     };
     validateInput(input);
     return input;

@@ -11,6 +11,8 @@ const tickets = [
     setup: "Office printer, macOS 15",
     additionalInformation: null,
     status: "IN_PROGRESS",
+    replyStatus: "OPEN",
+    canManageReplyStatus: false,
     createdByName: "Terry Technician",
     createdAt: "2026-09-29T09:30:00.000Z",
     updatedAt: "2026-09-29T09:30:00.000Z"
@@ -22,6 +24,8 @@ const tickets = [
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: "Started after an update.",
     status: "OPEN",
+    replyStatus: "OPEN",
+    canManageReplyStatus: false,
     createdByName: null,
     createdAt: "2026-09-28T18:00:00.000Z",
     updatedAt: "2026-09-28T18:00:00.000Z"

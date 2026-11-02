@@ -41,25 +41,6 @@ export function TicketList() {
     setSort(nextSort);
   }
 
-  if (load.type === "loading") {
-    return (
-      <p className="list-message" role="status">
-        Loading tickets…
-      </p>
-    );
-  }
-
-  if (load.type === "error") {
-    return (
-      <div className="error-message" role="alert">
-        <p>We couldn&apos;t load the tickets. Please try again.</p>
-        <button className="submit-button" type="button" onClick={retry}>
-          Try again
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="ticket-sort-control">
@@ -73,7 +54,18 @@ export function TicketList() {
           <option value="priority">Priority: High to Low</option>
         </select>
       </div>
-      {load.tickets.length === 0 ? (
+      {load.type === "loading" ? (
+        <p className="list-message" role="status">
+          Loading tickets…
+        </p>
+      ) : load.type === "error" ? (
+        <div className="error-message" role="alert">
+          <p>We couldn&apos;t load the tickets. Please try again.</p>
+          <button className="submit-button" type="button" onClick={retry}>
+            Try again
+          </button>
+        </div>
+      ) : load.tickets.length === 0 ? (
         <p className="list-message">No tickets have been submitted yet.</p>
       ) : (
         <ul className="ticket-list" aria-label="Submitted tickets">

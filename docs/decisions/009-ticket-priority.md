@@ -35,5 +35,7 @@ Priority is creation-only; it does not change status or technician assignment.
 
 Existing rows receive `MEDIUM` through the migration default. Migration `0005`
 remains the released ticket visibility migration; priority is migration
-`0008`. Neither released migration is rewritten; the previously applied priority SQL is
-carried forward under the new migration number without replaying it.
+`0008`. Its journal timestamp is newer than `0007` because Drizzle skips any
+migration older than the latest one a database has applied. The SQL is
+idempotent so databases that already ran the earlier priority branch can apply
+it safely.

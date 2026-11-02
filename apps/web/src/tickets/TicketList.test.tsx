@@ -90,6 +90,53 @@ describe("TicketList", () => {
     expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=priority");
   });
 
+  it("keeps the sorting control mounted and focused while reloading", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })))
+    );
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    const sortControl = screen.getByLabelText("Sort tickets");
+    sortControl.focus();
+    fireEvent.change(sortControl, { target: { value: "priority" } });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading tickets…");
+    expect(screen.getByLabelText("Sort tickets")).toBe(sortControl);
+    expect(sortControl).toHaveFocus();
+
+    await screen.findAllByRole("article");
+    expect(screen.getByLabelText("Sort tickets")).toBe(sortControl);
+    expect(sortControl).toHaveFocus();
+  });
+
+  it("lets users change the sort after a failed load", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ tickets }))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: { code: "INTERNAL_ERROR", message: "The ticket request could not be completed" }
+          },
+          500
+        )
+      )
+      .mockResolvedValueOnce(jsonResponse({ tickets }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
+    await screen.findByRole("alert");
+
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "newest" } });
+
+    expect(await screen.findAllByRole("article")).toHaveLength(2);
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets");
+  });
+
   it("shows an empty state when no tickets exist", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ tickets: [] })));
     render(<TicketList />);

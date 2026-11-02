@@ -143,7 +143,6 @@ export const ticketListResponseSchema = {
 
 export const ticketListQuerySchema = {
   type: "object",
-  additionalProperties: false,
   properties: {
     sort: { type: "string", enum: ticketSorts, default: "newest" }
   }

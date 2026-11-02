@@ -569,6 +569,25 @@ describe("GET /api/tickets", () => {
     expect(repository.listSorts).toEqual(["priority"]);
   });
 
+  it("ignores unknown list query parameters and rejects unknown sort values", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const ignored = await app.inject({ method: "GET", url: "/api/tickets?utm_source=newsletter" });
+    const rejected = await app.inject({ method: "GET", url: "/api/tickets?sort=oldest" });
+
+    expect(ignored.statusCode).toBe(200);
+    expect(rejected.statusCode).toBe(400);
+    expect(repository.listSorts).toEqual(["newest"]);
+  });
+
   it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {
     const repository = new FakeTicketRepository([
       {

@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
-import { ticketStatuses } from "../tickets/ticket-contract.js";
+import { ticketStatuses, type TicketPriority } from "../tickets/ticket-contract.js";
 import { sessions, ticketReplies, tickets, users } from "./schema.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -153,6 +153,39 @@ describe("PostgresTicketRepository", () => {
     const listed = await repository.listRecent(1, null, "priority");
 
     expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
+  });
+
+  it("sorts by priority then newest first before applying the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = (title: string, priority: TicketPriority, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      priority,
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    await database
+      .insert(tickets)
+      .values([
+        ticket("Low newest", "LOW", "2026-09-30T12:00:00.000Z"),
+        ticket("Medium older", "MEDIUM", "2026-09-26T12:00:00.000Z"),
+        ticket("High older", "HIGH", "2026-09-27T12:00:00.000Z"),
+        ticket("High newer", "HIGH", "2026-09-29T12:00:00.000Z"),
+        ticket("Medium newer", "MEDIUM", "2026-09-28T12:00:00.000Z")
+      ]);
+
+    const titles = async (limit: number) =>
+      (await repository.listRecent(limit, null, "priority")).map((listed) => listed.title);
+
+    expect(await titles(5)).toEqual([
+      "High newer",
+      "High older",
+      "Medium newer",
+      "Medium older",
+      "Low newest"
+    ]);
+    expect(await titles(3)).toEqual(["High newer", "High older", "Medium newer"]);
   });
 
   it("persists and returns every approved ticket status", async () => {

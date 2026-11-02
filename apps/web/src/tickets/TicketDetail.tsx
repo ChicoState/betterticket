@@ -202,7 +202,13 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
           ) : null}
         </dl>
       </article>
-      <TicketReplies ticketId={ticket.id} visibility={ticket.visibility} />
+      <TicketReplies
+        ticketId={ticket.id}
+        visibility={ticket.visibility}
+        ticketStatus={ticket.status}
+        isTechnician={currentUser?.role === "TECHNICIAN"}
+        onTicketUpdated={(updatedTicket) => setLoad({ type: "loaded", ticket: updatedTicket })}
+      />
     </>
   );
 }

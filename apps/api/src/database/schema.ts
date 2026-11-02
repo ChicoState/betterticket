@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
   varchar
 } from "drizzle-orm/pg-core";
@@ -19,6 +20,7 @@ export const ticketStatus = pgEnum("ticket_status", [
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
 export const ticketPriority = pgEnum("ticket_priority", ["LOW", "MEDIUM", "HIGH"]);
 export const ticketVisibility = pgEnum("ticket_visibility", ["PUBLIC", "AUTHENTICATED", "PRIVATE"]);
+export const replyKind = pgEnum("reply_kind", ["SOLUTION", "COMMENT"]);
 
 export const users = pgTable("users", {
   id: uuid().defaultRandom().primaryKey(),
@@ -61,10 +63,34 @@ export const ticketReplies = pgTable(
     ticketId: uuid("ticket_id")
       .notNull()
       .references(() => tickets.id, { onDelete: "cascade" }),
+    kind: replyKind().default("COMMENT").notNull(),
     body: text().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [index("ticket_replies_ticket_id_created_at_idx").on(table.ticketId, table.createdAt)]
+);
+
+export const replyEndorsements = pgTable(
+  "reply_endorsements",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    replyId: uuid("reply_id")
+      .notNull()
+      .references(() => ticketReplies.id, { onDelete: "cascade" }),
+    technicianId: uuid("technician_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    notes: text(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    unique("reply_endorsements_reply_id_technician_id_unique").on(
+      table.replyId,
+      table.technicianId
+    ),
+    index("reply_endorsements_reply_id_idx").on(table.replyId)
+  ]
 );
 
 export const notifications = pgTable(

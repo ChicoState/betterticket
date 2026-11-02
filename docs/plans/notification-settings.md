@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement `docs/specs/notification-settings.md` and ADR-009. Add a session-scoped settings API
+Implement `docs/specs/notification-settings.md` and ADR-011. Add a session-scoped settings API
 that stores an email address and email preferences, and a `/settings` page linked from the
 account menu. No email is sent in this slice.
 

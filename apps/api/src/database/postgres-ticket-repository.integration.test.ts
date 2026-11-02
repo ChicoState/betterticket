@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
-import { ticketStatuses } from "../tickets/ticket-contract.js";
+import { ticketStatuses, type TicketPriority } from "../tickets/ticket-contract.js";
 import { sessions, ticketReplies, tickets, users } from "./schema.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -43,6 +43,7 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
       visibility: "PUBLIC",
       assignedTechnicianId: null
     });
@@ -129,6 +130,63 @@ describe("PostgresTicketRepository", () => {
       "Private owner",
       "Public"
     ]);
+  });
+
+  it("filters by visibility before applying priority sorting and the limit", async () => {
+    const [owner] = await database
+      .insert(users)
+      .values({
+        name: "Ticket Owner",
+        username: "priority.owner",
+        passwordHash: "not-used",
+        role: "USER"
+      })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public low", priority: "LOW" });
+    await repository.create(
+      { ...input, title: "Private owner high", priority: "HIGH", visibility: "PRIVATE" },
+      owner!
+    );
+
+    const listed = await repository.listRecent(1, null, "priority");
+
+    expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
+  });
+
+  it("sorts by priority then newest first before applying the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = (title: string, priority: TicketPriority, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      priority,
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    await database
+      .insert(tickets)
+      .values([
+        ticket("Low newest", "LOW", "2026-09-30T12:00:00.000Z"),
+        ticket("Medium older", "MEDIUM", "2026-09-26T12:00:00.000Z"),
+        ticket("High older", "HIGH", "2026-09-27T12:00:00.000Z"),
+        ticket("High newer", "HIGH", "2026-09-29T12:00:00.000Z"),
+        ticket("Medium newer", "MEDIUM", "2026-09-28T12:00:00.000Z")
+      ]);
+
+    const titles = async (limit: number) =>
+      (await repository.listRecent(limit, null, "priority")).map((listed) => listed.title);
+
+    expect(await titles(5)).toEqual([
+      "High newer",
+      "High older",
+      "Medium newer",
+      "Medium older",
+      "Low newest"
+    ]);
+    expect(await titles(3)).toEqual(["High newer", "High older", "Medium newer"]);
   });
 
   it("persists and returns every approved ticket status", async () => {
@@ -342,12 +400,12 @@ describe("PostgresTicketRepository", () => {
 
     expect(closed).toMatchObject({
       type: "updated",
-      ticket: { replyStatus: "CLOSED", status: "OPEN" }
+      ticket: { replyStatus: "CLOSED", status: "OPEN", priority: "MEDIUM" }
     });
     expect(deniedReply).toEqual({ type: "ticket-closed" });
     expect(reopened).toMatchObject({
       type: "updated",
-      ticket: { replyStatus: "OPEN", status: "OPEN" }
+      ticket: { replyStatus: "OPEN", status: "OPEN", priority: "MEDIUM" }
     });
   });
 

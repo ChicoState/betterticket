@@ -1,7 +1,14 @@
-import type { CreateTicketInput, TicketReplyStatus, TicketStatus } from "./ticket-contract.js";
+import type {
+  CreateTicketInput,
+  TicketPriority,
+  TicketReplyStatus,
+  TicketSort,
+  TicketStatus
+} from "./ticket-contract.js";
 import type { TicketVisibility } from "./ticket-contract.js";
 
 export type { CreateTicketInput } from "./ticket-contract.js";
+export type { TicketPriority, TicketSort } from "./ticket-contract.js";
 
 export interface TicketRecord {
   id: string;
@@ -11,6 +18,7 @@ export interface TicketRecord {
   additionalInformation: string | null;
   status: TicketStatus;
   replyStatus?: TicketReplyStatus;
+  priority: TicketPriority;
   visibility: TicketVisibility;
   creatorUserId: string | null;
   assignedTechnicianId: string | null;
@@ -47,7 +55,11 @@ export type StatusUpdateResult =
 
 export interface TicketRepository {
   create(input: CreateTicketInput, creator?: TicketCreator | null): Promise<TicketRecord>;
-  listRecent(limit: number, viewer?: TicketViewer | null): Promise<TicketRecord[]>;
+  listRecent(
+    limit: number,
+    viewer?: TicketViewer | null,
+    sort?: TicketSort
+  ): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
   createReply(ticketId: string, body: string): Promise<ReplyRecord | ReplyCreationResult>;
   listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]>;

@@ -12,6 +12,7 @@ import type {
   StatusUpdateResult,
   TicketRecord,
   TicketRepository,
+  TicketSort,
   TicketViewer,
   UpdateReplyStatusResult
 } from "../tickets/ticket-repository.js";
@@ -33,7 +34,8 @@ export class PostgresTicketRepository implements TicketRepository {
         additionalInformation: input.additionalInformation,
         visibility: input.visibility ?? "PUBLIC",
         creatorUserId: creator?.id,
-        isAnonymous: input.postAnonymously ?? false
+        isAnonymous: input.postAnonymously ?? false,
+        priority: input.priority ?? "MEDIUM"
       })
       .returning();
 
@@ -47,7 +49,11 @@ export class PostgresTicketRepository implements TicketRepository {
     };
   }
 
-  async listRecent(limit: number, viewer: TicketViewer | null = null): Promise<TicketRecord[]> {
+  async listRecent(
+    limit: number,
+    viewer: TicketViewer | null = null,
+    sort: TicketSort = "newest"
+  ): Promise<TicketRecord[]> {
     const visibilityFilter =
       viewer?.role === "TECHNICIAN"
         ? or(
@@ -62,12 +68,20 @@ export class PostgresTicketRepository implements TicketRepository {
               and(eq(tickets.visibility, "PRIVATE"), eq(tickets.creatorUserId, viewer.id))
             )
           : eq(tickets.visibility, "PUBLIC");
+    const orderBy =
+      sort === "priority"
+        ? [
+            sql`CASE ${tickets.priority} WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END`,
+            desc(tickets.createdAt),
+            desc(tickets.id)
+          ]
+        : [desc(tickets.createdAt), desc(tickets.id)];
     const results = await this.database
       .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)
       .leftJoin(users, eq(tickets.creatorUserId, users.id))
       .where(visibilityFilter)
-      .orderBy(desc(tickets.createdAt), desc(tickets.id))
+      .orderBy(...orderBy)
       .limit(limit);
 
     return results.map(toTicketRecord);

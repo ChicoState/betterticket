@@ -14,6 +14,7 @@ import {
   assignTechnicianBodySchema,
   ticketAssignmentParamsSchema,
   ticketListLimit,
+  ticketListQuerySchema,
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
@@ -28,6 +29,7 @@ import {
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
+  type TicketSort,
   type TicketParams,
   type UpdateTicketReplyStatusInput,
   type UpdateTicketStatusInput
@@ -55,6 +57,7 @@ function toTicket(ticket: TicketRecord, viewer: TicketViewer | null): Ticket {
     status: ticket.status,
     replyStatus: ticket.replyStatus ?? "OPEN",
     canManageReplyStatus: ticket.creatorUserId != null && ticket.creatorUserId === viewer?.id,
+    priority: ticket.priority,
     visibility: ticket.visibility,
     canReply: canAccessTicket(ticket, viewer) && ticket.replyStatus !== "CLOSED",
     assignedTechnicianId: ticket.assignedTechnicianId,
@@ -165,10 +168,11 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     }
   );
 
-  app.get<{ Reply: TicketList }>(
+  app.get<{ Querystring: { sort?: TicketSort }; Reply: TicketList }>(
     "/api/tickets",
     {
       schema: {
+        querystring: ticketListQuerySchema,
         response: {
           200: ticketListResponseSchema,
           500: apiErrorResponseSchema
@@ -177,7 +181,11 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request) => {
       const viewer = await currentUser(request, authRepository);
-      const tickets = await ticketRepository.listRecent(ticketListLimit, viewer);
+      const tickets = await ticketRepository.listRecent(
+        ticketListLimit,
+        viewer,
+        request.query.sort
+      );
       return {
         tickets: tickets
           .filter((ticket) => canAccessTicket(ticket, viewer))

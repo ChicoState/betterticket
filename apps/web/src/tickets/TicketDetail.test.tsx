@@ -13,6 +13,7 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  priority: "HIGH",
   visibility: "PUBLIC",
   canReply: true,
   createdByName: "Uma User",
@@ -58,6 +59,7 @@ describe("TicketDetail", () => {
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}`);
     expect(screen.getByText("Open", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
     expect(screen.getByText("cc04d84c")).toBeInTheDocument();
     expect(screen.getByText("The power light flashes once.")).toBeInTheDocument();
     expect(screen.getByText("Framework Laptop 13, Fedora 42")).toBeInTheDocument();
@@ -75,6 +77,38 @@ describe("TicketDetail", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
+  it("keeps priority visible when the owner closes replies", async () => {
+    const ownerTicket = {
+      ...ticket,
+      replyStatus: "OPEN",
+      canManageReplyStatus: true
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/replies")) {
+        return Promise.resolve(jsonResponse({ replies: [] }));
+      }
+      if (init?.method === "PATCH") {
+        return Promise.resolve(jsonResponse({ ...ownerTicket, replyStatus: "CLOSED" }));
+      }
+      return Promise.resolve(jsonResponse(ownerTicket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Close ticket" }));
+
+    expect(await screen.findByRole("button", { name: "Reopen ticket" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Closed to replies", { selector: ".reply-status-badge" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/reply-status`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ replyStatus: "CLOSED" })
+    });
   });
 
   it("labels a private ticket with the concise visibility badge", async () => {

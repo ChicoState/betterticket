@@ -161,15 +161,30 @@ export const ticketParamsSchema = {
   }
 } as const;
 
+export const replyKinds = ["SOLUTION", "COMMENT"] as const;
+export type ReplyKind = (typeof replyKinds)[number];
+
 export interface CreateReplyInput {
   body: string;
+  kind?: ReplyKind;
+}
+
+export interface Endorsement {
+  id: string;
+  technicianName: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isOwn: boolean;
 }
 
 export interface Reply {
   id: string;
   ticketId: string;
+  kind: ReplyKind;
   body: string;
   createdAt: string;
+  endorsements: Endorsement[];
 }
 
 export const createReplyBodySchema = {
@@ -177,19 +192,36 @@ export const createReplyBodySchema = {
   additionalProperties: false,
   required: ["body"],
   properties: {
-    body: requiredText(5_000)
+    body: requiredText(5_000),
+    kind: { type: "string", enum: replyKinds }
+  }
+} as const;
+
+export const endorsementResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "technicianName", "notes", "createdAt", "updatedAt", "isOwn"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    technicianName: { type: "string" },
+    notes: { type: ["string", "null"] },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+    isOwn: { type: "boolean" }
   }
 } as const;
 
 export const replyResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "ticketId", "body", "createdAt"],
+  required: ["id", "ticketId", "kind", "body", "createdAt", "endorsements"],
   properties: {
     id: { type: "string", format: "uuid" },
     ticketId: { type: "string", format: "uuid" },
+    kind: { type: "string", enum: replyKinds },
     body: { type: "string" },
-    createdAt: { type: "string", format: "date-time" }
+    createdAt: { type: "string", format: "date-time" },
+    endorsements: { type: "array", items: endorsementResponseSchema }
   }
 } as const;
 
@@ -243,6 +275,52 @@ export const updateTicketStatusBodySchema = {
   required: ["status"],
   properties: {
     status: { type: "string", enum: ticketStatuses }
+  }
+} as const;
+
+export interface ReplyEndorsementParams {
+  ticketId: string;
+  replyId: string;
+}
+
+export const replyEndorsementParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ticketId", "replyId"],
+  properties: {
+    ticketId: { type: "string", format: "uuid" },
+    replyId: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const endorsementNotesMaxLength = 2_000;
+
+export interface EndorseReplyInput {
+  notes?: string;
+  markResolved?: boolean;
+}
+
+export const endorseReplyBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    notes: { type: "string", maxLength: endorsementNotesMaxLength },
+    markResolved: { type: "boolean" }
+  }
+} as const;
+
+export interface EndorsementUpdate {
+  reply: Reply;
+  ticket: Ticket;
+}
+
+export const endorsementUpdateResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "ticket"],
+  properties: {
+    reply: replyResponseSchema,
+    ticket: ticketResponseSchema
   }
 } as const;
 

@@ -86,6 +86,12 @@ const unusedTicketRepository: TicketRepository = {
   },
   updateStatus: async (): Promise<StatusUpdateResult> => {
     throw new Error("not used");
+  },
+  endorseReply: async () => {
+    throw new Error("not used");
+  },
+  withdrawEndorsement: async () => {
+    throw new Error("not used");
   }
 };
 

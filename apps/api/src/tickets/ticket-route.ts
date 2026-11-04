@@ -7,7 +7,10 @@ import {
   apiErrorResponseSchema,
   createReplyBodySchema,
   createTicketBodySchema,
+  endorseReplyBodySchema,
+  endorsementUpdateResponseSchema,
   normalizeCreateTicketInput,
+  replyEndorsementParamsSchema,
   replyListLimit,
   replyListResponseSchema,
   replyResponseSchema,
@@ -21,9 +24,12 @@ import {
   updateTicketStatusBodySchema,
   type ApiError,
   type CreateReplyInput,
+  type EndorseReplyInput,
+  type EndorsementUpdate,
   type AssignTechnicianInput,
   type CreateTicketInput,
   type Reply,
+  type ReplyEndorsementParams,
   type ReplyList,
   type Ticket,
   type TicketAssignmentParams,
@@ -71,10 +77,21 @@ async function currentUser(
   return token ? authRepository.findUserBySession(token) : null;
 }
 
-function toReply(reply: ReplyRecord): Reply {
+function toReply(reply: ReplyRecord, viewer: TicketViewer | null): Reply {
   return {
-    ...reply,
-    createdAt: reply.createdAt.toISOString()
+    id: reply.id,
+    ticketId: reply.ticketId,
+    kind: reply.kind,
+    body: reply.body,
+    createdAt: reply.createdAt.toISOString(),
+    endorsements: reply.endorsements.map((endorsement) => ({
+      id: endorsement.id,
+      technicianName: endorsement.technicianName,
+      notes: endorsement.notes,
+      createdAt: endorsement.createdAt.toISOString(),
+      updatedAt: endorsement.updatedAt.toISOString(),
+      isOwn: viewer?.id === endorsement.technicianId
+    }))
   };
 }
 
@@ -82,6 +99,13 @@ const ticketNotFound: ApiError = {
   error: {
     code: "NOT_FOUND",
     message: "The ticket was not found"
+  }
+};
+
+const replyNotFound: ApiError = {
+  error: {
+    code: "NOT_FOUND",
+    message: "The reply was not found"
   }
 };
 
@@ -238,7 +262,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
 
       const replies = await ticketRepository.listRecentReplies(ticket.id, replyListLimit);
 
-      return { replies: replies.map(toReply) };
+      return { replies: replies.map((stored) => toReply(stored, viewer)) };
     }
   );
 
@@ -264,9 +288,118 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(404).send(ticketNotFound);
       }
 
-      const created = await ticketRepository.createReply(ticket.id, request.body.body.trim());
+      const created = await ticketRepository.createReply(
+        ticket.id,
+        request.body.body.trim(),
+        request.body.kind ?? "COMMENT"
+      );
 
-      return reply.status(201).send(toReply(created));
+      return reply.status(201).send(toReply(created, viewer));
+    }
+  );
+
+  app.put<{
+    Params: ReplyEndorsementParams;
+    Body: EndorseReplyInput;
+    Reply: EndorsementUpdate | ApiError;
+  }>(
+    "/api/tickets/:ticketId/replies/:replyId/endorsement",
+    {
+      schema: {
+        params: replyEndorsementParamsSchema,
+        body: endorseReplyBodySchema,
+        response: {
+          200: endorsementUpdateResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
+      }
+
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      if (!ticket || !canAccessTicket(ticket, access.user)) {
+        return reply.status(404).send(ticketNotFound);
+      }
+
+      const notes = request.body.notes?.trim() || null;
+      const result = await ticketRepository.endorseReply(
+        ticket.id,
+        request.params.replyId,
+        access.user.id,
+        { notes, markResolved: request.body.markResolved ?? false }
+      );
+
+      if (result.type === "reply-not-found") {
+        return reply.status(404).send(replyNotFound);
+      }
+      if (result.type === "not-a-solution") {
+        return reply.status(400).send({
+          error: { code: "NOT_A_SOLUTION", message: "Only suggested solutions can be endorsed" }
+        });
+      }
+      if (result.type === "invalid-transition") {
+        return reply.status(400).send({
+          error: {
+            code: "INVALID_STATUS_TRANSITION",
+            message: "Only an in-progress ticket can be marked resolved"
+          }
+        });
+      }
+
+      return reply.status(200).send({
+        reply: toReply(result.reply, access.user),
+        ticket: toTicket(result.ticket, access.user)
+      });
+    }
+  );
+
+  app.delete<{ Params: ReplyEndorsementParams }>(
+    "/api/tickets/:ticketId/replies/:replyId/endorsement",
+    {
+      schema: {
+        params: replyEndorsementParamsSchema,
+        response: {
+          204: { type: "null" },
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
+      }
+
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      if (!ticket || !canAccessTicket(ticket, access.user)) {
+        return reply.status(404).send(ticketNotFound);
+      }
+
+      const result = await ticketRepository.withdrawEndorsement(
+        ticket.id,
+        request.params.replyId,
+        access.user.id
+      );
+
+      if (result.type === "endorsement-not-found") {
+        return reply.status(404).send({
+          error: { code: "NOT_FOUND", message: "The endorsement was not found" }
+        });
+      }
+
+      return reply.status(204).send();
     }
   );
 

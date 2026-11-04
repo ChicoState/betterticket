@@ -29,7 +29,9 @@ const ticketRepository: TicketRepository = {
   createReply: vi.fn(),
   listRecentReplies: vi.fn(),
   assignTechnician: vi.fn(),
-  updateStatus: vi.fn()
+  updateStatus: vi.fn(),
+  endorseReply: vi.fn(),
+  withdrawEndorsement: vi.fn()
 };
 
 const storedNotification: NotificationRecord = {

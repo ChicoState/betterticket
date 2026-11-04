@@ -6,6 +6,7 @@ import { PostgresAuthRepository } from "./postgres-auth-repository.js";
 import {
   notificationSettings,
   notifications,
+  replyEndorsements,
   sessions,
   ticketReplies,
   tickets,
@@ -41,7 +42,10 @@ describe("example data", () => {
 
     expect(await database.select().from(users)).toHaveLength(exampleUsers.length);
     expect((await database.select().from(tickets)).length).toBeGreaterThan(0);
-    expect((await database.select().from(ticketReplies)).length).toBeGreaterThan(0);
+    const replies = await database.select().from(ticketReplies);
+    expect(replies.some((reply) => reply.kind === "COMMENT")).toBe(true);
+    expect(replies.some((reply) => reply.kind === "SOLUTION")).toBe(true);
+    expect((await database.select().from(replyEndorsements)).length).toBeGreaterThan(0);
     expect((await database.select().from(notifications)).length).toBeGreaterThan(0);
     expect(await database.select().from(notificationSettings)).toEqual([
       expect.objectContaining({ email: "alice@example.com", emailEnabled: true })

@@ -1,11 +1,18 @@
-import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { notifications, ticketReplies, tickets, users } from "./schema.js";
-import { canTechnicianChangeStatus, type TicketStatus } from "../tickets/ticket-contract.js";
+import { notifications, replyEndorsements, ticketReplies, tickets, users } from "./schema.js";
+import {
+  canTechnicianChangeStatus,
+  type ReplyKind,
+  type TicketStatus
+} from "../tickets/ticket-contract.js";
 import type {
   AssignmentResult,
   CreateTicketInput,
+  EndorseReplyRecordInput,
+  EndorseResult,
+  EndorsementRecord,
   ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
@@ -14,9 +21,13 @@ import type {
   TicketRepository,
   TicketSort,
   TicketViewer,
-  UpdateReplyStatusResult
+  UpdateReplyStatusResult,
+  WithdrawResult
 } from "../tickets/ticket-repository.js";
 import type { TicketReplyStatus } from "../tickets/ticket-contract.js";
+
+type Executor = Pick<NodePgDatabase, "select" | "insert" | "update" | "delete">;
+type Transaction = Parameters<Parameters<NodePgDatabase["transaction"]>[0]>[0];
 
 export class PostgresTicketRepository implements TicketRepository {
   constructor(private readonly database: NodePgDatabase) {}
@@ -88,17 +99,14 @@ export class PostgresTicketRepository implements TicketRepository {
   }
 
   async findById(id: string): Promise<TicketRecord | null> {
-    const [ticket] = await this.database
-      .select({ ...getTableColumns(tickets), creatorName: users.name })
-      .from(tickets)
-      .leftJoin(users, eq(tickets.creatorUserId, users.id))
-      .where(eq(tickets.id, id))
-      .limit(1);
-
-    return ticket ? toTicketRecord(ticket) : null;
+    return findTicket(this.database, id);
   }
 
-  async createReply(ticketId: string, body: string): Promise<ReplyCreationResult> {
+  async createReply(
+    ticketId: string,
+    body: string,
+    kind: ReplyKind = "COMMENT"
+  ): Promise<ReplyCreationResult> {
     const [reply] = await this.database
       .insert(ticketReplies)
       .select(
@@ -106,6 +114,7 @@ export class PostgresTicketRepository implements TicketRepository {
           .select({
             id: sql<string>`gen_random_uuid()`.as("id"),
             ticketId: tickets.id,
+            kind: sql<ReplyKind>`${kind}::reply_kind`.as("kind"),
             body: sql<string>`${body}`.as("body"),
             createdAt: sql<Date>`now()`.as("created_at")
           })
@@ -115,7 +124,7 @@ export class PostgresTicketRepository implements TicketRepository {
       .returning();
 
     if (reply) {
-      return { type: "created", reply };
+      return { type: "created", reply: { ...reply, endorsements: [] } };
     }
 
     return (await this.findById(ticketId))
@@ -131,7 +140,81 @@ export class PostgresTicketRepository implements TicketRepository {
       .orderBy(desc(ticketReplies.createdAt), desc(ticketReplies.id))
       .limit(limit);
 
-    return newestFirst.reverse();
+    return withEndorsements(this.database, newestFirst.reverse());
+  }
+
+  async endorseReply(
+    ticketId: string,
+    replyId: string,
+    technicianId: string,
+    input: EndorseReplyRecordInput
+  ): Promise<EndorseResult> {
+    return this.database.transaction(async (transaction) => {
+      const [reply] = await transaction
+        .select()
+        .from(ticketReplies)
+        .where(and(eq(ticketReplies.id, replyId), eq(ticketReplies.ticketId, ticketId)))
+        .limit(1);
+
+      if (!reply) {
+        return { type: "reply-not-found" };
+      }
+      if (reply.kind !== "SOLUTION") {
+        return { type: "not-a-solution" };
+      }
+
+      // Change the status first: an invalid transition writes nothing, so returning early leaves
+      // the transaction without an endorsement.
+      if (input.markResolved) {
+        const status = await changeStatus(transaction, ticketId, "RESOLVED", technicianId);
+        if (status === "invalid-transition") {
+          return { type: "invalid-transition" };
+        }
+        if (status === "ticket-not-found") {
+          return { type: "reply-not-found" };
+        }
+      }
+
+      const now = new Date();
+      await transaction
+        .insert(replyEndorsements)
+        .values({ replyId, technicianId, notes: input.notes })
+        .onConflictDoUpdate({
+          target: [replyEndorsements.replyId, replyEndorsements.technicianId],
+          set: { notes: input.notes, updatedAt: now }
+        });
+
+      const [endorsedReply] = await withEndorsements(transaction, [reply]);
+      const ticket = await findTicket(transaction, ticketId);
+      if (!endorsedReply || !ticket) {
+        throw new Error("Endorsement could not be read");
+      }
+
+      return { type: "endorsed", reply: endorsedReply, ticket };
+    });
+  }
+
+  async withdrawEndorsement(
+    ticketId: string,
+    replyId: string,
+    technicianId: string
+  ): Promise<WithdrawResult> {
+    const ticketReply = this.database
+      .select({ id: ticketReplies.id })
+      .from(ticketReplies)
+      .where(and(eq(ticketReplies.id, replyId), eq(ticketReplies.ticketId, ticketId)));
+
+    const deleted = await this.database
+      .delete(replyEndorsements)
+      .where(
+        and(
+          inArray(replyEndorsements.replyId, ticketReply),
+          eq(replyEndorsements.technicianId, technicianId)
+        )
+      )
+      .returning({ id: replyEndorsements.id });
+
+    return deleted.length > 0 ? { type: "withdrawn" } : { type: "endorsement-not-found" };
   }
 
   async updateReplyStatus(
@@ -195,55 +278,105 @@ export class PostgresTicketRepository implements TicketRepository {
     actorUserId: string
   ): Promise<StatusUpdateResult> {
     return this.database.transaction(async (transaction) => {
-      const readTicket = async (): Promise<TicketRecord> => {
-        const [ticket] = await transaction
-          .select({ ...getTableColumns(tickets), creatorName: users.name })
-          .from(tickets)
-          .leftJoin(users, eq(tickets.creatorUserId, users.id))
-          .where(eq(tickets.id, ticketId))
-          .limit(1);
-
-        if (!ticket) {
-          throw new Error("Ticket status update could not be read");
-        }
-        return toTicketRecord(ticket);
-      };
-
-      // Lock the row so concurrent changes cannot both pass the transition check.
-      const [existing] = await transaction
-        .select({ status: tickets.status, creatorUserId: tickets.creatorUserId })
-        .from(tickets)
-        .where(eq(tickets.id, ticketId))
-        .for("update")
-        .limit(1);
-
-      if (!existing) {
-        return { type: "ticket-not-found" };
-      }
-      if (existing.status === status) {
-        return { type: "unchanged", ticket: await readTicket() };
-      }
-      if (!canTechnicianChangeStatus(existing.status, status)) {
-        return { type: "invalid-transition" };
+      const result = await changeStatus(transaction, ticketId, status, actorUserId);
+      if (result === "ticket-not-found" || result === "invalid-transition") {
+        return { type: result };
       }
 
-      await transaction
-        .update(tickets)
-        .set({ status, updatedAt: new Date() })
-        .where(eq(tickets.id, ticketId));
-
-      if (existing.creatorUserId && existing.creatorUserId !== actorUserId) {
-        await transaction.insert(notifications).values({
-          userId: existing.creatorUserId,
-          ticketId,
-          previousStatus: existing.status,
-          newStatus: status
-        });
+      const ticket = await findTicket(transaction, ticketId);
+      if (!ticket) {
+        throw new Error("Ticket status update could not be read");
       }
-
-      return { type: "updated", ticket: await readTicket() };
+      return { type: result, ticket };
     });
   }
+}
+
+async function findTicket(executor: Executor, id: string): Promise<TicketRecord | null> {
+  const [ticket] = await executor
+    .select({ ...getTableColumns(tickets), creatorName: users.name })
+    .from(tickets)
+    .leftJoin(users, eq(tickets.creatorUserId, users.id))
+    .where(eq(tickets.id, id))
+    .limit(1);
+
+  return ticket ? toTicketRecord(ticket) : null;
+}
+
+/**
+ * Applies a technician status change and notifies the ticket's creator. Must run inside a
+ * transaction; it writes nothing unless the change is valid.
+ */
+async function changeStatus(
+  transaction: Transaction,
+  ticketId: string,
+  status: TicketStatus,
+  actorUserId: string
+): Promise<"updated" | "unchanged" | "ticket-not-found" | "invalid-transition"> {
+  // Lock the row so concurrent changes cannot both pass the transition check.
+  const [existing] = await transaction
+    .select({ status: tickets.status, creatorUserId: tickets.creatorUserId })
+    .from(tickets)
+    .where(eq(tickets.id, ticketId))
+    .for("update")
+    .limit(1);
+
+  if (!existing) {
+    return "ticket-not-found";
+  }
+  if (existing.status === status) {
+    return "unchanged";
+  }
+  if (!canTechnicianChangeStatus(existing.status, status)) {
+    return "invalid-transition";
+  }
+
+  await transaction
+    .update(tickets)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(tickets.id, ticketId));
+
+  if (existing.creatorUserId && existing.creatorUserId !== actorUserId) {
+    await transaction.insert(notifications).values({
+      userId: existing.creatorUserId,
+      ticketId,
+      previousStatus: existing.status,
+      newStatus: status
+    });
+  }
+
+  return "updated";
+}
+
+async function withEndorsements(
+  executor: Executor,
+  replies: Array<Omit<ReplyRecord, "endorsements">>
+): Promise<ReplyRecord[]> {
+  const replyIds = replies.map((reply) => reply.id);
+  const rows =
+    replyIds.length === 0
+      ? []
+      : await executor
+          .select({
+            id: replyEndorsements.id,
+            replyId: replyEndorsements.replyId,
+            technicianId: replyEndorsements.technicianId,
+            technicianName: users.name,
+            notes: replyEndorsements.notes,
+            createdAt: replyEndorsements.createdAt,
+            updatedAt: replyEndorsements.updatedAt
+          })
+          .from(replyEndorsements)
+          .innerJoin(users, eq(replyEndorsements.technicianId, users.id))
+          .where(inArray(replyEndorsements.replyId, replyIds))
+          .orderBy(asc(replyEndorsements.createdAt), asc(replyEndorsements.id));
+
+  const byReply = new Map<string, EndorsementRecord[]>();
+  for (const { replyId, ...endorsement } of rows) {
+    byReply.set(replyId, [...(byReply.get(replyId) ?? []), endorsement]);
+  }
+
+  return replies.map((reply) => ({ ...reply, endorsements: byReply.get(reply.id) ?? [] }));
 }
 
 function toTicketRecord(

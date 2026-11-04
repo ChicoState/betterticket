@@ -5,6 +5,7 @@ import type { TicketStatus } from "../tickets/ticket-contract.js";
 import {
   notificationSettings,
   notifications,
+  replyEndorsements,
   sessions,
   ticketReplies,
   tickets,
@@ -23,6 +24,14 @@ export const exampleUsers = [
 
 type ExampleUsername = (typeof exampleUsers)[number]["username"];
 
+// A string is a discussion comment; an object is a suggested solution.
+type ExampleReply =
+  | string
+  | {
+      solution: string;
+      endorsedBy?: Array<{ technician: ExampleUsername; notes?: string }>;
+    };
+
 interface ExampleTicket {
   title: string;
   description: string;
@@ -32,7 +41,7 @@ interface ExampleTicket {
   isAnonymous?: boolean;
   technician?: ExampleUsername;
   statusHistory: TicketStatus[];
-  replies?: string[];
+  replies?: ExampleReply[];
   daysAgo: number;
 }
 
@@ -63,7 +72,17 @@ const exampleTickets: ExampleTicket[] = [
     creator: "alice",
     technician: "tina",
     statusHistory: ["OPEN", "UNDER_REVIEW", "IN_PROGRESS"],
-    replies: ["We are reviewing the group permissions on that share."],
+    replies: [
+      "We are reviewing the group permissions on that share.",
+      {
+        solution: "Sign out and back in so your new group membership applies, then map the drive.",
+        endorsedBy: [
+          { technician: "tina", notes: "Group changes only apply at sign-in on these desktops." },
+          { technician: "terry" }
+        ]
+      },
+      { solution: "Try mapping the drive while connected to the campus VPN." }
+    ],
     daysAgo: 5
   },
   {
@@ -74,7 +93,13 @@ const exampleTickets: ExampleTicket[] = [
     creator: "bob",
     technician: "terry",
     statusHistory: ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED"],
-    replies: ["Replaced the feed rollers; please confirm it prints now."],
+    replies: [
+      "Replaced the feed rollers; please confirm it prints now.",
+      {
+        solution: "Fan the paper before loading it; the humid lab makes sheets stick.",
+        endorsedBy: [{ technician: "terry", notes: "Worth doing even with the new rollers." }]
+      }
+    ],
     daysAgo: 8
   },
   {
@@ -165,15 +190,35 @@ export async function loadExampleData(
         throw new Error("Ticket insert did not return a row");
       }
 
-      const replies = example.replies ?? [];
-      if (replies.length > 0) {
-        await transaction.insert(ticketReplies).values(
-          replies.map((body, index) => ({
+      for (const [index, reply] of (example.replies ?? []).entries()) {
+        const replyCreatedAt = new Date(createdAt.getTime() + (index + 1) * 30_000);
+        const [inserted] = await transaction
+          .insert(ticketReplies)
+          .values({
             ticketId: ticket.id,
-            body,
-            createdAt: new Date(createdAt.getTime() + (index + 1) * 30_000)
-          }))
-        );
+            kind: typeof reply === "string" ? "COMMENT" : "SOLUTION",
+            body: typeof reply === "string" ? reply : reply.solution,
+            createdAt: replyCreatedAt
+          })
+          .returning();
+
+        const endorsedBy = typeof reply === "string" ? [] : (reply.endorsedBy ?? []);
+        if (inserted && endorsedBy.length > 0) {
+          await transaction.insert(replyEndorsements).values(
+            endorsedBy.map((endorsement, endorsementIndex) => {
+              const endorsedAt = new Date(
+                replyCreatedAt.getTime() + (endorsementIndex + 1) * 10_000
+              );
+              return {
+                replyId: inserted.id,
+                technicianId: userIds.get(endorsement.technician)!,
+                notes: endorsement.notes ?? null,
+                createdAt: endorsedAt,
+                updatedAt: endorsedAt
+              };
+            })
+          );
+        }
       }
 
       const ownerId = ticket.creatorUserId;

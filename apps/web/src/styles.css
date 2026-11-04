@@ -710,6 +710,87 @@ main {
   margin-top: 0.5rem;
 }
 
+.reply-group {
+  margin-top: 1.5rem;
+}
+
+.reply-group h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.reply-endorsed {
+  border-left-color: #174c34;
+}
+
+.endorsed-badge {
+  border: 1px solid #b7d5c3;
+  border-radius: 999px;
+  background: #eef8f2;
+  color: #174c34;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.endorsement-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0 0 0 0.75rem;
+  border-left: 2px solid #b7d5c3;
+  list-style: none;
+}
+
+.endorsement .ticket-text {
+  margin-top: 0.25rem;
+}
+
+.endorsement-controls {
+  margin-top: 0.75rem;
+}
+
+.endorsement-form fieldset {
+  gap: 1rem;
+}
+
+.endorsement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.endorsement-actions .ticket-meta {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.link-button {
+  border: 0;
+  background: none;
+  color: #0b5967;
+  padding: 0.55rem 0.25rem;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.reply-kind {
+  gap: 0.5rem;
+}
+
+.reply-kind legend {
+  margin-bottom: 0.5rem;
+  font-weight: 750;
+}
+
 .reply-form {
   margin-top: 1.5rem;
   background: #ffffff;

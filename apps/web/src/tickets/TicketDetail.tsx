@@ -250,6 +250,10 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
         ticketId={ticket.id}
         replyStatus={ticket.replyStatus ?? "OPEN"}
         onTicketClosed={retry}
+        visibility={ticket.visibility}
+        ticketStatus={ticket.status}
+        isTechnician={currentUser?.role === "TECHNICIAN"}
+        onTicketUpdated={(updatedTicket) => setLoad({ type: "loaded", ticket: updatedTicket })}
       />
     </>
   );

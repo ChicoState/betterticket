@@ -1,5 +1,6 @@
 import type {
   CreateTicketInput,
+  ReplyKind,
   TicketPriority,
   TicketReplyStatus,
   TicketSort,
@@ -27,12 +28,36 @@ export interface TicketRecord {
   updatedAt: Date;
 }
 
+export interface EndorsementRecord {
+  id: string;
+  technicianId: string;
+  technicianName: string;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ReplyRecord {
   id: string;
   ticketId: string;
+  kind: ReplyKind;
   body: string;
   createdAt: Date;
+  endorsements: EndorsementRecord[];
 }
+
+export interface EndorseReplyRecordInput {
+  notes: string | null;
+  markResolved: boolean;
+}
+
+export type EndorseResult =
+  | { type: "endorsed"; reply: ReplyRecord; ticket: TicketRecord }
+  | { type: "reply-not-found" }
+  | { type: "not-a-solution" }
+  | { type: "invalid-transition" };
+
+export type WithdrawResult = { type: "withdrawn" } | { type: "endorsement-not-found" };
 
 export type AssignmentResult =
   | { type: "updated"; ticket: TicketRecord }
@@ -61,7 +86,7 @@ export interface TicketRepository {
     sort?: TicketSort
   ): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
-  createReply(ticketId: string, body: string): Promise<ReplyRecord | ReplyCreationResult>;
+  createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyCreationResult>;
   listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]>;
   updateReplyStatus?(
     ticketId: string,
@@ -78,6 +103,21 @@ export interface TicketRepository {
     status: TicketStatus,
     actorUserId: string
   ): Promise<StatusUpdateResult>;
+  /**
+   * Creates or replaces a technician's endorsement of a solution. With `markResolved`, the
+   * ticket is moved to RESOLVED through the status rule in the same transaction.
+   */
+  endorseReply(
+    ticketId: string,
+    replyId: string,
+    technicianId: string,
+    input: EndorseReplyRecordInput
+  ): Promise<EndorseResult>;
+  withdrawEndorsement(
+    ticketId: string,
+    replyId: string,
+    technicianId: string
+  ): Promise<WithdrawResult>;
 }
 
 export interface TicketCreator {

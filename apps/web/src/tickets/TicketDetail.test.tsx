@@ -73,7 +73,7 @@ describe("TicketDetail", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketDetail ticketId={ticketId} />);
 
-    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
@@ -207,6 +207,53 @@ describe("TicketDetail", () => {
     });
   });
 
+  it("shows the resolved status after a technician endorses and resolves", async () => {
+    const solution = {
+      id: "0b9d7c58-0a55-4d0c-8a44-0d3f5f3f9a01",
+      kind: "SOLUTION",
+      body: "Reinstall the driver.",
+      createdAt: "2026-10-28T18:30:00.000Z",
+      endorsements: []
+    };
+    const inProgress = { ...ticket, status: "IN_PROGRESS" };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        return Promise.resolve(
+          jsonResponse({
+            reply: {
+              ...solution,
+              endorsements: [
+                {
+                  id: "a1b2c3d4-0000-4000-8000-000000000001",
+                  technicianName: "Terry Technician",
+                  notes: null,
+                  createdAt: "2026-10-28T19:00:00.000Z",
+                  updatedAt: "2026-10-28T19:00:00.000Z",
+                  isOwn: true
+                }
+              ]
+            },
+            ticket: { ...inProgress, status: "RESOLVED" }
+          })
+        );
+      }
+      if (url.endsWith("/replies")) {
+        return Promise.resolve(jsonResponse({ replies: [solution] }));
+      }
+      return Promise.resolve(jsonResponse(inProgress));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endorse" }));
+    fireEvent.click(screen.getByLabelText("Also mark this ticket resolved"));
+    fireEvent.click(screen.getByRole("button", { name: "Endorse solution" }));
+
+    expect(await screen.findByText("Endorsed by IT")).toBeInTheDocument();
+    expect(screen.getByText("Resolved", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit notes" })).toBeInTheDocument();
+  });
+
   it("disables the status control while the update is pending", async () => {
     let resolveUpdate: (response: Response) => void = () => undefined;
     const update = new Promise<Response>((resolve) => {
@@ -323,7 +370,7 @@ describe("TicketDetail", () => {
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
       "Laptop will not start"
     );
-    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

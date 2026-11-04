@@ -1,17 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../app.js";
-import { canTechnicianChangeStatus, ticketStatuses, type TicketStatus } from "./ticket-contract.js";
+import {
+  canTechnicianChangeStatus,
+  ticketStatuses,
+  type ReplyKind,
+  type TicketStatus
+} from "./ticket-contract.js";
 import type { AuthenticatedUser, UserRole } from "../auth/auth-contract.js";
 import type { AuthRepository, CreatedSession } from "../auth/auth-repository.js";
 import type {
   AssignmentResult,
   CreateTicketInput,
+  EndorseReplyRecordInput,
+  EndorseResult,
+  ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
   StatusUpdateResult,
   TicketRecord,
-  TicketRepository
+  TicketRepository,
+  WithdrawResult
 } from "./ticket-repository.js";
 import type { NotificationRepository } from "../notifications/notification-repository.js";
 import type { SettingsRepository } from "../settings/settings-repository.js";
@@ -81,8 +90,18 @@ class FakeTicketRepository implements TicketRepository {
   readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
   readonly listSorts: Array<"newest" | "priority" | undefined> = [];
-  readonly createdReplies: Array<{ ticketId: string; body: string }> = [];
+  readonly createdReplies: Array<{ ticketId: string; body: string; kind?: ReplyKind }> = [];
   readonly replyListLimits: number[] = [];
+  readonly endorsements: Array<{
+    ticketId: string;
+    replyId: string;
+    technicianId: string;
+    input: EndorseReplyRecordInput;
+  }> = [];
+  readonly withdrawals: Array<{ ticketId: string; replyId: string; technicianId: string }> = [];
+  endorseResult: EndorseResult = { type: "reply-not-found" };
+  replyCreationFailure: Exclude<ReplyCreationResult, { type: "created" }> | null = null;
+  withdrawResult: WithdrawResult = { type: "endorsement-not-found" };
 
   constructor(
     private readonly stored: TicketRecord[] = [],
@@ -126,14 +145,26 @@ class FakeTicketRepository implements TicketRepository {
     return this.stored.find((ticket) => ticket.id === id) ?? null;
   }
 
-  async createReply(ticketId: string, body: string): Promise<ReplyRecord> {
-    this.createdReplies.push({ ticketId, body });
+  async createReply(
+    ticketId: string,
+    body: string,
+    kind?: ReplyKind
+  ): Promise<ReplyCreationResult> {
+    this.createdReplies.push({ ticketId, body, kind });
+    if (this.replyCreationFailure) {
+      return this.replyCreationFailure;
+    }
 
     return {
-      id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
-      ticketId,
-      body,
-      createdAt: new Date("2026-10-07T18:00:00.000Z")
+      type: "created",
+      reply: {
+        id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
+        ticketId,
+        kind: kind ?? "COMMENT",
+        body,
+        createdAt: new Date("2026-10-07T18:00:00.000Z"),
+        endorsements: []
+      }
     };
   }
 
@@ -149,6 +180,25 @@ class FakeTicketRepository implements TicketRepository {
 
   async updateStatus(): Promise<StatusUpdateResult> {
     throw new Error("not used");
+  }
+
+  async endorseReply(
+    ticketId: string,
+    replyId: string,
+    technicianId: string,
+    input: EndorseReplyRecordInput
+  ): Promise<EndorseResult> {
+    this.endorsements.push({ ticketId, replyId, technicianId, input });
+    return this.endorseResult;
+  }
+
+  async withdrawEndorsement(
+    ticketId: string,
+    replyId: string,
+    technicianId: string
+  ): Promise<WithdrawResult> {
+    this.withdrawals.push({ ticketId, replyId, technicianId });
+    return this.withdrawResult;
   }
 }
 
@@ -412,7 +462,9 @@ describe("POST /api/tickets", () => {
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn(),
-      updateStatus: vi.fn()
+      updateStatus: vi.fn(),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
     };
     const app = buildApp({
       authRepository,
@@ -635,7 +687,9 @@ describe("GET /api/tickets", () => {
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn(),
-      updateStatus: vi.fn()
+      updateStatus: vi.fn(),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
     };
     const app = buildApp({
       authRepository,
@@ -957,7 +1011,9 @@ describe("GET /api/tickets/:id", () => {
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn(),
-      updateStatus: vi.fn()
+      updateStatus: vi.fn(),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
     };
     const app = buildApp({
       authRepository,
@@ -983,7 +1039,9 @@ describe("GET /api/tickets/:id", () => {
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn(),
-      updateStatus: vi.fn()
+      updateStatus: vi.fn(),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
     };
     const app = buildApp({
       authRepository,
@@ -1025,7 +1083,9 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn().mockResolvedValue(result),
-      updateStatus: vi.fn()
+      updateStatus: vi.fn(),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
     };
     const app = buildApp({
       authRepository: sessionRepository,
@@ -1178,7 +1238,9 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
       assignTechnician: vi.fn(),
-      updateStatus: vi.fn().mockResolvedValue(result)
+      updateStatus: vi.fn().mockResolvedValue(result),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
     };
     const app = buildApp({
       authRepository: sessionRepository,
@@ -1353,8 +1415,10 @@ describe("ticket replies", () => {
   const storedReply: ReplyRecord = {
     id: "0b9d7c58-0a55-4d0c-8a44-0d3f5f3f9a01",
     ticketId: storedTicket.id,
+    kind: "COMMENT",
     body: "Have you tried a different charger?",
-    createdAt: new Date("2026-09-29T09:30:00.000Z")
+    createdAt: new Date("2026-09-29T09:30:00.000Z"),
+    endorsements: []
   };
   const repliesUrl = `/api/tickets/${storedTicket.id}/replies`;
 
@@ -1418,7 +1482,9 @@ describe("ticket replies", () => {
         createReply: vi.fn(),
         listRecentReplies: vi.fn(),
         assignTechnician: vi.fn(),
-        updateStatus: vi.fn()
+        updateStatus: vi.fn(),
+        endorseReply: vi.fn(),
+        withdrawEndorsement: vi.fn()
       };
 
       const response = await build(repository).inject({
@@ -1444,13 +1510,51 @@ describe("ticket replies", () => {
 
       expect(response.statusCode).toBe(201);
       expect(repository.createdReplies).toEqual([
-        { ticketId: storedTicket.id, body: "Yes, same result with a second charger." }
+        {
+          ticketId: storedTicket.id,
+          body: "Yes, same result with a second charger.",
+          kind: "COMMENT"
+        }
       ]);
       expect(response.json()).toEqual({
         id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
         ticketId: storedTicket.id,
+        kind: "COMMENT",
         body: "Yes, same result with a second charger.",
-        createdAt: "2026-10-07T18:00:00.000Z"
+        createdAt: "2026-10-07T18:00:00.000Z",
+        endorsements: []
+      });
+    });
+
+    it("stores a suggested solution when the kind is given", async () => {
+      const repository = new FakeTicketRepository([storedTicket]);
+
+      const response = await build(repository).inject({
+        method: "POST",
+        url: repliesUrl,
+        payload: { body: "Reinstall the driver.", kind: "SOLUTION" }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(repository.createdReplies).toEqual([
+        { ticketId: storedTicket.id, body: "Reinstall the driver.", kind: "SOLUTION" }
+      ]);
+      expect(response.json()).toMatchObject({ kind: "SOLUTION", endorsements: [] });
+    });
+
+    it("returns the stable closed-ticket conflict for a typed reply", async () => {
+      const repository = new FakeTicketRepository([{ ...storedTicket, replyStatus: "CLOSED" }]);
+      repository.replyCreationFailure = { type: "ticket-closed" };
+
+      const response = await build(repository).inject({
+        method: "POST",
+        url: repliesUrl,
+        payload: { body: "Reinstall the driver.", kind: "SOLUTION" }
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toEqual({
+        error: { code: "TICKET_CLOSED", message: "This ticket is closed to new replies" }
       });
     });
 
@@ -1458,7 +1562,8 @@ describe("ticket replies", () => {
       ["a missing body", {}],
       ["a blank body", { body: "   " }],
       ["an oversized body", { body: "a".repeat(5_001) }],
-      ["an unknown field", { body: "Reply", author: "Technician" }]
+      ["an unknown field", { body: "Reply", author: "Technician" }],
+      ["an unknown kind", { body: "Reply", kind: "ANSWER" }]
     ])("rejects %s", async (_name, payload) => {
       const repository = new FakeTicketRepository([storedTicket]);
 
@@ -1497,7 +1602,9 @@ describe("ticket replies", () => {
         createReply: vi.fn().mockRejectedValue(new Error("password=database-secret")),
         listRecentReplies: vi.fn(),
         assignTechnician: vi.fn(),
-        updateStatus: vi.fn()
+        updateStatus: vi.fn(),
+        endorseReply: vi.fn(),
+        withdrawEndorsement: vi.fn()
       };
 
       const response = await build(repository).inject({
@@ -1512,5 +1619,373 @@ describe("ticket replies", () => {
         error: { code: "INTERNAL_ERROR", message: "The ticket request could not be completed" }
       });
     });
+  });
+});
+
+describe("reply endorsements", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+  const replyId = "0b9d7c58-0a55-4d0c-8a44-0d3f5f3f9a01";
+  const storedTicket: TicketRecord = {
+    id: ticketId,
+    title: "Printer offline",
+    description: "The lab printer shows offline.",
+    setup: "HP LaserJet, Windows 11",
+    additionalInformation: null,
+    status: "IN_PROGRESS",
+    priority: "MEDIUM",
+    visibility: "PUBLIC",
+    creatorUserId: null,
+    assignedTechnicianId: null,
+    createdByName: null,
+    createdAt: new Date("2026-10-28T18:00:00.000Z"),
+    updatedAt: new Date("2026-10-28T18:00:00.000Z")
+  };
+  const endorsedReply: ReplyRecord = {
+    id: replyId,
+    ticketId,
+    kind: "SOLUTION",
+    body: "Reinstall the driver.",
+    createdAt: new Date("2026-10-28T18:30:00.000Z"),
+    endorsements: [
+      {
+        id: "a1b2c3d4-0000-4000-8000-000000000001",
+        technicianId,
+        technicianName: "Terry Technician",
+        notes: "Use v4.2.",
+        createdAt: new Date("2026-10-28T19:00:00.000Z"),
+        updatedAt: new Date("2026-10-28T19:00:00.000Z")
+      },
+      {
+        id: "a1b2c3d4-0000-4000-8000-000000000002",
+        technicianId: "f0f0f0f0-0000-4000-8000-000000000003",
+        technicianName: "Pat Other",
+        notes: null,
+        createdAt: new Date("2026-10-28T19:05:00.000Z"),
+        updatedAt: new Date("2026-10-28T19:05:00.000Z")
+      }
+    ]
+  };
+  const endorsementUrl = `/api/tickets/${ticketId}/replies/${replyId}/endorsement`;
+  const technicianCookie = { cookie: "betterticket_session=technician-session" };
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  function build(repository: TicketRepository) {
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    return app;
+  }
+
+  describe("PUT /api/tickets/:ticketId/replies/:replyId/endorsement", () => {
+    it("endorses with trimmed notes and returns the reply and ticket without user IDs", async () => {
+      const repository = new FakeTicketRepository([storedTicket]);
+      repository.endorseResult = {
+        type: "endorsed",
+        reply: endorsedReply,
+        ticket: { ...storedTicket, status: "RESOLVED" }
+      };
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: endorsementUrl,
+        headers: technicianCookie,
+        payload: { notes: "  Use v4.2.  ", markResolved: true }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(repository.endorsements).toEqual([
+        { ticketId, replyId, technicianId, input: { notes: "Use v4.2.", markResolved: true } }
+      ]);
+      expect(response.json().reply).toEqual({
+        id: replyId,
+        ticketId,
+        kind: "SOLUTION",
+        body: "Reinstall the driver.",
+        createdAt: "2026-10-28T18:30:00.000Z",
+        endorsements: [
+          {
+            id: "a1b2c3d4-0000-4000-8000-000000000001",
+            technicianName: "Terry Technician",
+            notes: "Use v4.2.",
+            createdAt: "2026-10-28T19:00:00.000Z",
+            updatedAt: "2026-10-28T19:00:00.000Z",
+            isOwn: true
+          },
+          {
+            id: "a1b2c3d4-0000-4000-8000-000000000002",
+            technicianName: "Pat Other",
+            notes: null,
+            createdAt: "2026-10-28T19:05:00.000Z",
+            updatedAt: "2026-10-28T19:05:00.000Z",
+            isOwn: false
+          }
+        ]
+      });
+      expect(response.json().ticket).toMatchObject({ id: ticketId, status: "RESOLVED" });
+      expect(response.body).not.toContain(technicianId);
+    });
+
+    it.each([
+      ["missing notes", {}],
+      ["blank notes", { notes: "   " }]
+    ])("stores %s as null without resolving", async (_name, payload) => {
+      const repository = new FakeTicketRepository([storedTicket]);
+      repository.endorseResult = { type: "endorsed", reply: endorsedReply, ticket: storedTicket };
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: endorsementUrl,
+        headers: technicianCookie,
+        payload
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(repository.endorsements[0]?.input).toEqual({ notes: null, markResolved: false });
+    });
+
+    it.each([
+      ["no session", {}, 401, "AUTHENTICATION_REQUIRED"],
+      ["a regular user", { cookie: "betterticket_session=user-session" }, 403, "FORBIDDEN"]
+    ])("rejects %s without writing", async (_name, headers, statusCode, code) => {
+      const repository = new FakeTicketRepository([storedTicket]);
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: endorsementUrl,
+        headers,
+        payload: {}
+      });
+
+      expect(response.statusCode).toBe(statusCode);
+      expect(response.json()).toMatchObject({ error: { code } });
+      expect(repository.endorsements).toEqual([]);
+    });
+
+    it.each([
+      ["oversized notes", { notes: "a".repeat(2_001) }],
+      ["an unknown field", { notes: "ok", technicianId }],
+      ["a non-boolean markResolved", { markResolved: "yes" }]
+    ])("rejects %s", async (_name, payload) => {
+      const repository = new FakeTicketRepository([storedTicket]);
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: endorsementUrl,
+        headers: technicianCookie,
+        payload
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+      expect(repository.endorsements).toEqual([]);
+    });
+
+    it("rejects a malformed reply ID", async () => {
+      const repository = new FakeTicketRepository([storedTicket]);
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: `/api/tickets/${ticketId}/replies/not-a-uuid/endorsement`,
+        headers: technicianCookie,
+        payload: {}
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(repository.endorsements).toEqual([]);
+    });
+
+    it("returns not found for a missing ticket without writing", async () => {
+      const repository = new FakeTicketRepository();
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: endorsementUrl,
+        headers: technicianCookie,
+        payload: {}
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({
+        error: { code: "NOT_FOUND", message: "The ticket was not found" }
+      });
+      expect(repository.endorsements).toEqual([]);
+    });
+
+    it.each([
+      [
+        { type: "reply-not-found" } as const,
+        404,
+        { code: "NOT_FOUND", message: "The reply was not found" }
+      ],
+      [
+        { type: "not-a-solution" } as const,
+        400,
+        { code: "NOT_A_SOLUTION", message: "Only suggested solutions can be endorsed" }
+      ],
+      [
+        { type: "invalid-transition" } as const,
+        400,
+        {
+          code: "INVALID_STATUS_TRANSITION",
+          message: "Only an in-progress ticket can be marked resolved"
+        }
+      ]
+    ])("maps the %o result", async (result, statusCode, error) => {
+      const repository = new FakeTicketRepository([storedTicket]);
+      repository.endorseResult = result;
+
+      const response = await build(repository).inject({
+        method: "PUT",
+        url: endorsementUrl,
+        headers: technicianCookie,
+        payload: { markResolved: true }
+      });
+
+      expect(response.statusCode).toBe(statusCode);
+      expect(response.json()).toEqual({ error });
+    });
+  });
+
+  describe("DELETE /api/tickets/:ticketId/replies/:replyId/endorsement", () => {
+    it("withdraws the caller's own endorsement", async () => {
+      const repository = new FakeTicketRepository([storedTicket]);
+      repository.withdrawResult = { type: "withdrawn" };
+
+      const response = await build(repository).inject({
+        method: "DELETE",
+        url: endorsementUrl,
+        headers: technicianCookie
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(response.body).toBe("");
+      expect(repository.withdrawals).toEqual([{ ticketId, replyId, technicianId }]);
+    });
+
+    it("returns not found when the caller has no endorsement", async () => {
+      const repository = new FakeTicketRepository([storedTicket]);
+
+      const response = await build(repository).inject({
+        method: "DELETE",
+        url: endorsementUrl,
+        headers: technicianCookie
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({
+        error: { code: "NOT_FOUND", message: "The endorsement was not found" }
+      });
+    });
+
+    it("returns not found for a missing ticket", async () => {
+      const repository = new FakeTicketRepository();
+
+      const response = await build(repository).inject({
+        method: "DELETE",
+        url: endorsementUrl,
+        headers: technicianCookie
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(repository.withdrawals).toEqual([]);
+    });
+
+    it.each([
+      ["no session", {}, 401],
+      ["a regular user", { cookie: "betterticket_session=user-session" }, 403]
+    ])("rejects %s without writing", async (_name, headers, statusCode) => {
+      const repository = new FakeTicketRepository([storedTicket]);
+
+      const response = await build(repository).inject({
+        method: "DELETE",
+        url: endorsementUrl,
+        headers
+      });
+
+      expect(response.statusCode).toBe(statusCode);
+      expect(repository.withdrawals).toEqual([]);
+    });
+  });
+
+  describe("ticket visibility", () => {
+    const otherUserId = "cc086f3d-2c21-4c63-a4d4-5a5d0d3e7b9c";
+
+    it.each(["AUTHENTICATED", "PRIVATE"] as const)(
+      "lets a technician endorse and withdraw on a %s ticket they did not create",
+      async (visibility) => {
+        const ticket = { ...storedTicket, visibility, creatorUserId: otherUserId };
+        const repository = new FakeTicketRepository([ticket]);
+        repository.endorseResult = { type: "endorsed", reply: endorsedReply, ticket };
+        repository.withdrawResult = { type: "withdrawn" };
+        const app = build(repository);
+
+        const endorsed = await app.inject({
+          method: "PUT",
+          url: endorsementUrl,
+          headers: technicianCookie,
+          payload: {}
+        });
+        const withdrawn = await app.inject({
+          method: "DELETE",
+          url: endorsementUrl,
+          headers: technicianCookie
+        });
+
+        expect(endorsed.statusCode).toBe(200);
+        expect(withdrawn.statusCode).toBe(204);
+      }
+    );
+
+    it("does not reveal a private ticket to a regular user", async () => {
+      const ticket = {
+        ...storedTicket,
+        visibility: "PRIVATE" as const,
+        creatorUserId: otherUserId
+      };
+      const repository = new FakeTicketRepository([ticket]);
+      const app = build(repository);
+      const request = {
+        method: "PUT" as const,
+        headers: { cookie: "betterticket_session=user-session" },
+        payload: {}
+      };
+
+      const existing = await app.inject({ ...request, url: endorsementUrl });
+      const missing = await app.inject({
+        ...request,
+        url: `/api/tickets/00000000-0000-4000-8000-000000000000/replies/${replyId}/endorsement`
+      });
+
+      expect(existing.statusCode).toBe(403);
+      expect(existing.json()).toEqual(missing.json());
+      expect(repository.endorsements).toEqual([]);
+    });
+  });
+
+  it("lists endorsements with isOwn computed for the current viewer", async () => {
+    const repository = new FakeTicketRepository([storedTicket], [endorsedReply]);
+    const app = build(repository);
+
+    const asTechnician = await app.inject({
+      method: "GET",
+      url: `/api/tickets/${ticketId}/replies`,
+      headers: technicianCookie
+    });
+    const asVisitor = await app.inject({ method: "GET", url: `/api/tickets/${ticketId}/replies` });
+
+    const ownFlags = (body: { replies: Array<{ endorsements: Array<{ isOwn: boolean }> }> }) =>
+      body.replies[0]?.endorsements.map((endorsement) => endorsement.isOwn);
+    expect(ownFlags(asTechnician.json())).toEqual([true, false]);
+    expect(ownFlags(asVisitor.json())).toEqual([false, false]);
+    expect(asVisitor.body).not.toContain(technicianId);
   });
 });

@@ -1,3 +1,5 @@
+import { ticketVoteRoutes } from "./ticket-vote-route.js";
+import { replyVoteRoutes } from "./reply-vote-route.js";
 import type { FastifyPluginAsync } from "fastify";
 
 import { sessionCookieName } from "../auth/auth-contract.js";
@@ -63,6 +65,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
   { authRepository, ticketRepository }
 ) => {
+  await app.register(replyVoteRoutes, { authRepository, ticketRepository });
+  await app.register(ticketVoteRoutes, { authRepository, ticketRepository });
+
   app.post<{ Body: CreateTicketInput; Reply: Ticket }>(
     "/api/tickets",
     {
@@ -141,10 +146,23 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         }
       }
     },
-    async () => {
+    async (request, reply) => {
+      reply.header("cache-control", "private, no-store");
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
       const tickets = await ticketRepository.listRecent(ticketListLimit);
-
-      return { tickets: tickets.map(toTicket) };
+      const states = await ticketRepository.listTicketVotes(
+        tickets.map((ticket) => ticket.id),
+        user?.id
+      );
+      const votesByTicket = new Map(states.map(({ ticketId, ...votes }) => [ticketId, votes]));
+      return {
+        tickets: tickets.map((ticket) => {
+          const votes = votesByTicket.get(ticket.id);
+          if (!votes) throw new Error("Listed ticket votes could not be read");
+          return { ...toTicket(ticket), votes };
+        })
+      };
     }
   );
 
@@ -192,7 +210,10 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(404).send(ticketNotFound);
       }
 
-      const replies = await ticketRepository.listRecentReplies(ticket.id, replyListLimit);
+      reply.header("cache-control", "private, no-store");
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
+      const replies = await ticketRepository.listRecentReplies(ticket.id, replyListLimit, user?.id);
 
       return { replies: replies.map(toReply) };
     }

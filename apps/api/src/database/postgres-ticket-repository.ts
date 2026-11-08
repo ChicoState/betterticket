@@ -1,9 +1,13 @@
-import { and, desc, eq, getTableColumns } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { ticketReplies, tickets, users } from "./schema.js";
+import { ticketReplies, ticketReplyVotes, ticketVotes, tickets, users } from "./schema.js";
 import type {
   AssignmentResult,
+  VoteValue,
+  SetReplyVoteResult,
+  SetTicketVoteResult,
+  VoteState,
   CreateTicketInput,
   TicketCreator,
   ReplyRecord,
@@ -74,18 +78,111 @@ export class PostgresTicketRepository implements TicketRepository {
       throw new Error("Reply insert did not return a row");
     }
 
-    return reply;
+    return { ...reply, upvotes: 0, downvotes: 0, userVote: null };
   }
 
-  async listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]> {
+  async listRecentReplies(
+    ticketId: string,
+    limit: number,
+    userId?: string
+  ): Promise<ReplyRecord[]> {
     const newestFirst = await this.database
-      .select()
+      .select({ ...getTableColumns(ticketReplies), ...replyVoteColumns(userId) })
       .from(ticketReplies)
       .where(eq(ticketReplies.ticketId, ticketId))
       .orderBy(desc(ticketReplies.createdAt), desc(ticketReplies.id))
       .limit(limit);
 
     return newestFirst.reverse();
+  }
+
+  async setReplyVote(
+    ticketId: string,
+    replyId: string,
+    userId: string,
+    value: VoteValue | null
+  ): Promise<SetReplyVoteResult> {
+    return this.database.transaction(async (transaction) => {
+      // Serialize votes for this reply so the returned totals include the committed mutation.
+      const [reply] = await transaction
+        .select({ id: ticketReplies.id })
+        .from(ticketReplies)
+        .where(and(eq(ticketReplies.id, replyId), eq(ticketReplies.ticketId, ticketId)))
+        .for("update");
+      if (!reply) return { type: "reply-not-found" };
+      if (value === null) {
+        await transaction
+          .delete(ticketReplyVotes)
+          .where(and(eq(ticketReplyVotes.replyId, replyId), eq(ticketReplyVotes.userId, userId)));
+      } else {
+        await transaction
+          .insert(ticketReplyVotes)
+          .values({ replyId, userId, value })
+          .onConflictDoUpdate({
+            target: [ticketReplyVotes.replyId, ticketReplyVotes.userId],
+            set: { value }
+          });
+      }
+      const [vote] = await transaction
+        .select(replyVoteColumns(userId))
+        .from(ticketReplies)
+        .where(eq(ticketReplies.id, replyId));
+      if (!vote) throw new Error("Voted reply could not be read");
+      return { type: "updated", vote };
+    });
+  }
+
+  async listTicketVotes(
+    ticketIds: string[],
+    userId?: string
+  ): Promise<Array<VoteState & { ticketId: string }>> {
+    if (ticketIds.length === 0) return [];
+    return this.database
+      .select({ ticketId: tickets.id, ...ticketVoteColumns(userId) })
+      .from(tickets)
+      .where(inArray(tickets.id, ticketIds));
+  }
+
+  async getTicketVote(ticketId: string, userId?: string): Promise<VoteState | null> {
+    const [vote] = await this.database
+      .select(ticketVoteColumns(userId))
+      .from(tickets)
+      .where(eq(tickets.id, ticketId));
+    return vote ?? null;
+  }
+
+  async setTicketVote(
+    ticketId: string,
+    userId: string,
+    value: VoteValue | null
+  ): Promise<SetTicketVoteResult> {
+    return this.database.transaction(async (transaction) => {
+      const [ticket] = await transaction
+        .select({ id: tickets.id })
+        .from(tickets)
+        .where(eq(tickets.id, ticketId))
+        .for("update");
+      if (!ticket) return { type: "ticket-not-found" };
+      if (value === null) {
+        await transaction
+          .delete(ticketVotes)
+          .where(and(eq(ticketVotes.ticketId, ticketId), eq(ticketVotes.userId, userId)));
+      } else {
+        await transaction
+          .insert(ticketVotes)
+          .values({ ticketId, userId, value })
+          .onConflictDoUpdate({
+            target: [ticketVotes.ticketId, ticketVotes.userId],
+            set: { value }
+          });
+      }
+      const [vote] = await transaction
+        .select(ticketVoteColumns(userId))
+        .from(tickets)
+        .where(eq(tickets.id, ticketId));
+      if (!vote) throw new Error("Voted ticket could not be read");
+      return { type: "updated", vote };
+    });
   }
 
   async assignTechnician(
@@ -194,5 +291,37 @@ function toTicketRecord(
   return {
     ...ticketRecord,
     createdByName: ticket.isAnonymous ? null : creatorName
+  };
+}
+
+function replyVoteColumns(userId?: string) {
+  return {
+    upvotes:
+      sql<number>`(select count(*) from ${ticketReplyVotes} where ${ticketReplyVotes.replyId} = ${ticketReplies.id} and ${ticketReplyVotes.value} = 1)`.mapWith(
+        Number
+      ),
+    downvotes:
+      sql<number>`(select count(*) from ${ticketReplyVotes} where ${ticketReplyVotes.replyId} = ${ticketReplies.id} and ${ticketReplyVotes.value} = -1)`.mapWith(
+        Number
+      ),
+    userVote: userId
+      ? sql<VoteValue | null>`(select ${ticketReplyVotes.value} from ${ticketReplyVotes} where ${ticketReplyVotes.replyId} = ${ticketReplies.id} and ${ticketReplyVotes.userId} = ${userId})`
+      : sql<VoteValue | null>`null`
+  };
+}
+
+function ticketVoteColumns(userId?: string) {
+  return {
+    upvotes:
+      sql<number>`(select count(*) from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id} and ${ticketVotes.value} = 1)`.mapWith(
+        Number
+      ),
+    downvotes:
+      sql<number>`(select count(*) from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id} and ${ticketVotes.value} = -1)`.mapWith(
+        Number
+      ),
+    userVote: userId
+      ? sql<VoteValue | null>`(select ${ticketVotes.value} from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id} and ${ticketVotes.userId} = ${userId})`
+      : sql<VoteValue | null>`null`
   };
 }

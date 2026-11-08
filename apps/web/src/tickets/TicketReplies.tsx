@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
+import type { AuthenticatedUser } from "../auth/auth-api.js";
+import { TicketReplyVote } from "./ticket_voted_solution.js";
 import { createReply, listReplies, type Reply } from "./ticket-api.js";
 import { formatCreatedAt } from "./ticket-format.js";
 
@@ -10,9 +12,10 @@ type SubmissionState =
 
 interface TicketRepliesProps {
   ticketId: string;
+  currentUser?: AuthenticatedUser | null;
 }
 
-export function TicketReplies({ ticketId }: TicketRepliesProps) {
+export function TicketReplies({ ticketId, currentUser = null }: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [submission, setSubmission] = useState<SubmissionState>({ type: "idle" });
@@ -95,6 +98,14 @@ export function TicketReplies({ ticketId }: TicketRepliesProps) {
                     <time dateTime={reply.createdAt}>{formatCreatedAt(reply.createdAt)}</time>
                   </p>
                   <p className="ticket-text">{reply.body}</p>
+                  <TicketReplyVote
+                    ticketId={ticketId}
+                    replyId={reply.id}
+                    upvotes={reply.upvotes}
+                    downvotes={reply.downvotes}
+                    userVote={currentUser ? reply.userVote : null}
+                    canVote={currentUser !== null}
+                  />
                 </li>
               ))}
             </ol>

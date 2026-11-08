@@ -36,6 +36,20 @@
       "when": 1792009924980,
       "tag": "0004_complex_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794160080097,
+      "tag": "0005_lumpy_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794161081134,
+      "tag": "0006_nifty_riptide",
+      "breakpoints": true
     }
   ]
 }

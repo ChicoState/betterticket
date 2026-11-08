@@ -1,3 +1,4 @@
+import { voteStateResponseSchema } from "./vote-contract.js";
 export const ticketStatuses = [
   "OPEN",
   "UNDER_REVIEW",
@@ -93,7 +94,9 @@ export const ticketResponseSchema = {
 export const ticketListLimit = 100;
 
 export interface TicketList {
-  tickets: Ticket[];
+  tickets: Array<
+    Ticket & { votes: { upvotes: number; downvotes: number; userVote: -1 | 1 | null } }
+  >;
 }
 
 export const ticketListResponseSchema = {
@@ -104,7 +107,11 @@ export const ticketListResponseSchema = {
     tickets: {
       type: "array",
       maxItems: ticketListLimit,
-      items: ticketResponseSchema
+      items: {
+        ...ticketResponseSchema,
+        required: [...ticketResponseSchema.required, "votes"],
+        properties: { ...ticketResponseSchema.properties, votes: voteStateResponseSchema }
+      }
     }
   }
 } as const;
@@ -127,6 +134,9 @@ export interface CreateReplyInput {
 }
 
 export interface Reply {
+  upvotes: number;
+  downvotes: number;
+  userVote: -1 | 1 | null;
   id: string;
   ticketId: string;
   body: string;
@@ -145,9 +155,12 @@ export const createReplyBodySchema = {
 export const replyResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "ticketId", "body", "createdAt"],
+  required: ["id", "ticketId", "body", "createdAt", "upvotes", "downvotes", "userVote"],
   properties: {
     id: { type: "string", format: "uuid" },
+    upvotes: { type: "integer", minimum: 0 },
+    downvotes: { type: "integer", minimum: 0 },
+    userVote: { enum: [-1, 1, null] },
     ticketId: { type: "string", format: "uuid" },
     body: { type: "string" },
     createdAt: { type: "string", format: "date-time" }

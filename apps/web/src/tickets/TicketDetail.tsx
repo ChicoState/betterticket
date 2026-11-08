@@ -1,3 +1,4 @@
+import { TicketVote } from "./TicketVote.js";
 import { useEffect, useState } from "react";
 
 import type { AuthenticatedUser } from "../auth/auth-api.js";
@@ -194,8 +195,17 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
             </>
           ) : null}
         </dl>
+        <TicketVote
+          key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
+          ticketId={ticket.id}
+          currentUser={currentUser}
+        />
       </article>
-      <TicketReplies ticketId={ticket.id} />
+      <TicketReplies
+        key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
+        ticketId={ticket.id}
+        currentUser={currentUser}
+      />
     </>
   );
 }

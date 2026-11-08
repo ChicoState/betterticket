@@ -79,6 +79,18 @@ const unusedTicketRepository: TicketRepository = {
   listRecentReplies: async (): Promise<ReplyRecord[]> => {
     throw new Error("not used");
   },
+  listTicketVotes: async () => {
+    throw new Error("not used");
+  },
+  getTicketVote: async () => {
+    throw new Error("not used");
+  },
+  setTicketVote: async () => {
+    throw new Error("not used");
+  },
+  setReplyVote: async () => {
+    throw new Error("not used");
+  },
   assignTechnician: async (): Promise<AssignmentResult> => {
     throw new Error("not used");
   },

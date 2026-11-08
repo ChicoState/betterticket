@@ -2,7 +2,7 @@
 
 ## Status and source of truth
 
-BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, a minimal provisioned-user login and technician-assignment backend, and CLI-designated IT (technician) accounts. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, a minimal provisioned-user login and technician-assignment backend, CLI-designated IT (technician) accounts, and authenticated ticket and reply voting. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 
@@ -46,6 +46,8 @@ bash scripts/smoke.sh
 ```
 
 These correspond to the current pull-request workflow. The smoke test uses an isolated Compose project and removes its own containers and volumes. `docker compose up --detach postgres object-storage` starts persistent local services; use `docker compose down` to stop them and add `--volumes` only when intentionally resetting local data.
+
+PostgreSQL is exposed only on `127.0.0.1:5433` for host clients; the toolchain uses `postgres:5432`. Keep the host `DATABASE_URL` port in local `.env` consistent with the Compose mapping.
 
 After applying migrations, provision MVP users interactively with `docker compose --profile tools run --rm toolchain pnpm user:create`. Change an existing account between `USER` and `TECHNICIAN` (IT) with `docker compose --profile tools run --rm toolchain pnpm user:set-role`. Never place passwords or provisioned credentials in tracked files or command arguments.
 

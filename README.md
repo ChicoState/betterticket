@@ -139,10 +139,16 @@ Docker image tags are deliberately pinned. Dependabot proposes updates; review a
 
 Before enabling a release workflow, select the static host, API container host, registry, PostgreSQL provider, object-storage provider, and release owner. Then configure protected `staging` and `production` environments and the named secrets/variables listed in `infrastructure_plan.md`—including `API_CONTAINER_REGISTRY_TOKEN`, `API_DEPLOY_TOKEN`, `FRONTEND_DEPLOY_TOKEN`, `DATABASE_URL`, object-storage settings, and `AUTH_SECRET`. No release workflow is present yet because these providers have not been selected.
 
+## Ticket and reply voting
+
+Signed-in users and technicians can upvote or downvote directly from each card in the Tickets list or from the bottom of a ticket detail page, and vote independently on replies. Both controls use thumbs-up and thumbs-down icons. Each account has one vote per ticket and one per reply; select the same direction to remove it or the other direction to switch. Visitors can see totals and sign in to vote. The API checks the session on every vote request.
+
+Apply migrations through `0006_nifty_riptide` with `docker compose --profile tools run --rm toolchain pnpm db:migrate` before starting the updated application.
+
 ## Troubleshooting
 
 - If Docker cannot connect, start Docker Desktop and rerun `docker compose config --quiet`.
-- If ports 5432 or 8333 are occupied, stop the conflicting local service or change the loopback mapping in `compose.yml`.
+- PostgreSQL is exposed at `127.0.0.1:5433` to avoid conflicts with host PostgreSQL on port 5432. Host database clients use port 5433; the toolchain connects to `postgres:5432`. If port 5433 or 8333 is occupied, change the loopback mapping in `compose.yml` and update the host connection URL in your local `.env`.
 - If Docker reports a bind-mount permission issue, grant Docker Desktop access to this repository and rerun the command.
 - If tests report that a required database relation or column does not exist, run `docker compose --profile tools run --rm toolchain pnpm db:migrate`.
 - If ports 3000 or 5173 are occupied, stop the conflicting application before running the development command.

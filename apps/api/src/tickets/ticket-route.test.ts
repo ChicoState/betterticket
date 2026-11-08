@@ -112,6 +112,9 @@ class FakeTicketRepository implements TicketRepository {
       id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
       ticketId,
       body,
+      upvotes: 0,
+      downvotes: 0,
+      userVote: null,
       createdAt: new Date("2026-10-07T18:00:00.000Z")
     };
   }
@@ -120,6 +123,23 @@ class FakeTicketRepository implements TicketRepository {
     this.replyListLimits.push(limit);
 
     return this.storedReplies.filter((reply) => reply.ticketId === ticketId);
+  }
+
+  async listTicketVotes(
+    ticketIds: string[]
+  ): Promise<Array<import("./ticket-repository.js").VoteState & { ticketId: string }>> {
+    return ticketIds.map((ticketId) => ({ ticketId, upvotes: 0, downvotes: 0, userVote: null }));
+  }
+
+  async getTicketVote(): Promise<import("./ticket-repository.js").VoteState | null> {
+    throw new Error("not used");
+  }
+  async setTicketVote(): Promise<import("./ticket-repository.js").SetTicketVoteResult> {
+    throw new Error("not used");
+  }
+
+  async setReplyVote(): Promise<import("./ticket-repository.js").SetReplyVoteResult> {
+    throw new Error("not used");
   }
 
   async assignTechnician(): Promise<AssignmentResult> {
@@ -280,6 +300,10 @@ describe("POST /api/tickets", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
@@ -360,7 +384,8 @@ describe("GET /api/tickets", () => {
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-29T09:30:00.000Z",
-          updatedAt: "2026-09-29T09:30:00.000Z"
+          updatedAt: "2026-09-29T09:30:00.000Z",
+          votes: { upvotes: 0, downvotes: 0, userVote: null }
         },
         {
           id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -372,7 +397,8 @@ describe("GET /api/tickets", () => {
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-28T18:00:00.000Z",
-          updatedAt: "2026-09-28T18:00:00.000Z"
+          updatedAt: "2026-09-28T18:00:00.000Z",
+          votes: { upvotes: 0, downvotes: 0, userVote: null }
         }
       ]
     });
@@ -423,6 +449,10 @@ describe("GET /api/tickets", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
@@ -505,6 +535,10 @@ describe("GET /api/tickets/:id", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
@@ -525,6 +559,10 @@ describe("GET /api/tickets/:id", () => {
       findById: vi.fn().mockRejectedValue(new Error("password=database-secret")),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn()
     };
@@ -561,6 +599,10 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn().mockResolvedValue(result),
       updateStatus: vi.fn()
     };
@@ -706,6 +748,10 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn().mockResolvedValue(result)
     };
@@ -863,6 +909,9 @@ describe("ticket replies", () => {
     id: "0b9d7c58-0a55-4d0c-8a44-0d3f5f3f9a01",
     ticketId: storedTicket.id,
     body: "Have you tried a different charger?",
+    upvotes: 0,
+    downvotes: 0,
+    userVote: null,
     createdAt: new Date("2026-09-29T09:30:00.000Z")
   };
   const repliesUrl = `/api/tickets/${storedTicket.id}/replies`;
@@ -920,6 +969,10 @@ describe("ticket replies", () => {
         findById: vi.fn(),
         createReply: vi.fn(),
         listRecentReplies: vi.fn(),
+        listTicketVotes: vi.fn(),
+        getTicketVote: vi.fn(),
+        setTicketVote: vi.fn(),
+        setReplyVote: vi.fn(),
         assignTechnician: vi.fn(),
         updateStatus: vi.fn()
       };
@@ -953,6 +1006,9 @@ describe("ticket replies", () => {
         id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
         ticketId: storedTicket.id,
         body: "Yes, same result with a second charger.",
+        upvotes: 0,
+        downvotes: 0,
+        userVote: null,
         createdAt: "2026-10-07T18:00:00.000Z"
       });
     });
@@ -999,6 +1055,10 @@ describe("ticket replies", () => {
         findById: vi.fn().mockResolvedValue(storedTicket),
         createReply: vi.fn().mockRejectedValue(new Error("password=database-secret")),
         listRecentReplies: vi.fn(),
+        listTicketVotes: vi.fn(),
+        getTicketVote: vi.fn(),
+        setTicketVote: vi.fn(),
+        setReplyVote: vi.fn(),
         assignTechnician: vi.fn(),
         updateStatus: vi.fn()
       };

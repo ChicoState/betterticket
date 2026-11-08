@@ -9,6 +9,9 @@ const repliesUrl = `/api/tickets/${ticketId}/replies`;
 const firstReply = {
   id: "0b9d7c58-0a55-4d0c-8a44-0d3f5f3f9a01",
   ticketId,
+  upvotes: 0,
+  downvotes: 0,
+  userVote: null,
   body: "Have you tried a different charger?",
   createdAt: "2026-09-29T09:30:00.000Z"
 };
@@ -16,6 +19,9 @@ const firstReply = {
 const secondReply = {
   id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
   ticketId,
+  upvotes: 0,
+  downvotes: 0,
+  userVote: null,
   body: "Yes, same result with a second charger.",
   createdAt: "2026-09-29T10:00:00.000Z"
 };
@@ -159,5 +165,30 @@ describe("TicketReplies", () => {
     );
     expect(screen.getByLabelText("Your reply")).toHaveValue(secondReply.body);
     expect(screen.getByText("No replies yet.")).toBeInTheDocument();
+  });
+  it("enables votes only for a verified logged-in user", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ replies: [firstReply] })));
+    render(
+      <TicketReplies
+        ticketId={ticketId}
+        currentUser={{ id: "user", name: "User", username: "user", role: "USER" }}
+      />
+    );
+    expect(await screen.findByRole("button", { name: /Upvote/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Downvote/ })).toBeEnabled();
+  });
+
+  it("shows public totals while preventing visitor voting", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ replies: [{ ...firstReply, upvotes: 3, downvotes: 1 }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketReplies ticketId={ticketId} />);
+    expect(await screen.findByRole("button", { name: /Upvote/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Downvote/ })).toBeDisabled();
+    expect(screen.getByText("Score 2")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/");
+    fireEvent.click(screen.getByRole("button", { name: /Upvote/ }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 
-import { listTickets, ticketPath, type Ticket } from "./ticket-api.js";
+import type { AuthenticatedUser } from "../auth/auth-api.js";
+import { VoteControls } from "./VoteControls.js";
+import { listTickets, setTicketVote, ticketPath, type ListedTicket } from "./ticket-api.js";
 import { formatCreatedAt, formatStatus } from "./ticket-format.js";
 
-type LoadState = { type: "loading" } | { type: "loaded"; tickets: Ticket[] } | { type: "error" };
+type LoadState =
+  | { type: "loading" }
+  | { type: "loaded"; tickets: ListedTicket[]; viewerId: string | null }
+  | { type: "error" };
 
-export function TicketList() {
+export function TicketList({ currentUser = null }: { currentUser?: AuthenticatedUser | null }) {
+  const viewerId = currentUser?.id ?? null;
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
 
@@ -15,7 +21,7 @@ export function TicketList() {
     listTickets().then(
       (tickets) => {
         if (!ignore) {
-          setLoad({ type: "loaded", tickets });
+          setLoad({ type: "loaded", tickets, viewerId });
         }
       },
       () => {
@@ -28,14 +34,14 @@ export function TicketList() {
     return () => {
       ignore = true;
     };
-  }, [attempt]);
+  }, [attempt, viewerId]);
 
   function retry() {
     setLoad({ type: "loading" });
     setAttempt((current) => current + 1);
   }
 
-  if (load.type === "loading") {
+  if (load.type === "loading" || (load.type === "loaded" && load.viewerId !== viewerId)) {
     return (
       <p className="list-message" role="status">
         Loading tickets…
@@ -77,6 +83,16 @@ export function TicketList() {
             </p>
 
             <p className="ticket-text ticket-excerpt">{ticket.description}</p>
+            <VoteControls
+              key={`${ticket.id}:${viewerId ?? "anonymous"}`}
+              subject="ticket"
+              initialState={{
+                ...ticket.votes,
+                userVote: currentUser ? ticket.votes.userVote : null
+              }}
+              canVote={currentUser !== null}
+              saveVote={(value) => setTicketVote(ticket.id, value)}
+            />
           </article>
         </li>
       ))}

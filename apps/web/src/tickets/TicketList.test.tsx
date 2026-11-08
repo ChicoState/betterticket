@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TicketList } from "./TicketList.js";
@@ -6,6 +6,7 @@ import { TicketList } from "./TicketList.js";
 const tickets = [
   {
     id: "2f1c5b0e-6f0a-4c59-9a55-0f6f2f4c8f11",
+    votes: { upvotes: 0, downvotes: 0, userVote: null },
     title: "Printer is offline",
     description: "Jobs stay queued.",
     setup: "Office printer, macOS 15",
@@ -17,6 +18,7 @@ const tickets = [
   },
   {
     id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+    votes: { upvotes: 0, downvotes: 0, userVote: null },
     title: "Laptop will not start",
     description: "The power light flashes once.",
     setup: "Framework Laptop 13, Fedora 42",
@@ -109,5 +111,85 @@ describe("TicketList", () => {
     render(<TicketList />);
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+  it("shows public totals and disabled vote controls on every ticket card", async () => {
+    const votedTickets = tickets.map((ticket) => ({
+      ...ticket,
+      votes: { upvotes: 3, downvotes: 1, userVote: null }
+    }));
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ tickets: votedTickets }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+    const cards = await screen.findAllByRole("article");
+    for (const card of cards) {
+      expect(within(card).getByRole("button", { name: /Upvote/ })).toBeDisabled();
+      expect(within(card).getByRole("button", { name: /Downvote/ })).toBeDisabled();
+      expect(within(card).getByText("Score 2")).toBeInTheDocument();
+      expect(within(card).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/");
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("votes, switches, and removes directly from the list without affecting another ticket", async () => {
+    const votedTickets = tickets.map((ticket) => ({
+      ...ticket,
+      votes: { upvotes: 0, downvotes: 0, userVote: null }
+    }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ tickets: votedTickets }))
+      .mockResolvedValueOnce(jsonResponse({ upvotes: 1, downvotes: 0, userVote: 1 }))
+      .mockResolvedValueOnce(jsonResponse({ upvotes: 0, downvotes: 1, userVote: -1 }))
+      .mockResolvedValueOnce(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <TicketList currentUser={{ id: "user", name: "User", username: "user", role: "USER" }} />
+    );
+    const [first, second] = await screen.findAllByRole("article");
+    const up = within(first!).getByRole("button", { name: /Upvote/ });
+    const down = within(first!).getByRole("button", { name: /Downvote/ });
+    fireEvent.click(up);
+    await waitFor(() => expect(up).toHaveAttribute("aria-pressed", "true"));
+    expect(within(second!).getByText("Score 0")).toBeInTheDocument();
+    fireEvent.click(down);
+    await waitFor(() => expect(down).toHaveAttribute("aria-pressed", "true"));
+    fireEvent.click(down);
+    await waitFor(() => expect(down).toHaveAttribute("aria-pressed", "false"));
+    expect(fetchMock.mock.calls.slice(1).map((call) => call[1].method)).toEqual([
+      "PUT",
+      "PUT",
+      "DELETE"
+    ]);
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/tickets/${tickets[0]!.id}/vote`);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(within(first!).getByRole("link", { name: tickets[0]!.title })).toBeInTheDocument();
+  });
+
+  it("reloads private selections and disables controls when the viewer signs out", async () => {
+    const makeTickets = (userVote: 1 | null) =>
+      tickets.map((ticket) => ({ ...ticket, votes: { upvotes: 1, downvotes: 0, userVote } }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ tickets: makeTickets(1) }))
+      .mockResolvedValueOnce(jsonResponse({ tickets: makeTickets(null) }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { rerender } = render(
+      <TicketList currentUser={{ id: "user", name: "User", username: "user", role: "USER" }} />
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /Upvote/ })[0]).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      )
+    );
+    rerender(<TicketList currentUser={null} />);
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /Upvote/ })[0]).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      )
+    );
+    expect(screen.getAllByRole("button", { name: /Upvote/ })[0]).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

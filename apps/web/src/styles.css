@@ -776,3 +776,47 @@ footer p {
     display: grid;
   }
 }
+
+.vote-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.vote-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d6dcda;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.vote-controls button[aria-pressed="true"] {
+  border-color: #0b5967;
+  background: #e7f3f1;
+  color: #0b5967;
+  font-weight: 700;
+}
+
+.vote-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.vote-icon {
+  flex: none;
+}
+.vote-icon-down {
+  transform: rotate(180deg);
+}
+.ticket-detail > .voting {
+  margin-top: 1.5rem;
+}

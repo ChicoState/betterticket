@@ -1,10 +1,14 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
+  integer,
   index,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar
 } from "drizzle-orm/pg-core";
@@ -61,4 +65,39 @@ export const ticketReplies = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [index("ticket_replies_ticket_id_created_at_idx").on(table.ticketId, table.createdAt)]
+);
+
+export const ticketReplyVotes = pgTable(
+  "ticket_reply_votes",
+  {
+    replyId: uuid("reply_id")
+      .notNull()
+      .references(() => ticketReplies.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    value: integer().notNull()
+  },
+  (table) => [
+    uniqueIndex("ticket_reply_votes_reply_user_idx").on(table.replyId, table.userId),
+    index("ticket_reply_votes_reply_id_idx").on(table.replyId),
+    check("ticket_reply_votes_value_check", sql`${table.value} in (-1, 1)`)
+  ]
+);
+
+export const ticketVotes = pgTable(
+  "ticket_votes",
+  {
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    value: integer().notNull()
+  },
+  (table) => [
+    uniqueIndex("ticket_votes_ticket_user_idx").on(table.ticketId, table.userId),
+    check("ticket_votes_value_check", sql`${table.value} in (-1, 1)`)
+  ]
 );

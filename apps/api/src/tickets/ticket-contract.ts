@@ -17,7 +17,7 @@ export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
 
 export type TicketPriority = (typeof ticketPriorities)[number];
 
-export const ticketSorts = ["newest", "priority"] as const;
+export const ticketSorts = ["votes", "newest", "priority"] as const;
 
 export type TicketSort = (typeof ticketSorts)[number];
 
@@ -165,7 +165,7 @@ export const ticketListResponseSchema = {
 export const ticketListQuerySchema = {
   type: "object",
   properties: {
-    sort: { type: "string", enum: ticketSorts, default: "newest" }
+    sort: { type: "string", enum: ticketSorts, default: "votes" }
   }
 } as const;
 

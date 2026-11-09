@@ -87,6 +87,18 @@ describe("TicketList", () => {
     );
   });
 
+  it("sorts by most votes by default", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+
+    expect(screen.getByLabelText("Sort tickets")).toHaveValue("votes");
+    expect(screen.getByRole("option", { name: "Most Votes" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets");
+  });
+
   it("requests priority sorting when the sorting control changes", async () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
     vi.stubGlobal("fetch", fetchMock);
@@ -143,7 +155,7 @@ describe("TicketList", () => {
     fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "newest" } });
 
     expect(await screen.findAllByRole("article")).toHaveLength(2);
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets");
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=newest");
   });
 
   it("shows an empty state when no tickets exist", async () => {

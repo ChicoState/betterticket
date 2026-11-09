@@ -89,7 +89,7 @@ class FakeTicketRepository implements TicketRepository {
   readonly created: CreateTicketInput[] = [];
   readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
-  readonly listSorts: Array<"newest" | "priority" | undefined> = [];
+  readonly listSorts: Array<"votes" | "newest" | "priority" | undefined> = [];
   readonly createdReplies: Array<{ ticketId: string; body: string; kind?: ReplyKind }> = [];
   readonly replyListLimits: number[] = [];
   readonly endorsements: Array<{
@@ -133,7 +133,7 @@ class FakeTicketRepository implements TicketRepository {
   async listRecent(
     limit: number,
     _viewer?: { id: string; role: "USER" | "TECHNICIAN" } | null,
-    sort?: "newest" | "priority"
+    sort?: "votes" | "newest" | "priority"
   ): Promise<TicketRecord[]> {
     this.listLimits.push(limit);
     this.listSorts.push(sort);
@@ -669,7 +669,7 @@ describe("GET /api/tickets", () => {
 
     expect(ignored.statusCode).toBe(200);
     expect(rejected.statusCode).toBe(400);
-    expect(repository.listSorts).toEqual(["newest"]);
+    expect(repository.listSorts).toEqual(["votes"]);
   });
 
   it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {

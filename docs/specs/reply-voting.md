@@ -69,7 +69,7 @@ Database tests must use an isolated test database, since the existing integratio
 ## Boundaries
 
 - Always: enforce authorization on the server, preserve existing user work, maintain anonymous reply access, and validate inputs and responses.
-- Ask first: add reply attribution, vote-based sorting, or public voter lists. Ticket-level voting is authorized by the extension below.
+- Ask first: add reply attribution, reply sorting by votes, or public voter lists. Ticket-level voting is authorized by the extension below.
 - Never: trust a submitted user ID, store credentials in tracked files, delete local data, or alter unrelated product behavior.
 
 ## Open Questions
@@ -93,4 +93,14 @@ Requested by the product owner on 2026-11-08: show ticket vote counts and thumbs
 
 `GET /api/tickets` now includes a required `votes` object on each ticket, using the existing vote-state shape. Resolve the viewer from the session, return only that viewer's selection, and use `Cache-Control: private, no-store`. Fetch vote states for all listed IDs in one bounded database query. No extra per-card vote-state requests are needed. Existing authenticated PUT/DELETE endpoints handle votes from either page.
 
-Visitors see counts and disabled controls with a sign-in link. Session resolution and identity changes must not enable voting or show another account's selection. Preserve newest-first ordering, error/retry behavior, and the existing 100-ticket limit. Test direct list voting, changing/removing a vote, independent cards, reload persistence, visitor blocking, and viewer changes.
+Visitors see counts and disabled controls with a sign-in link. Session resolution and identity changes must not enable voting or show another account's selection. Preserve error/retry behavior, and the existing 100-ticket limit. Test direct list voting, changing/removing a vote, independent cards, reload persistence, visitor blocking, and viewer changes.
+
+## Approved Extension: Sort Tickets by Votes
+
+Requested by the product owner on 2026-11-09: the ticket list sorts by votes by default, so the most-supported issues surface first.
+
+- `GET /api/tickets` accepts `sort=votes|newest|priority`. Omitting `sort` means `votes`.
+- Vote order is the net score (upvotes minus downvotes), highest first. Unvoted tickets score 0, so they sort above tickets with a net negative score. Ties fall back to newest first and then ID, so the order is deterministic.
+- PostgreSQL computes the order after visibility filtering and before the 100-ticket limit. Sorting in the browser was rejected because it would only see the tickets that made it under the limit.
+- The `/tickets` sort control offers "Most Votes" (default), "Newest First", and "Priority: High to Low".
+- Reply order is unchanged.

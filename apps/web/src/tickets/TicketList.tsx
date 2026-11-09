@@ -25,7 +25,7 @@ export function TicketList({ currentUser = null }: { currentUser?: Authenticated
   const viewerId = currentUser?.id ?? null;
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const [sort, setSort] = useState<TicketSort>("newest");
+  const [sort, setSort] = useState<TicketSort>("votes");
 
   useEffect(() => {
     let ignore = false;
@@ -67,6 +67,7 @@ export function TicketList({ currentUser = null }: { currentUser?: Authenticated
           value={sort}
           onChange={(event) => changeSort(event.target.value as TicketSort)}
         >
+          <option value="votes">Most Votes</option>
           <option value="newest">Newest First</option>
           <option value="priority">Priority: High to Low</option>
         </select>

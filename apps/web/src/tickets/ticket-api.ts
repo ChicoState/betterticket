@@ -10,7 +10,7 @@ export interface CreateTicketInput {
 
 export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
 export type TicketPriority = (typeof ticketPriorities)[number];
-export const ticketSorts = ["newest", "priority"] as const;
+export const ticketSorts = ["votes", "newest", "priority"] as const;
 export type TicketSort = (typeof ticketSorts)[number];
 
 export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
@@ -135,8 +135,8 @@ function isListedTicket(value: unknown): value is ListedTicket {
   return isTicket(value) && "votes" in value && isVoteState(value.votes);
 }
 
-export async function listTickets(sort: TicketSort = "newest"): Promise<ListedTicket[]> {
-  const response = await fetch(sort === "priority" ? "/api/tickets?sort=priority" : "/api/tickets");
+export async function listTickets(sort: TicketSort = "votes"): Promise<ListedTicket[]> {
+  const response = await fetch(sort === "votes" ? "/api/tickets" : `/api/tickets?sort=${sort}`);
 
   if (!response.ok) {
     throw new Error("Ticket listing failed");

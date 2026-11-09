@@ -165,6 +165,61 @@ describe("PostgresTicketRepository", () => {
     expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
   });
 
+  it("sorts by vote score then newest first by default, before applying the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const voters = await database
+      .insert(users)
+      .values(
+        ["a", "b", "c"].map((name) => ({
+          name,
+          username: `sort.${name}`,
+          passwordHash: "unused",
+          role: "USER" as const
+        }))
+      )
+      .returning();
+    const ticket = (title: string, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    const [popular, disliked, , , mixed] = await database
+      .insert(tickets)
+      .values([
+        ticket("Popular", "2026-09-26T12:00:00.000Z"),
+        ticket("Disliked", "2026-09-30T12:00:00.000Z"),
+        ticket("Unvoted older", "2026-09-27T12:00:00.000Z"),
+        ticket("Unvoted newer", "2026-09-28T12:00:00.000Z"),
+        ticket("Mixed", "2026-09-29T12:00:00.000Z")
+      ])
+      .returning();
+    await database.insert(ticketVotes).values([
+      { ticketId: popular!.id, userId: voters[0]!.id, value: 1 },
+      { ticketId: popular!.id, userId: voters[1]!.id, value: 1 },
+      { ticketId: mixed!.id, userId: voters[0]!.id, value: 1 },
+      { ticketId: mixed!.id, userId: voters[1]!.id, value: 1 },
+      { ticketId: mixed!.id, userId: voters[2]!.id, value: -1 },
+      { ticketId: disliked!.id, userId: voters[0]!.id, value: -1 }
+    ]);
+
+    const titles = async (limit: number) =>
+      (await repository.listRecent(limit)).map((listed) => listed.title);
+
+    expect(await titles(5)).toEqual([
+      "Popular",
+      "Mixed",
+      "Unvoted newer",
+      "Unvoted older",
+      "Disliked"
+    ]);
+    expect(await titles(2)).toEqual(["Popular", "Mixed"]);
+    expect((await repository.listRecent(5, null, "votes")).map((listed) => listed.title)).toEqual(
+      await titles(5)
+    );
+  });
+
   it("sorts by priority then newest first before applying the limit", async () => {
     const repository = new PostgresTicketRepository(database);
     const ticket = (title: string, priority: TicketPriority, createdAt: string) => ({

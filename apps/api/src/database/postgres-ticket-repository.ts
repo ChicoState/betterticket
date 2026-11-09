@@ -75,7 +75,7 @@ export class PostgresTicketRepository implements TicketRepository {
   async listRecent(
     limit: number,
     viewer: TicketViewer | null = null,
-    sort: TicketSort = "newest"
+    sort: TicketSort = "votes"
   ): Promise<TicketRecord[]> {
     const visibilityFilter =
       viewer?.role === "TECHNICIAN"
@@ -91,14 +91,21 @@ export class PostgresTicketRepository implements TicketRepository {
               and(eq(tickets.visibility, "PRIVATE"), eq(tickets.creatorUserId, viewer.id))
             )
           : eq(tickets.visibility, "PUBLIC");
+    const newestFirst = [desc(tickets.createdAt), desc(tickets.id)];
     const orderBy =
       sort === "priority"
         ? [
             sql`CASE ${tickets.priority} WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END`,
-            desc(tickets.createdAt),
-            desc(tickets.id)
+            ...newestFirst
           ]
-        : [desc(tickets.createdAt), desc(tickets.id)];
+        : sort === "votes"
+          ? [
+              desc(
+                sql`(select coalesce(sum(${ticketVotes.value}), 0) from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id})`
+              ),
+              ...newestFirst
+            ]
+          : newestFirst;
     const results = await this.database
       .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)

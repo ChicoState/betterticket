@@ -25,6 +25,7 @@ import type {
   EndorseReplyRecordInput,
   EndorseResult,
   EndorsementRecord,
+  ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
   StatusUpdateResult,
@@ -32,8 +33,10 @@ import type {
   TicketRepository,
   TicketSort,
   TicketViewer,
+  UpdateReplyStatusResult,
   WithdrawResult
 } from "../tickets/ticket-repository.js";
+import type { TicketReplyStatus } from "../tickets/ticket-contract.js";
 
 type Executor = Pick<NodePgDatabase, "select" | "insert" | "update" | "delete">;
 type Transaction = Parameters<Parameters<NodePgDatabase["transaction"]>[0]>[0];
@@ -115,17 +118,33 @@ export class PostgresTicketRepository implements TicketRepository {
     ticketId: string,
     body: string,
     kind: ReplyKind = "COMMENT"
-  ): Promise<ReplyRecord> {
+  ): Promise<ReplyCreationResult> {
     const [reply] = await this.database
       .insert(ticketReplies)
-      .values({ ticketId, body, kind })
+      .select(
+        this.database
+          .select({
+            id: sql<string>`gen_random_uuid()`.as("id"),
+            ticketId: tickets.id,
+            kind: sql<ReplyKind>`${kind}::reply_kind`.as("kind"),
+            body: sql<string>`${body}`.as("body"),
+            createdAt: sql<Date>`now()`.as("created_at")
+          })
+          .from(tickets)
+          .where(and(eq(tickets.id, ticketId), eq(tickets.replyStatus, "OPEN")))
+      )
       .returning();
 
-    if (!reply) {
-      throw new Error("Reply insert did not return a row");
+    if (reply) {
+      return {
+        type: "created",
+        reply: { ...reply, endorsements: [], upvotes: 0, downvotes: 0, userVote: null }
+      };
     }
 
-    return { ...reply, endorsements: [], upvotes: 0, downvotes: 0, userVote: null };
+    return (await this.findById(ticketId))
+      ? { type: "ticket-closed" }
+      : { type: "ticket-not-found" };
   }
 
   async listRecentReplies(
@@ -304,6 +323,28 @@ export class PostgresTicketRepository implements TicketRepository {
       if (!vote) throw new Error("Voted ticket could not be read");
       return { type: "updated", vote };
     });
+  }
+
+  async updateReplyStatus(
+    ticketId: string,
+    ownerUserId: string,
+    replyStatus: TicketReplyStatus
+  ): Promise<UpdateReplyStatusResult> {
+    const [ticket] = await this.database
+      .update(tickets)
+      .set({ replyStatus, updatedAt: new Date() })
+      .where(and(eq(tickets.id, ticketId), eq(tickets.creatorUserId, ownerUserId)))
+      .returning({ id: tickets.id });
+
+    if (ticket) {
+      const updatedTicket = await this.findById(ticketId);
+      if (!updatedTicket) {
+        throw new Error("Ticket update could not be read");
+      }
+      return { type: "updated", ticket: updatedTicket };
+    }
+
+    return (await this.findById(ticketId)) ? { type: "not-owner" } : { type: "ticket-not-found" };
   }
 
   async assignTechnician(

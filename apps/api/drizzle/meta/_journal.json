@@ -68,15 +68,22 @@
     {
       "idx": 9,
       "version": "7",
-      "when": 1793655047085,
-      "tag": "0009_solution_endorsements",
+      "when": 1793655740447,
+      "tag": "0009_ticket_reply_status",
       "breakpoints": true
     },
     {
       "idx": 10,
       "version": "7",
-      "when": 1794249271774,
-      "tag": "0010_ticket_and_reply_votes",
+      "when": 1793828434540,
+      "tag": "0010_solution_endorsements",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794251461910,
+      "tag": "0011_ticket_and_reply_votes",
       "breakpoints": true
     }
   ]

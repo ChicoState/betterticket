@@ -14,6 +14,7 @@ import type {
   CreateTicketInput,
   EndorseReplyRecordInput,
   EndorseResult,
+  ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
   StatusUpdateResult,
@@ -99,6 +100,7 @@ class FakeTicketRepository implements TicketRepository {
   }> = [];
   readonly withdrawals: Array<{ ticketId: string; replyId: string; technicianId: string }> = [];
   endorseResult: EndorseResult = { type: "reply-not-found" };
+  replyCreationFailure: Exclude<ReplyCreationResult, { type: "created" }> | null = null;
   withdrawResult: WithdrawResult = { type: "endorsement-not-found" };
 
   constructor(
@@ -143,19 +145,29 @@ class FakeTicketRepository implements TicketRepository {
     return this.stored.find((ticket) => ticket.id === id) ?? null;
   }
 
-  async createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyRecord> {
+  async createReply(
+    ticketId: string,
+    body: string,
+    kind?: ReplyKind
+  ): Promise<ReplyCreationResult> {
     this.createdReplies.push({ ticketId, body, kind });
+    if (this.replyCreationFailure) {
+      return this.replyCreationFailure;
+    }
 
     return {
-      id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
-      ticketId,
-      kind: kind ?? "COMMENT",
-      body,
-      upvotes: 0,
-      downvotes: 0,
-      userVote: null,
-      createdAt: new Date("2026-10-07T18:00:00.000Z"),
-      endorsements: []
+      type: "created",
+      reply: {
+        id: "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11",
+        ticketId,
+        kind: kind ?? "COMMENT",
+        body,
+        upvotes: 0,
+        downvotes: 0,
+        userVote: null,
+        createdAt: new Date("2026-10-07T18:00:00.000Z"),
+        endorsements: []
+      }
     };
   }
 
@@ -270,6 +282,8 @@ describe("POST /api/tickets", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: "Started after an update.",
       status: "OPEN",
+      replyStatus: "OPEN",
+      canManageReplyStatus: false,
       priority: "MEDIUM",
       visibility: "PUBLIC",
       canReply: true,
@@ -568,6 +582,8 @@ describe("GET /api/tickets", () => {
           setup: "Office printer, macOS 15",
           additionalInformation: null,
           status: "OPEN",
+          replyStatus: "OPEN",
+          canManageReplyStatus: false,
           priority: "MEDIUM",
           visibility: "PUBLIC",
           canReply: true,
@@ -584,6 +600,8 @@ describe("GET /api/tickets", () => {
           setup: "Framework Laptop 13, Fedora 42",
           additionalInformation: "Started after an update.",
           status: "OPEN",
+          replyStatus: "OPEN",
+          canManageReplyStatus: false,
           priority: "MEDIUM",
           visibility: "PUBLIC",
           canReply: true,
@@ -986,6 +1004,8 @@ describe("GET /api/tickets/:id", () => {
     expect(creatorUserId).toBeNull();
     expect(response.json()).toEqual({
       ...publicTicketResponse,
+      replyStatus: "OPEN",
+      canManageReplyStatus: false,
       canReply: true,
       createdAt: "2026-09-28T18:00:00.000Z",
       updatedAt: "2026-09-28T18:00:00.000Z"
@@ -1576,6 +1596,22 @@ describe("ticket replies", () => {
         { ticketId: storedTicket.id, body: "Reinstall the driver.", kind: "SOLUTION" }
       ]);
       expect(response.json()).toMatchObject({ kind: "SOLUTION", endorsements: [] });
+    });
+
+    it("returns the stable closed-ticket conflict for a typed reply", async () => {
+      const repository = new FakeTicketRepository([{ ...storedTicket, replyStatus: "CLOSED" }]);
+      repository.replyCreationFailure = { type: "ticket-closed" };
+
+      const response = await build(repository).inject({
+        method: "POST",
+        url: repliesUrl,
+        payload: { body: "Reinstall the driver.", kind: "SOLUTION" }
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toEqual({
+        error: { code: "TICKET_CLOSED", message: "This ticket is closed to new replies" }
+      });
     });
 
     it.each([

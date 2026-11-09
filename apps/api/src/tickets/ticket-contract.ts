@@ -9,6 +9,10 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketReplyStatuses = ["OPEN", "CLOSED"] as const;
+
+export type TicketReplyStatus = (typeof ticketReplyStatuses)[number];
+
 export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
 
 export type TicketPriority = (typeof ticketPriorities)[number];
@@ -45,6 +49,8 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  replyStatus: TicketReplyStatus;
+  canManageReplyStatus: boolean;
   priority: TicketPriority;
   visibility: TicketVisibility;
   canReply: boolean;
@@ -60,6 +66,10 @@ export interface TicketAssignmentParams {
 
 export interface AssignTechnicianInput {
   assignedTechnicianId: string | null;
+}
+
+export interface UpdateTicketReplyStatusInput {
+  replyStatus: TicketReplyStatus;
 }
 
 export interface UpdateTicketStatusInput {
@@ -98,6 +108,8 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "replyStatus",
+    "canManageReplyStatus",
     "priority",
     "visibility",
     "canReply",
@@ -113,6 +125,8 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    replyStatus: { type: "string", enum: ticketReplyStatuses },
+    canManageReplyStatus: { type: "boolean" },
     priority: { type: "string", enum: ticketPriorities },
     visibility: { type: "string", enum: ticketVisibilities },
     canReply: { type: "boolean" },
@@ -165,6 +179,15 @@ export const ticketParamsSchema = {
   required: ["id"],
   properties: {
     id: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const updateTicketReplyStatusBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["replyStatus"],
+  properties: {
+    replyStatus: { type: "string", enum: ticketReplyStatuses }
   }
 } as const;
 

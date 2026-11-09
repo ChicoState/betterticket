@@ -5,9 +5,11 @@ import { TicketReplyVote } from "./ticket_voted_solution.js";
 import {
   createReply,
   listReplies,
+  TicketClosedError,
   type Reply,
   type ReplyKind,
   type Ticket,
+  type TicketReplyStatus,
   type TicketStatus,
   type TicketVisibility
 } from "./ticket-api.js";
@@ -21,7 +23,9 @@ type SubmissionState =
 
 interface TicketRepliesProps {
   ticketId: string;
-  visibility: TicketVisibility;
+  replyStatus?: TicketReplyStatus;
+  onTicketClosed?: () => void;
+  visibility?: TicketVisibility;
   ticketStatus?: TicketStatus;
   isTechnician?: boolean;
   currentUser?: AuthenticatedUser | null;
@@ -42,7 +46,9 @@ export function sortSolutions(replies: Reply[]): Reply[] {
 
 export function TicketReplies({
   ticketId,
-  visibility,
+  replyStatus = "OPEN",
+  onTicketClosed = () => {},
+  visibility = "PUBLIC",
   ticketStatus = "OPEN",
   isTechnician = false,
   currentUser = null,
@@ -95,7 +101,10 @@ export function TicketReplies({
           : current
       );
       setSubmission({ type: "success" });
-    } catch {
+    } catch (error) {
+      if (error instanceof TicketClosedError) {
+        onTicketClosed();
+      }
       setSubmission({ type: "error" });
     }
   }
@@ -204,62 +213,66 @@ export function TicketReplies({
             )}
           </section>
 
-          <form className="reply-form" onSubmit={handleSubmit}>
-            <fieldset disabled={submission.type === "submitting"}>
-              <legend>Add a reply</legend>
+          {replyStatus === "CLOSED" ? (
+            <p className="list-message">This ticket is closed to new replies.</p>
+          ) : (
+            <form className="reply-form" onSubmit={handleSubmit}>
+              <fieldset disabled={submission.type === "submitting"}>
+                <legend>Add a reply</legend>
 
-              <fieldset className="reply-kind">
-                <legend>What are you posting?</legend>
-                <div className="checkbox-field">
-                  <input
-                    id="reply-kind-solution"
-                    name="kind"
-                    type="radio"
-                    value="SOLUTION"
+                <fieldset className="reply-kind">
+                  <legend>What are you posting?</legend>
+                  <div className="checkbox-field">
+                    <input
+                      id="reply-kind-solution"
+                      name="kind"
+                      type="radio"
+                      value="SOLUTION"
+                      required
+                    />
+                    <label htmlFor="reply-kind-solution">Suggest a solution</label>
+                  </div>
+                  <div className="checkbox-field">
+                    <input id="reply-kind-comment" name="kind" type="radio" value="COMMENT" />
+                    <label htmlFor="reply-kind-comment">Add a comment</label>
+                  </div>
+                </fieldset>
+
+                <div className="field">
+                  <label htmlFor="reply-body">Your reply</label>
+                  <p className="field-hint" id="reply-body-hint">
+                    {visibility === "PUBLIC"
+                      ? "Replies are anonymous and publicly visible. You can reply without an account."
+                      : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
+                  </p>
+                  <textarea
+                    id="reply-body"
+                    name="body"
+                    rows={4}
+                    maxLength={5_000}
+                    aria-describedby="reply-body-hint"
                     required
                   />
-                  <label htmlFor="reply-kind-solution">Suggest a solution</label>
                 </div>
-                <div className="checkbox-field">
-                  <input id="reply-kind-comment" name="kind" type="radio" value="COMMENT" />
-                  <label htmlFor="reply-kind-comment">Add a comment</label>
-                </div>
+
+                <button className="submit-button" type="submit">
+                  {submission.type === "submitting" ? "Posting reply…" : "Post reply"}
+                </button>
               </fieldset>
 
-              <div className="field">
-                <label htmlFor="reply-body">Your reply</label>
-                <p className="field-hint" id="reply-body-hint">
-                  {visibility === "PUBLIC"
-                    ? "Replies are anonymous and publicly visible. You can reply without an account."
-                    : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
-                </p>
-                <textarea
-                  id="reply-body"
-                  name="body"
-                  rows={4}
-                  maxLength={5_000}
-                  aria-describedby="reply-body-hint"
-                  required
-                />
+              <div className="submission-message" aria-live="polite">
+                {submission.type === "success" ? (
+                  <p className="success-message">Your reply has been posted.</p>
+                ) : null}
               </div>
 
-              <button className="submit-button" type="submit">
-                {submission.type === "submitting" ? "Posting reply…" : "Post reply"}
-              </button>
-            </fieldset>
-
-            <div className="submission-message" aria-live="polite">
-              {submission.type === "success" ? (
-                <p className="success-message">Your reply has been posted.</p>
+              {submission.type === "error" ? (
+                <p className="error-message" role="alert">
+                  We couldn&apos;t post your reply. Please try again.
+                </p>
               ) : null}
-            </div>
-
-            {submission.type === "error" ? (
-              <p className="error-message" role="alert">
-                We couldn&apos;t post your reply. Please try again.
-              </p>
-            ) : null}
-          </form>
+            </form>
+          )}
         </>
       ) : null}
     </section>

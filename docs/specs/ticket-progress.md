@@ -10,7 +10,8 @@ the date and time the ticket was last updated.
 
 Ticket responses continue to expose `status` and `updatedAt`. The only approved status values are
 `OPEN`, `UNDER_REVIEW`, `IN_PROGRESS`, `RESOLVED`, and `COMPLETED`. New tickets always start
-`OPEN`.
+`OPEN`. Reply closure is an independent lifecycle defined in [ticket closure](ticket-closure.md) and
+does not alter progress status.
 
 The approved forward-only lifecycle is:
 

@@ -26,6 +26,12 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketReplyStatuses = ["OPEN", "CLOSED"] as const;
+
+export type TicketReplyStatus = (typeof ticketReplyStatuses)[number];
+
+export class TicketClosedError extends Error {}
+
 export interface CreatedTicket {
   id: string;
 }
@@ -62,6 +68,8 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  replyStatus?: TicketReplyStatus;
+  canManageReplyStatus?: boolean;
   priority: TicketPriority;
   visibility: TicketVisibility;
   canReply: boolean;
@@ -85,6 +93,10 @@ export function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
 
+function isTicketReplyStatus(value: unknown): value is TicketReplyStatus {
+  return typeof value === "string" && ticketReplyStatuses.includes(value as TicketReplyStatus);
+}
+
 function isTicketPriority(value: unknown): value is TicketPriority {
   return typeof value === "string" && ticketPriorities.includes(value as TicketPriority);
 }
@@ -103,6 +115,9 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
+    (ticket.replyStatus === undefined || isTicketReplyStatus(ticket.replyStatus)) &&
+    (ticket.canManageReplyStatus === undefined ||
+      typeof ticket.canManageReplyStatus === "boolean") &&
     isTicketPriority(ticket.priority) &&
     ticketVisibilities.includes(ticket.visibility as TicketVisibility) &&
     typeof ticket.canReply === "boolean" &&
@@ -301,6 +316,9 @@ export async function createReply(ticketId: string, body: string, kind: ReplyKin
     body: JSON.stringify({ body, kind })
   });
 
+  if (response.status === 409) {
+    throw new TicketClosedError("This ticket is closed to new replies");
+  }
   if (!response.ok) {
     throw new Error("Reply creation failed");
   }
@@ -373,6 +391,28 @@ async function readVoteResponse(response: Response): Promise<VoteState> {
   const state: unknown = await response.json();
   if (!isVoteState(state)) throw new Error("Voting returned an invalid response");
   return state;
+}
+
+export async function updateTicketReplyStatus(
+  ticketId: string,
+  replyStatus: TicketReplyStatus
+): Promise<Ticket> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/reply-status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ replyStatus })
+  });
+
+  if (!response.ok) {
+    throw new Error("Ticket reply status update failed");
+  }
+
+  const ticket: unknown = await response.json();
+  if (!isTicket(ticket)) {
+    throw new Error("Ticket reply status update returned an invalid response");
+  }
+
+  return ticket;
 }
 
 export class EndorsementError extends Error {

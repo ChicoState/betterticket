@@ -5,12 +5,15 @@ import type { AuthenticatedUser } from "../auth/auth-api.js";
 import {
   getTicket,
   TicketStatusUpdateError,
+  updateTicketReplyStatus,
   updateTicketStatus,
   type Ticket,
+  type TicketReplyStatus,
   type TicketStatus
 } from "./ticket-api.js";
 import {
   formatCreatedAt,
+  formatReplyStatus,
   formatStatus,
   formatVisibility,
   getNextProgressStatus,
@@ -39,6 +42,7 @@ interface TicketDetailProps {
 export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [replyStatusUpdate, setReplyStatusUpdate] = useState<"idle" | "saving" | "error">("idle");
   const [statusUpdate, setStatusUpdate] = useState<StatusUpdateState>({ type: "idle" });
 
   useEffect(() => {
@@ -65,6 +69,20 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
   function retry() {
     setLoad({ type: "loading" });
     setAttempt((current) => current + 1);
+  }
+
+  async function changeReplyStatus(replyStatus: TicketReplyStatus) {
+    if (load.type !== "loaded") {
+      return;
+    }
+    setReplyStatusUpdate("saving");
+    try {
+      const ticket = await updateTicketReplyStatus(load.ticket.id, replyStatus);
+      setLoad({ type: "loaded", ticket });
+      setReplyStatusUpdate("idle");
+    } catch {
+      setReplyStatusUpdate("error");
+    }
   }
 
   async function updateStatus(status: TicketStatus) {
@@ -123,14 +141,40 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
       <article className="ticket-card ticket-detail" aria-labelledby="page-title">
         <header className="ticket-card-header">
           <h1 id="page-title">{ticket.title}</h1>
-          <span className="ticket-badges">
+          <div className="ticket-detail-header-actions">
             <span className="status-badge">{formatStatus(ticket.status)}</span>
+            <span className="reply-status-badge">
+              {formatReplyStatus(ticket.replyStatus ?? "OPEN")}
+            </span>
+            {ticket.canManageReplyStatus ? (
+              <button
+                className="submit-button"
+                type="button"
+                disabled={replyStatusUpdate === "saving"}
+                onClick={() =>
+                  void changeReplyStatus(ticket.replyStatus === "OPEN" ? "CLOSED" : "OPEN")
+                }
+              >
+                {replyStatusUpdate === "saving"
+                  ? "Saving…"
+                  : ticket.replyStatus === "OPEN"
+                    ? "Close ticket"
+                    : "Reopen ticket"}
+              </button>
+            ) : null}
+          </div>
+          <span className="ticket-badges">
             <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
             <span className="priority-badge">
               {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
             </span>
           </span>
         </header>
+        {replyStatusUpdate === "error" ? (
+          <p className="error-message" role="alert">
+            We couldn&apos;t update reply status. Please try again.
+          </p>
+        ) : null}
         <p className="ticket-meta">
           Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
           <time dateTime={ticket.createdAt}>{formatCreatedAt(ticket.createdAt)}</time> · Created by{" "}
@@ -212,6 +256,8 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
         key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
         ticketId={ticket.id}
         currentUser={currentUser}
+        replyStatus={ticket.replyStatus ?? "OPEN"}
+        onTicketClosed={retry}
         visibility={ticket.visibility}
         ticketStatus={ticket.status}
         isTechnician={currentUser?.role === "TECHNICIAN"}

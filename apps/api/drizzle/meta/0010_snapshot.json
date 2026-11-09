@@ -1,6 +1,6 @@
 {
-  "id": "36eed596-034e-4bd2-8fd5-461749d6c66e",
-  "prevId": "9e6afd09-ec65-42ac-afc3-c37c7c7aaffa",
+  "id": "7e14db29-a547-43bf-8ed9-ac66278058c8",
+  "prevId": "d345d488-d0eb-4234-b89c-d53ee363568e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -374,175 +374,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ticket_reply_votes": {
-      "name": "ticket_reply_votes",
-      "schema": "",
-      "columns": {
-        "reply_id": {
-          "name": "reply_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "ticket_reply_votes_reply_user_idx": {
-          "name": "ticket_reply_votes_reply_user_idx",
-          "columns": [
-            {
-              "expression": "reply_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ticket_reply_votes_reply_id_idx": {
-          "name": "ticket_reply_votes_reply_id_idx",
-          "columns": [
-            {
-              "expression": "reply_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "ticket_reply_votes_reply_id_ticket_replies_id_fk": {
-          "name": "ticket_reply_votes_reply_id_ticket_replies_id_fk",
-          "tableFrom": "ticket_reply_votes",
-          "tableTo": "ticket_replies",
-          "columnsFrom": ["reply_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ticket_reply_votes_user_id_users_id_fk": {
-          "name": "ticket_reply_votes_user_id_users_id_fk",
-          "tableFrom": "ticket_reply_votes",
-          "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "ticket_reply_votes_value_check": {
-          "name": "ticket_reply_votes_value_check",
-          "value": "\"ticket_reply_votes\".\"value\" in (-1, 1)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.ticket_votes": {
-      "name": "ticket_votes",
-      "schema": "",
-      "columns": {
-        "ticket_id": {
-          "name": "ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "ticket_votes_ticket_user_idx": {
-          "name": "ticket_votes_ticket_user_idx",
-          "columns": [
-            {
-              "expression": "ticket_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "ticket_votes_ticket_id_tickets_id_fk": {
-          "name": "ticket_votes_ticket_id_tickets_id_fk",
-          "tableFrom": "ticket_votes",
-          "tableTo": "tickets",
-          "columnsFrom": ["ticket_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ticket_votes_user_id_users_id_fk": {
-          "name": "ticket_votes_user_id_users_id_fk",
-          "tableFrom": "ticket_votes",
-          "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "ticket_votes_value_check": {
-          "name": "ticket_votes_value_check",
-          "value": "\"ticket_votes\".\"value\" in (-1, 1)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.tickets": {
       "name": "tickets",
       "schema": "",
@@ -581,6 +412,14 @@
         "status": {
           "name": "status",
           "type": "ticket_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'OPEN'"
+        },
+        "replyStatus": {
+          "name": "replyStatus",
+          "type": "ticket_reply_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -725,6 +564,11 @@
       "name": "ticket_priority",
       "schema": "public",
       "values": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "public.ticket_reply_status": {
+      "name": "ticket_reply_status",
+      "schema": "public",
+      "values": ["OPEN", "CLOSED"]
     },
     "public.ticket_status": {
       "name": "ticket_status",

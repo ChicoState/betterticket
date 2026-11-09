@@ -152,6 +152,40 @@ describe("TicketReplies", () => {
     ]);
   });
 
+  it("shows existing replies but no form when the ticket is closed", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ replies: [firstReply] })));
+    render(<TicketReplies ticketId={ticketId} replyStatus="CLOSED" />);
+
+    expect(await screen.findByText(firstReply.body)).toBeInTheDocument();
+    expect(screen.getByText("This ticket is closed to new replies.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Post reply" })).not.toBeInTheDocument();
+  });
+
+  it("keeps technician endorsement controls available when new replies are closed", async () => {
+    const suggestedSolution = solution(
+      "a0000000-0000-4000-8000-000000000010",
+      "Reinstall driver",
+      0
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ replies: [suggestedSolution] }))
+    );
+
+    render(
+      <TicketReplies
+        ticketId={ticketId}
+        replyStatus="CLOSED"
+        ticketStatus="IN_PROGRESS"
+        isTechnician
+      />
+    );
+
+    expect(await screen.findByRole("button", { name: "Endorse" })).toBeInTheDocument();
+    expect(screen.getByText("This ticket is closed to new replies.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Post reply" })).not.toBeInTheDocument();
+  });
+
   it("shows an accessible error and retries on request", async () => {
     const fetchMock = vi
       .fn()

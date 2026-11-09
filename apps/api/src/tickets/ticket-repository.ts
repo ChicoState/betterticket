@@ -2,6 +2,7 @@ import type {
   CreateTicketInput,
   ReplyKind,
   TicketPriority,
+  TicketReplyStatus,
   TicketSort,
   TicketStatus
 } from "./ticket-contract.js";
@@ -17,6 +18,7 @@ export interface TicketRecord {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  replyStatus?: TicketReplyStatus;
   priority: TicketPriority;
   visibility: TicketVisibility;
   creatorUserId: string | null;
@@ -72,6 +74,14 @@ export type AssignmentResult =
   | { type: "ticket-not-found" }
   | { type: "invalid-technician" };
 
+export type ReplyCreationResult =
+  | { type: "created"; reply: ReplyRecord }
+  | { type: "ticket-not-found" }
+  | { type: "ticket-closed" };
+
+export type UpdateReplyStatusResult =
+  { type: "updated"; ticket: TicketRecord } | { type: "ticket-not-found" } | { type: "not-owner" };
+
 export type StatusUpdateResult =
   | { type: "updated"; ticket: TicketRecord }
   | { type: "unchanged"; ticket: TicketRecord }
@@ -99,7 +109,7 @@ export interface TicketRepository {
     sort?: TicketSort
   ): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
-  createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyRecord>;
+  createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyCreationResult>;
   listRecentReplies(ticketId: string, limit: number, userId?: string): Promise<ReplyRecord[]>;
   setReplyVote(
     ticketId: string,
@@ -107,6 +117,11 @@ export interface TicketRepository {
     userId: string,
     value: VoteValue | null
   ): Promise<SetReplyVoteResult>;
+  updateReplyStatus?(
+    ticketId: string,
+    ownerUserId: string,
+    replyStatus: TicketReplyStatus
+  ): Promise<UpdateReplyStatusResult>;
   assignTechnician(
     ticketId: string,
     assignedTechnicianId: string | null

@@ -12,6 +12,8 @@ const tickets = [
     setup: "Office printer, macOS 15",
     additionalInformation: null,
     status: "IN_PROGRESS",
+    replyStatus: "CLOSED",
+    canManageReplyStatus: false,
     priority: "HIGH",
     visibility: "AUTHENTICATED",
     canReply: true,
@@ -27,6 +29,8 @@ const tickets = [
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: "Started after an update.",
     status: "OPEN",
+    replyStatus: "OPEN",
+    canManageReplyStatus: false,
     priority: "LOW",
     visibility: "PUBLIC",
     canReply: true,
@@ -65,6 +69,9 @@ describe("TicketList", () => {
     const [printer, laptop] = items as [HTMLElement, HTMLElement];
     expect(within(printer).getByText("In progress")).toBeInTheDocument();
     expect(within(printer).getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
+    expect(
+      within(printer).getByText("Closed to replies", { selector: ".reply-status-badge" })
+    ).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
     expect(within(printer).getByText(/Created by Terry Technician/)).toBeInTheDocument();

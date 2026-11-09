@@ -21,6 +21,7 @@ export const ticketStatus = pgEnum("ticket_status", [
   "RESOLVED",
   "COMPLETED"
 ]);
+export const ticketReplyStatus = pgEnum("ticket_reply_status", ["OPEN", "CLOSED"]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
 export const ticketPriority = pgEnum("ticket_priority", ["LOW", "MEDIUM", "HIGH"]);
 export const ticketVisibility = pgEnum("ticket_visibility", ["PUBLIC", "AUTHENTICATED", "PRIVATE"]);
@@ -49,6 +50,7 @@ export const tickets = pgTable("tickets", {
   setup: text().notNull(),
   additionalInformation: text("additional_information"),
   status: ticketStatus().default("OPEN").notNull(),
+  replyStatus: ticketReplyStatus().default("OPEN").notNull(),
   priority: ticketPriority().default("MEDIUM").notNull(),
   visibility: ticketVisibility().default("PUBLIC").notNull(),
   creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),

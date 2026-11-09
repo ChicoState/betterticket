@@ -61,6 +61,7 @@ describe("PostgresTicketRepository", () => {
     );
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
+    expect(created.replyStatus).toBe("OPEN");
   });
 
   it("lists the most recently created tickets first up to the limit", async () => {
@@ -227,19 +228,23 @@ describe("PostgresTicketRepository", () => {
     const initialUpdatedAt = new Date("2026-09-01T12:00:00.000Z");
     await database
       .update(tickets)
-      .set({ updatedAt: initialUpdatedAt })
+      .set({ replyStatus: "CLOSED", updatedAt: initialUpdatedAt })
       .where(eq(tickets.id, ticket.id));
 
     for (const status of ["UNDER_REVIEW", "IN_PROGRESS", "RESOLVED"] as const) {
       const result = await repository.updateStatus(ticket.id, status, actorId);
 
-      expect(result).toMatchObject({ type: "updated", ticket: { status } });
+      expect(result).toMatchObject({
+        type: "updated",
+        ticket: { status, replyStatus: "CLOSED" }
+      });
       if (result.type !== "updated") {
         throw new Error("Expected a successful status update");
       }
     }
 
     const finalTicket = await repository.findById(ticket.id);
+    expect(finalTicket?.replyStatus).toBe("CLOSED");
     expect(finalTicket?.updatedAt.getTime()).toBeGreaterThan(initialUpdatedAt.getTime());
   });
 
@@ -362,12 +367,15 @@ describe("PostgresTicketRepository", () => {
     const created = await repository.createReply(ticket.id, "Third");
 
     expect(created).toMatchObject({
-      ticketId: ticket.id,
-      body: "Third",
-      kind: "COMMENT",
-      endorsements: []
+      type: "created",
+      reply: {
+        ticketId: ticket.id,
+        body: "Third",
+        kind: "COMMENT",
+        endorsements: []
+      }
     });
-    expect(created.createdAt).toBeInstanceOf(Date);
+    expect(created.type === "created" && created.reply.createdAt).toBeInstanceOf(Date);
     expect((await repository.listRecentReplies(ticket.id, 10)).map((reply) => reply.body)).toEqual([
       "First",
       "Second",
@@ -400,7 +408,40 @@ describe("PostgresTicketRepository", () => {
 
     await expect(
       repository.createReply("00000000-0000-4000-8000-000000000000", "Orphan")
-    ).rejects.toThrow();
+    ).resolves.toEqual({
+      type: "ticket-not-found"
+    });
+  });
+
+  it("lets the stored owner close and reopen replies without changing progress", async () => {
+    const [owner] = await database
+      .insert(users)
+      .values({ name: "Uma User", username: "uma", passwordHash: "not-used", role: "USER" })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create(
+      { title: "Title", description: "Description", setup: "Setup", postAnonymously: true },
+      owner!
+    );
+
+    const closed = await repository.updateReplyStatus(ticket.id, owner!.id, "CLOSED");
+    const deniedReply = await repository.createReply(ticket.id, "Too late", "SOLUTION");
+    const reopened = await repository.updateReplyStatus(ticket.id, owner!.id, "OPEN");
+    const acceptedReply = await repository.createReply(ticket.id, "Try again", "SOLUTION");
+
+    expect(closed).toMatchObject({
+      type: "updated",
+      ticket: { replyStatus: "CLOSED", status: "OPEN", priority: "MEDIUM" }
+    });
+    expect(deniedReply).toEqual({ type: "ticket-closed" });
+    expect(reopened).toMatchObject({
+      type: "updated",
+      ticket: { replyStatus: "OPEN", status: "OPEN", priority: "MEDIUM" }
+    });
+    expect(acceptedReply).toMatchObject({
+      type: "created",
+      reply: { kind: "SOLUTION", endorsements: [] }
+    });
   });
 
   it("assigns, reassigns, and unassigns technicians without changing status", async () => {
@@ -485,7 +526,7 @@ describe("PostgresTicketRepository", () => {
   it("persists account votes, switches/removes them, and keeps viewer state private", async () => {
     const repository = new PostgresTicketRepository(database);
     const ticket = await repository.create({ title: "Voting", description: "Test", setup: "Test" });
-    const reply = await repository.createReply(ticket.id, "Try a restart");
+    const reply = await createdReply(repository, ticket.id, "Try a restart");
     const [first, second] = await database
       .insert(users)
       .values([
@@ -530,7 +571,7 @@ describe("PostgresTicketRepository", () => {
     const input = { title: "Voting", description: "Test", setup: "Test" };
     const ticket = await repository.create(input);
     const other = await repository.create(input);
-    const reply = await repository.createReply(ticket.id, "Reply");
+    const reply = await createdReply(repository, ticket.id, "Reply");
     const [user] = await database
       .insert(users)
       .values({ name: "Voter", username: "voter", passwordHash: "unused", role: "USER" })
@@ -556,7 +597,7 @@ describe("PostgresTicketRepository", () => {
       description: "Test",
       setup: "Test"
     });
-    const reply = await repository.createReply(ticket.id, "Reply");
+    const reply = await createdReply(repository, ticket.id, "Reply");
     const [first, second] = await database
       .insert(users)
       .values([
@@ -661,8 +702,15 @@ describe("PostgresTicketRepository", () => {
       const repository = new PostgresTicketRepository(database);
       const ticket = await repository.create(input, owner!);
       await database.update(tickets).set({ status }).where(eq(tickets.id, ticket.id));
-      const solution = await repository.createReply(ticket.id, "Reinstall the driver.", "SOLUTION");
-      const comment = await repository.createReply(ticket.id, "Same here.");
+      const solutionResult = await repository.createReply(
+        ticket.id,
+        "Reinstall the driver.",
+        "SOLUTION"
+      );
+      const commentResult = await repository.createReply(ticket.id, "Same here.");
+      if (solutionResult.type !== "created" || commentResult.type !== "created") {
+        throw new Error("Endorsement seed replies were not created");
+      }
 
       return {
         repository,
@@ -670,8 +718,8 @@ describe("PostgresTicketRepository", () => {
         technician: technician!,
         otherTechnician: otherTechnician!,
         ticket,
-        solution,
-        comment
+        solution: solutionResult.reply,
+        comment: commentResult.reply
       };
     }
 
@@ -802,3 +850,9 @@ describe("PostgresTicketRepository", () => {
     });
   });
 });
+
+async function createdReply(repository: PostgresTicketRepository, ticketId: string, body: string) {
+  const result = await repository.createReply(ticketId, body);
+  if (result.type !== "created") throw new Error("Vote seed reply was not created");
+  return result.reply;
+}

@@ -1,5 +1,5 @@
 {
-  "id": "8829430d-9c23-412a-b9a0-e8bcdcae8475",
+  "id": "f6e5bd7d-d6e6-441d-8a12-bd105a65be10",
   "prevId": "f306961d-c926-4121-9fa5-bcbd972e3acf",
   "version": "7",
   "dialect": "postgresql",
@@ -116,98 +116,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.ticket_reply_votes": {
-      "name": "ticket_reply_votes",
-      "schema": "",
-      "columns": {
-        "reply_id": {
-          "name": "reply_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "ticket_reply_votes_reply_user_idx": {
-          "name": "ticket_reply_votes_reply_user_idx",
-          "columns": [
-            {
-              "expression": "reply_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ticket_reply_votes_reply_id_idx": {
-          "name": "ticket_reply_votes_reply_id_idx",
-          "columns": [
-            {
-              "expression": "reply_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "ticket_reply_votes_reply_id_ticket_replies_id_fk": {
-          "name": "ticket_reply_votes_reply_id_ticket_replies_id_fk",
-          "tableFrom": "ticket_reply_votes",
-          "tableTo": "ticket_replies",
-          "columnsFrom": ["reply_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ticket_reply_votes_user_id_users_id_fk": {
-          "name": "ticket_reply_votes_user_id_users_id_fk",
-          "tableFrom": "ticket_reply_votes",
-          "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "ticket_reply_votes_value_check": {
-          "name": "ticket_reply_votes_value_check",
-          "value": "\"ticket_reply_votes\".\"value\" in (-1, 1)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.tickets": {
       "name": "tickets",
       "schema": "",
@@ -250,6 +158,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'OPEN'"
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "ticket_visibility",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PUBLIC'"
         },
         "creator_user_id": {
           "name": "creator_user_id",
@@ -369,6 +285,11 @@
       "name": "ticket_status",
       "schema": "public",
       "values": ["OPEN", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "COMPLETED"]
+    },
+    "public.ticket_visibility": {
+      "name": "ticket_visibility",
+      "schema": "public",
+      "values": ["PUBLIC", "AUTHENTICATED", "PRIVATE"]
     },
     "public.user_role": {
       "name": "user_role",

@@ -4,7 +4,17 @@ export interface CreateTicketInput {
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  priority?: TicketPriority;
+  visibility?: TicketVisibility;
 }
+
+export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
+export type TicketPriority = (typeof ticketPriorities)[number];
+export const ticketSorts = ["newest", "priority"] as const;
+export type TicketSort = (typeof ticketSorts)[number];
+
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
 
 export const ticketStatuses = [
   "OPEN",
@@ -52,6 +62,9 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  priority: TicketPriority;
+  visibility: TicketVisibility;
+  canReply: boolean;
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
@@ -68,8 +81,12 @@ export class TicketStatusUpdateError extends Error {
   }
 }
 
-function isTicketStatus(value: unknown): value is TicketStatus {
+export function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
+}
+
+function isTicketPriority(value: unknown): value is TicketPriority {
+  return typeof value === "string" && ticketPriorities.includes(value as TicketPriority);
 }
 
 function isTicket(value: unknown): value is Ticket {
@@ -86,6 +103,9 @@ function isTicket(value: unknown): value is Ticket {
     typeof ticket.setup === "string" &&
     (typeof ticket.additionalInformation === "string" || ticket.additionalInformation === null) &&
     isTicketStatus(ticket.status) &&
+    isTicketPriority(ticket.priority) &&
+    ticketVisibilities.includes(ticket.visibility as TicketVisibility) &&
+    typeof ticket.canReply === "boolean" &&
     (typeof ticket.createdByName === "string" || ticket.createdByName === null) &&
     typeof ticket.createdAt === "string" &&
     typeof ticket.updatedAt === "string"
@@ -100,8 +120,8 @@ function isListedTicket(value: unknown): value is ListedTicket {
   return isTicket(value) && "votes" in value && isVoteState(value.votes);
 }
 
-export async function listTickets(): Promise<ListedTicket[]> {
-  const response = await fetch("/api/tickets");
+export async function listTickets(sort: TicketSort = "newest"): Promise<ListedTicket[]> {
+  const response = await fetch(sort === "priority" ? "/api/tickets?sort=priority" : "/api/tickets");
 
   if (!response.ok) {
     throw new Error("Ticket listing failed");
@@ -154,6 +174,26 @@ function isApiError(value: unknown): value is { error: { code?: unknown; message
   return typeof error === "object" && error !== null;
 }
 
+async function readApiError(
+  response: Response,
+  fallbackMessage: string
+): Promise<{ code: string | undefined; message: string }> {
+  try {
+    const body: unknown = await response.json();
+    if (isApiError(body)) {
+      const error = body.error as { code?: unknown; message?: unknown };
+      return {
+        code: typeof error.code === "string" ? error.code : undefined,
+        message: typeof error.message === "string" ? error.message : fallbackMessage
+      };
+    }
+  } catch {
+    // Use the stable client message when the server does not return JSON.
+  }
+
+  return { code: undefined, message: fallbackMessage };
+}
+
 export async function updateTicketStatus(ticketId: string, status: TicketStatus): Promise<Ticket> {
   const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/status`, {
     method: "PATCH",
@@ -162,20 +202,7 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
   });
 
   if (!response.ok) {
-    let code: string | undefined;
-    let message = "Ticket status update failed";
-
-    try {
-      const body: unknown = await response.json();
-      if (isApiError(body)) {
-        const error = body.error as { code?: unknown; message?: unknown };
-        code = typeof error.code === "string" ? error.code : undefined;
-        message = typeof error.message === "string" ? error.message : message;
-      }
-    } catch {
-      // Use the stable client message when the server does not return JSON.
-    }
-
+    const { code, message } = await readApiError(response, "Ticket status update failed");
     throw new TicketStatusUpdateError(message, response.status, code);
   }
 
@@ -187,10 +214,41 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
   return body;
 }
 
+export const replyKinds = ["SOLUTION", "COMMENT"] as const;
+export type ReplyKind = (typeof replyKinds)[number];
+
+export interface Endorsement {
+  id: string;
+  technicianName: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isOwn: boolean;
+}
+
 export interface Reply extends VoteState {
   id: string;
+  kind: ReplyKind;
   body: string;
   createdAt: string;
+  endorsements: Endorsement[];
+}
+
+function isEndorsement(value: unknown): value is Endorsement {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const endorsement = value as Record<string, unknown>;
+
+  return (
+    typeof endorsement.id === "string" &&
+    typeof endorsement.technicianName === "string" &&
+    (typeof endorsement.notes === "string" || endorsement.notes === null) &&
+    typeof endorsement.createdAt === "string" &&
+    typeof endorsement.updatedAt === "string" &&
+    typeof endorsement.isOwn === "boolean"
+  );
 }
 
 function isReply(value: unknown): value is Reply {
@@ -203,8 +261,11 @@ function isReply(value: unknown): value is Reply {
   return (
     isVoteState(reply) &&
     typeof reply.id === "string" &&
+    replyKinds.includes(reply.kind as ReplyKind) &&
     typeof reply.body === "string" &&
-    typeof reply.createdAt === "string"
+    typeof reply.createdAt === "string" &&
+    Array.isArray(reply.endorsements) &&
+    reply.endorsements.every(isEndorsement)
   );
 }
 
@@ -233,11 +294,11 @@ export async function listReplies(ticketId: string): Promise<Reply[]> {
   return body.replies;
 }
 
-export async function createReply(ticketId: string, body: string): Promise<Reply> {
+export async function createReply(ticketId: string, body: string, kind: ReplyKind): Promise<Reply> {
   const response = await fetch(repliesUrl(ticketId), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ body })
+    body: JSON.stringify({ body, kind })
   });
 
   if (!response.ok) {
@@ -312,4 +373,64 @@ async function readVoteResponse(response: Response): Promise<VoteState> {
   const state: unknown = await response.json();
   if (!isVoteState(state)) throw new Error("Voting returned an invalid response");
   return state;
+}
+
+export class EndorsementError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | undefined
+  ) {
+    super(message);
+    this.name = "EndorsementError";
+  }
+}
+
+export interface EndorseReplyInput {
+  notes: string;
+  markResolved: boolean;
+}
+
+function endorsementUrl(ticketId: string, replyId: string): string {
+  return `${repliesUrl(ticketId)}/${encodeURIComponent(replyId)}/endorsement`;
+}
+
+export async function endorseReply(
+  ticketId: string,
+  replyId: string,
+  input: EndorseReplyInput
+): Promise<{ reply: Reply; ticket: Ticket }> {
+  const response = await fetch(endorsementUrl(ticketId, replyId), {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    const { code, message } = await readApiError(response, "Endorsement failed");
+    throw new EndorsementError(message, response.status, code);
+  }
+
+  const body: unknown = await response.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("reply" in body) ||
+    !("ticket" in body) ||
+    !isReply(body.reply) ||
+    !isTicket(body.ticket)
+  ) {
+    throw new Error("Endorsement returned an invalid response");
+  }
+
+  return { reply: body.reply, ticket: body.ticket };
+}
+
+export async function withdrawEndorsement(ticketId: string, replyId: string): Promise<void> {
+  const response = await fetch(endorsementUrl(ticketId, replyId), { method: "DELETE" });
+
+  if (!response.ok) {
+    const { code, message } = await readApiError(response, "Endorsement withdrawal failed");
+    throw new EndorsementError(message, response.status, code);
+  }
 }

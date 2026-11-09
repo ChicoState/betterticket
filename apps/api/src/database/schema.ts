@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   varchar
@@ -21,6 +22,9 @@ export const ticketStatus = pgEnum("ticket_status", [
   "COMPLETED"
 ]);
 export const userRole = pgEnum("user_role", ["USER", "TECHNICIAN"]);
+export const ticketPriority = pgEnum("ticket_priority", ["LOW", "MEDIUM", "HIGH"]);
+export const ticketVisibility = pgEnum("ticket_visibility", ["PUBLIC", "AUTHENTICATED", "PRIVATE"]);
+export const replyKind = pgEnum("reply_kind", ["SOLUTION", "COMMENT"]);
 
 export const users = pgTable("users", {
   id: uuid().defaultRandom().primaryKey(),
@@ -45,6 +49,8 @@ export const tickets = pgTable("tickets", {
   setup: text().notNull(),
   additionalInformation: text("additional_information"),
   status: ticketStatus().default("OPEN").notNull(),
+  priority: ticketPriority().default("MEDIUM").notNull(),
+  visibility: ticketVisibility().default("PUBLIC").notNull(),
   creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
   isAnonymous: boolean("is_anonymous").default(false).notNull(),
   assignedTechnicianId: uuid("assigned_technician_id").references(() => users.id, {
@@ -61,11 +67,63 @@ export const ticketReplies = pgTable(
     ticketId: uuid("ticket_id")
       .notNull()
       .references(() => tickets.id, { onDelete: "cascade" }),
+    kind: replyKind().default("COMMENT").notNull(),
     body: text().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
   },
   (table) => [index("ticket_replies_ticket_id_created_at_idx").on(table.ticketId, table.createdAt)]
 );
+
+export const replyEndorsements = pgTable(
+  "reply_endorsements",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    replyId: uuid("reply_id")
+      .notNull()
+      .references(() => ticketReplies.id, { onDelete: "cascade" }),
+    technicianId: uuid("technician_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    notes: text(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    unique("reply_endorsements_reply_id_technician_id_unique").on(
+      table.replyId,
+      table.technicianId
+    ),
+    index("reply_endorsements_reply_id_idx").on(table.replyId)
+  ]
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    previousStatus: ticketStatus("previous_status").notNull(),
+    newStatus: ticketStatus("new_status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    readAt: timestamp("read_at", { withTimezone: true })
+  },
+  (table) => [index("notifications_user_id_created_at_idx").on(table.userId, table.createdAt)]
+);
+
+export const notificationSettings = pgTable("notification_settings", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: varchar({ length: 254 }),
+  emailEnabled: boolean("email_enabled").default(false).notNull(),
+  emailStatuses: ticketStatus("email_statuses").array().default(["RESOLVED"]).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
 
 export const ticketReplyVotes = pgTable(
   "ticket_reply_votes",

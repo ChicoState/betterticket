@@ -9,48 +9,94 @@ import {
   apiErrorResponseSchema,
   createReplyBodySchema,
   createTicketBodySchema,
+  endorseReplyBodySchema,
+  endorsementUpdateResponseSchema,
   normalizeCreateTicketInput,
+  replyEndorsementParamsSchema,
   replyListLimit,
   replyListResponseSchema,
   replyResponseSchema,
   assignTechnicianBodySchema,
   ticketAssignmentParamsSchema,
   ticketListLimit,
+  ticketListQuerySchema,
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
   updateTicketStatusBodySchema,
   type ApiError,
   type CreateReplyInput,
+  type EndorseReplyInput,
+  type EndorsementUpdate,
   type AssignTechnicianInput,
   type CreateTicketInput,
   type Reply,
+  type ReplyEndorsementParams,
   type ReplyList,
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
+  type TicketSort,
   type TicketParams,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
-import type { ReplyRecord, TicketRecord, TicketRepository } from "./ticket-repository.js";
+import type {
+  ReplyRecord,
+  TicketRecord,
+  TicketRepository,
+  TicketViewer
+} from "./ticket-repository.js";
+import { canAccessTicket } from "./ticket-access.js";
 
 interface TicketRoutesOptions {
   authRepository: AuthRepository;
   ticketRepository: TicketRepository;
 }
 
-function toTicket(ticket: TicketRecord): Ticket {
+function toTicket(ticket: TicketRecord, viewer: TicketViewer | null): Ticket {
   return {
-    ...ticket,
+    id: ticket.id,
+    title: ticket.title,
+    description: ticket.description,
+    setup: ticket.setup,
+    additionalInformation: ticket.additionalInformation,
+    status: ticket.status,
+    priority: ticket.priority,
+    visibility: ticket.visibility,
+    canReply: canAccessTicket(ticket, viewer),
+    assignedTechnicianId: ticket.assignedTechnicianId,
+    createdByName: ticket.createdByName,
     createdAt: ticket.createdAt.toISOString(),
     updatedAt: ticket.updatedAt.toISOString()
   };
 }
 
-function toReply(reply: ReplyRecord): Reply {
+async function currentUser(
+  request: { cookies: Record<string, string | undefined> },
+  authRepository: AuthRepository
+) {
+  const token = request.cookies[sessionCookieName];
+  return token ? authRepository.findUserBySession(token) : null;
+}
+
+function toReply(reply: ReplyRecord, viewer: TicketViewer | null): Reply {
   return {
-    ...reply,
-    createdAt: reply.createdAt.toISOString()
+    id: reply.id,
+    ticketId: reply.ticketId,
+    kind: reply.kind,
+    body: reply.body,
+    createdAt: reply.createdAt.toISOString(),
+    upvotes: reply.upvotes,
+    downvotes: reply.downvotes,
+    userVote: reply.userVote,
+    endorsements: reply.endorsements.map((endorsement) => ({
+      id: endorsement.id,
+      technicianName: endorsement.technicianName,
+      notes: endorsement.notes,
+      createdAt: endorsement.createdAt.toISOString(),
+      updatedAt: endorsement.updatedAt.toISOString(),
+      isOwn: viewer?.id === endorsement.technicianId
+    }))
   };
 }
 
@@ -61,6 +107,13 @@ const ticketNotFound: ApiError = {
   }
 };
 
+const replyNotFound: ApiError = {
+  error: {
+    code: "NOT_FOUND",
+    message: "The reply was not found"
+  }
+};
+
 export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
   { authRepository, ticketRepository }
@@ -68,7 +121,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   await app.register(replyVoteRoutes, { authRepository, ticketRepository });
   await app.register(ticketVoteRoutes, { authRepository, ticketRepository });
 
-  app.post<{ Body: CreateTicketInput; Reply: Ticket }>(
+  app.post<{ Body: CreateTicketInput; Reply: Ticket | ApiError }>(
     "/api/tickets",
     {
       schema: {
@@ -76,16 +129,22 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         response: {
           201: ticketResponseSchema,
           400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
       }
     },
     async (request, reply) => {
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-      const ticket = await ticketRepository.create(normalizeCreateTicketInput(request.body), user);
+      const user = await currentUser(request, authRepository);
+      const input = normalizeCreateTicketInput(request.body);
+      if ((input.visibility ?? "PUBLIC") !== "PUBLIC" && !user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+      const ticket = await ticketRepository.create(input, user);
 
-      return reply.status(201).send(toTicket(ticket));
+      return reply.status(201).send(toTicket(ticket, user));
     }
   );
 
@@ -117,7 +176,8 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
 
       const result = await ticketRepository.updateStatus(
         request.params.ticketId,
-        request.body.status
+        request.body.status,
+        access.user.id
       );
 
       if (result.type === "ticket-not-found") {
@@ -127,19 +187,20 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(400).send({
           error: {
             code: "INVALID_STATUS_TRANSITION",
-            message: "The ticket status transition is invalid"
+            message: "Technicians can only advance a ticket one stage, up to resolved"
           }
         });
       }
 
-      return reply.status(200).send(toTicket(result.ticket));
+      return reply.status(200).send(toTicket(result.ticket, access.user));
     }
   );
 
-  app.get<{ Reply: TicketList }>(
+  app.get<{ Querystring: { sort?: TicketSort }; Reply: TicketList }>(
     "/api/tickets",
     {
       schema: {
+        querystring: ticketListQuerySchema,
         response: {
           200: ticketListResponseSchema,
           500: apiErrorResponseSchema
@@ -148,19 +209,20 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       reply.header("cache-control", "private, no-store");
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-      const tickets = await ticketRepository.listRecent(ticketListLimit);
+      const viewer = await currentUser(request, authRepository);
+      const tickets = (
+        await ticketRepository.listRecent(ticketListLimit, viewer, request.query.sort)
+      ).filter((ticket) => canAccessTicket(ticket, viewer));
       const states = await ticketRepository.listTicketVotes(
         tickets.map((ticket) => ticket.id),
-        user?.id
+        viewer?.id
       );
       const votesByTicket = new Map(states.map(({ ticketId, ...votes }) => [ticketId, votes]));
       return {
         tickets: tickets.map((ticket) => {
           const votes = votesByTicket.get(ticket.id);
           if (!votes) throw new Error("Listed ticket votes could not be read");
-          return { ...toTicket(ticket), votes };
+          return { ...toTicket(ticket, viewer), votes };
         })
       };
     }
@@ -181,12 +243,13 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
-      return toTicket(ticket);
+      return toTicket(ticket, viewer);
     }
   );
 
@@ -205,17 +268,20 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
       reply.header("cache-control", "private, no-store");
-      const token = request.cookies[sessionCookieName];
-      const user = token ? await authRepository.findUserBySession(token) : null;
-      const replies = await ticketRepository.listRecentReplies(ticket.id, replyListLimit, user?.id);
+      const replies = await ticketRepository.listRecentReplies(
+        ticket.id,
+        replyListLimit,
+        viewer?.id
+      );
 
-      return { replies: replies.map(toReply) };
+      return { replies: replies.map((stored) => toReply(stored, viewer)) };
     }
   );
 
@@ -235,14 +301,124 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     },
     async (request, reply) => {
       const ticket = await ticketRepository.findById(request.params.id);
+      const viewer = await currentUser(request, authRepository);
 
-      if (!ticket) {
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
         return reply.status(404).send(ticketNotFound);
       }
 
-      const created = await ticketRepository.createReply(ticket.id, request.body.body.trim());
+      const created = await ticketRepository.createReply(
+        ticket.id,
+        request.body.body.trim(),
+        request.body.kind ?? "COMMENT"
+      );
 
-      return reply.status(201).send(toReply(created));
+      return reply.status(201).send(toReply(created, viewer));
+    }
+  );
+
+  app.put<{
+    Params: ReplyEndorsementParams;
+    Body: EndorseReplyInput;
+    Reply: EndorsementUpdate | ApiError;
+  }>(
+    "/api/tickets/:ticketId/replies/:replyId/endorsement",
+    {
+      schema: {
+        params: replyEndorsementParamsSchema,
+        body: endorseReplyBodySchema,
+        response: {
+          200: endorsementUpdateResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
+      }
+
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      if (!ticket || !canAccessTicket(ticket, access.user)) {
+        return reply.status(404).send(ticketNotFound);
+      }
+
+      const notes = request.body.notes?.trim() || null;
+      const result = await ticketRepository.endorseReply(
+        ticket.id,
+        request.params.replyId,
+        access.user.id,
+        { notes, markResolved: request.body.markResolved ?? false }
+      );
+
+      if (result.type === "reply-not-found") {
+        return reply.status(404).send(replyNotFound);
+      }
+      if (result.type === "not-a-solution") {
+        return reply.status(400).send({
+          error: { code: "NOT_A_SOLUTION", message: "Only suggested solutions can be endorsed" }
+        });
+      }
+      if (result.type === "invalid-transition") {
+        return reply.status(400).send({
+          error: {
+            code: "INVALID_STATUS_TRANSITION",
+            message: "Only an in-progress ticket can be marked resolved"
+          }
+        });
+      }
+
+      return reply.status(200).send({
+        reply: toReply(result.reply, access.user),
+        ticket: toTicket(result.ticket, access.user)
+      });
+    }
+  );
+
+  app.delete<{ Params: ReplyEndorsementParams }>(
+    "/api/tickets/:ticketId/replies/:replyId/endorsement",
+    {
+      schema: {
+        params: replyEndorsementParamsSchema,
+        response: {
+          204: { type: "null" },
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
+      }
+
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      if (!ticket || !canAccessTicket(ticket, access.user)) {
+        return reply.status(404).send(ticketNotFound);
+      }
+
+      const result = await ticketRepository.withdrawEndorsement(
+        ticket.id,
+        request.params.replyId,
+        access.user.id
+      );
+
+      if (result.type === "endorsement-not-found") {
+        return reply.status(404).send({
+          error: { code: "NOT_FOUND", message: "The endorsement was not found" }
+        });
+      }
+
+      return reply.status(204).send();
     }
   );
 
@@ -288,7 +464,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         });
       }
 
-      return reply.status(200).send(toTicket(result.ticket));
+      return reply.status(200).send(toTicket(result.ticket, access.user));
     }
   );
 };

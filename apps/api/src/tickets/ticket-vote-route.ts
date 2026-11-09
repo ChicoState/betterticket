@@ -4,6 +4,7 @@ import { sessionCookieName } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import { apiErrorResponseSchema, type ApiError } from "./ticket-contract.js";
 import type { VoteValue, VoteState, TicketRepository } from "./ticket-repository.js";
+import { canAccessTicket } from "./ticket-access.js";
 
 interface Options {
   authRepository: AuthRepository;
@@ -41,7 +42,11 @@ export const ticketVoteRoutes: FastifyPluginAsync<Options> = async (
       reply.header("cache-control", "private, no-store");
       const token = request.cookies[sessionCookieName];
       const user = token ? await authRepository.findUserBySession(token) : null;
-      const vote = await ticketRepository.getTicketVote(request.params.ticketId, user?.id);
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      const vote =
+        ticket && canAccessTicket(ticket, user)
+          ? await ticketRepository.getTicketVote(ticket.id, user?.id)
+          : null;
       if (!vote)
         return reply
           .status(404)
@@ -66,6 +71,12 @@ export const ticketVoteRoutes: FastifyPluginAsync<Options> = async (
           return reply.status(401).send({
             error: { code: "AUTHENTICATION_REQUIRED", message: "Sign in to vote on tickets" }
           });
+        }
+        const ticket = await ticketRepository.findById(request.params.ticketId);
+        if (!ticket || !canAccessTicket(ticket, user)) {
+          return reply
+            .status(404)
+            .send({ error: { code: "NOT_FOUND", message: "The ticket was not found" } });
         }
         const result = await ticketRepository.setTicketVote(
           request.params.ticketId,

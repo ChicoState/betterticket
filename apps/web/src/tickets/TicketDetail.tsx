@@ -12,6 +12,7 @@ import {
 import {
   formatCreatedAt,
   formatStatus,
+  formatVisibility,
   getNextProgressStatus,
   getProgressStageState,
   ticketProgress
@@ -122,7 +123,13 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
       <article className="ticket-card ticket-detail" aria-labelledby="page-title">
         <header className="ticket-card-header">
           <h1 id="page-title">{ticket.title}</h1>
-          <span className="status-badge">{formatStatus(ticket.status)}</span>
+          <span className="ticket-badges">
+            <span className="status-badge">{formatStatus(ticket.status)}</span>
+            <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
+            <span className="priority-badge">
+              {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
+            </span>
+          </span>
         </header>
         <p className="ticket-meta">
           Reference <code>{ticket.id.slice(0, 8)}</code> · Submitted{" "}
@@ -133,7 +140,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
         <section className="ticket-progress" aria-labelledby="ticket-progress-title">
           <div className="ticket-progress-heading">
             <h2 id="ticket-progress-title">Ticket progress</h2>
-            {currentUser?.role === "TECHNICIAN" && nextStatus ? (
+            {currentUser?.role === "TECHNICIAN" && nextStatus && nextStatus !== "COMPLETED" ? (
               <button
                 className="status-update-button"
                 disabled={statusUpdate.type === "updating"}
@@ -205,6 +212,10 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
         key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
         ticketId={ticket.id}
         currentUser={currentUser}
+        visibility={ticket.visibility}
+        ticketStatus={ticket.status}
+        isTechnician={currentUser?.role === "TECHNICIAN"}
+        onTicketUpdated={(updatedTicket) => setLoad({ type: "loaded", ticket: updatedTicket })}
       />
     </>
   );

@@ -12,6 +12,9 @@ const tickets = [
     setup: "Office printer, macOS 15",
     additionalInformation: null,
     status: "IN_PROGRESS",
+    priority: "HIGH",
+    visibility: "AUTHENTICATED",
+    canReply: true,
     createdByName: "Terry Technician",
     createdAt: "2026-09-29T09:30:00.000Z",
     updatedAt: "2026-09-29T09:30:00.000Z"
@@ -24,6 +27,9 @@ const tickets = [
     setup: "Framework Laptop 13, Fedora 42",
     additionalInformation: "Started after an update.",
     status: "OPEN",
+    priority: "LOW",
+    visibility: "PUBLIC",
+    canReply: true,
     createdByName: null,
     createdAt: "2026-09-28T18:00:00.000Z",
     updatedAt: "2026-09-28T18:00:00.000Z"
@@ -58,6 +64,7 @@ describe("TicketList", () => {
 
     const [printer, laptop] = items as [HTMLElement, HTMLElement];
     expect(within(printer).getByText("In progress")).toBeInTheDocument();
+    expect(within(printer).getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
     expect(within(printer).getByText("2f1c5b0e")).toBeInTheDocument();
     expect(within(printer).getByText("Jobs stay queued.")).toBeInTheDocument();
     expect(within(printer).getByText(/Created by Terry Technician/)).toBeInTheDocument();
@@ -71,6 +78,65 @@ describe("TicketList", () => {
       "href",
       "/tickets/cc04d84c-9aee-4d35-8af3-999d861aaed6"
     );
+  });
+
+  it("requests priority sorting when the sorting control changes", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
+    await screen.findAllByRole("article");
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=priority");
+  });
+
+  it("keeps the sorting control mounted and focused while reloading", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ tickets })))
+    );
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    const sortControl = screen.getByLabelText("Sort tickets");
+    sortControl.focus();
+    fireEvent.change(sortControl, { target: { value: "priority" } });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading tickets…");
+    expect(screen.getByLabelText("Sort tickets")).toBe(sortControl);
+    expect(sortControl).toHaveFocus();
+
+    await screen.findAllByRole("article");
+    expect(screen.getByLabelText("Sort tickets")).toBe(sortControl);
+    expect(sortControl).toHaveFocus();
+  });
+
+  it("lets users change the sort after a failed load", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ tickets }))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: { code: "INTERNAL_ERROR", message: "The ticket request could not be completed" }
+          },
+          500
+        )
+      )
+      .mockResolvedValueOnce(jsonResponse({ tickets }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketList />);
+
+    await screen.findAllByRole("article");
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
+    await screen.findByRole("alert");
+
+    fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "newest" } });
+
+    expect(await screen.findAllByRole("article")).toHaveLength(2);
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets");
   });
 
   it("shows an empty state when no tickets exist", async () => {

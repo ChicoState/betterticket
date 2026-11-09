@@ -13,6 +13,9 @@ const ticket = {
   setup: "Framework Laptop 13, Fedora 42",
   additionalInformation: "Started after an update.",
   status: "OPEN",
+  priority: "HIGH",
+  visibility: "PUBLIC",
+  canReply: true,
   createdByName: "Uma User",
   createdAt: "2026-09-28T18:00:00.000Z",
   updatedAt: "2026-09-28T18:00:00.000Z"
@@ -64,6 +67,7 @@ describe("TicketDetail", () => {
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}`);
     expect(screen.getByText("Open", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
     expect(screen.getByText("cc04d84c")).toBeInTheDocument();
     expect(screen.getByText("The power light flashes once.")).toBeInTheDocument();
     expect(screen.getByText("Framework Laptop 13, Fedora 42")).toBeInTheDocument();
@@ -77,10 +81,18 @@ describe("TicketDetail", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketDetail ticketId={ticketId} />);
 
-    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
+  it("labels a private ticket with the concise visibility badge", async () => {
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, visibility: "PRIVATE" }));
+    render(<TicketDetail ticketId={ticketId} />);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText("Private", { selector: ".visibility-badge" })).toBeInTheDocument();
   });
 
   it("omits additional information when none was submitted", async () => {
@@ -131,16 +143,16 @@ describe("TicketDetail", () => {
     expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
   });
 
-  it("does not show a status control after the ticket is completed", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status: "COMPLETED" }))
-    );
-    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+  it.each(["RESOLVED", "COMPLETED"])(
+    "does not show a status control for a %s ticket",
+    async (status) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ...ticket, status })));
+      render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
 
-    await screen.findByRole("heading", { level: 1 });
-    expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
-  });
+      await screen.findByRole("heading", { level: 1 });
+      expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
+    }
+  );
 
   it("updates the timeline after a technician advances the ticket", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
@@ -159,16 +171,70 @@ describe("TicketDetail", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Move to Under review" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Ticket status updated to Under review."
+    expect(await screen.findByText("Ticket status updated to Under review.")).toHaveAttribute(
+      "role",
+      "status"
     );
     expect(screen.getByText("Under review", { selector: ".status-badge" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move to In progress" })).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith(`/api/tickets/${ticketId}/status`, {
+    // The replies panel may fetch after the click, so check the PATCH was sent, not its order.
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/status`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: "UNDER_REVIEW" })
     });
+  });
+
+  it("shows the resolved status after a technician endorses and resolves", async () => {
+    const solution = {
+      id: "0b9d7c58-0a55-4d0c-8a44-0d3f5f3f9a01",
+      kind: "SOLUTION",
+      body: "Reinstall the driver.",
+      createdAt: "2026-10-28T18:30:00.000Z",
+      endorsements: [],
+      upvotes: 0,
+      downvotes: 0,
+      userVote: null
+    };
+    const inProgress = { ...ticket, status: "IN_PROGRESS" };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
+      if (init?.method === "PUT") {
+        return Promise.resolve(
+          jsonResponse({
+            reply: {
+              ...solution,
+              endorsements: [
+                {
+                  id: "a1b2c3d4-0000-4000-8000-000000000001",
+                  technicianName: "Terry Technician",
+                  notes: null,
+                  createdAt: "2026-10-28T19:00:00.000Z",
+                  updatedAt: "2026-10-28T19:00:00.000Z",
+                  isOwn: true
+                }
+              ]
+            },
+            ticket: { ...inProgress, status: "RESOLVED" }
+          })
+        );
+      }
+      if (url.endsWith("/replies")) {
+        return Promise.resolve(jsonResponse({ replies: [solution] }));
+      }
+      return Promise.resolve(jsonResponse(inProgress));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Endorse" }));
+    fireEvent.click(screen.getByLabelText("Also mark this ticket resolved"));
+    fireEvent.click(screen.getByRole("button", { name: "Endorse solution" }));
+
+    expect(await screen.findByText("Endorsed by IT")).toBeInTheDocument();
+    expect(screen.getByText("Resolved", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit notes" })).toBeInTheDocument();
   });
 
   it("disables the status control while the update is pending", async () => {
@@ -195,7 +261,10 @@ describe("TicketDetail", () => {
 
     expect(screen.getByRole("button", { name: "Updating status…" })).toBeDisabled();
     resolveUpdate(jsonResponse({ ...ticket, status: "UNDER_REVIEW" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Ticket status updated");
+    expect(await screen.findByText("Ticket status updated to Under review.")).toHaveAttribute(
+      "role",
+      "status"
+    );
   });
 
   it("shows an accessible error when the status update is rejected", async () => {
@@ -289,7 +358,7 @@ describe("TicketDetail", () => {
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
       "Laptop will not start"
     );
-    expect(await screen.findByText("No replies yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

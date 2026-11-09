@@ -2,13 +2,29 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sessionCookieName } from "../auth/auth-contract.js";
 import { buildApp } from "../app.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
-import type { TicketRepository } from "./ticket-repository.js";
+import type { TicketRecord, TicketRepository } from "./ticket-repository.js";
 
 const ticketId = "cc04d84c-9aee-4d35-8af3-999d861aaed6";
 const replyId = "5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11";
 const userId = "bb97588e-0e8b-49e1-980b-4b9207121898";
 const url = `/api/tickets/${ticketId}/replies/${replyId}/vote`;
 const vote = { upvotes: 2, downvotes: 1, userVote: 1 };
+
+const publicTicket: TicketRecord = {
+  id: ticketId,
+  title: "Test",
+  description: "Test",
+  setup: "Test",
+  additionalInformation: null,
+  status: "OPEN",
+  priority: "MEDIUM",
+  visibility: "PUBLIC",
+  creatorUserId: null,
+  assignedTechnicianId: null,
+  createdByName: null,
+  createdAt: new Date(),
+  updatedAt: new Date()
+};
 
 function setup(role: "USER" | "TECHNICIAN" = "USER") {
   const authRepository: AuthRepository = {
@@ -23,17 +39,28 @@ function setup(role: "USER" | "TECHNICIAN" = "USER") {
   const ticketRepository: TicketRepository = {
     create: vi.fn(),
     listRecent: vi.fn(),
-    findById: vi.fn().mockResolvedValue({ id: ticketId }),
+    findById: vi.fn().mockResolvedValue(publicTicket),
     createReply: vi.fn(),
     listRecentReplies: vi.fn().mockResolvedValue([]),
     assignTechnician: vi.fn(),
     updateStatus: vi.fn(),
+    endorseReply: vi.fn(),
+    withdrawEndorsement: vi.fn(),
     listTicketVotes: vi.fn(),
     getTicketVote: vi.fn(),
     setTicketVote: vi.fn(),
     setReplyVote: vi.fn().mockResolvedValue({ type: "updated", vote })
   };
-  const app = buildApp({ authRepository, ticketRepository, logger: false });
+  const app = buildApp({
+    authRepository,
+    ticketRepository,
+    notificationRepository: { listRecent: vi.fn(), markAllRead: vi.fn() },
+    settingsRepository: {
+      findNotificationSettings: vi.fn(),
+      saveNotificationSettings: vi.fn()
+    },
+    logger: false
+  });
   apps.push(app);
   return { app, ticketRepository, authRepository };
 }
@@ -110,6 +137,22 @@ describe("reply voting authorization", () => {
       payload: { value: 1 }
     });
     expect(response.statusCode).toBe(404);
+  });
+  it("hides replies on another user's private ticket", async () => {
+    const { app, ticketRepository } = setup();
+    vi.mocked(ticketRepository.findById).mockResolvedValue({
+      ...publicTicket,
+      visibility: "PRIVATE",
+      creatorUserId: "6d0f3a8e-6f0c-4c2e-9c11-111111111111"
+    });
+    const response = await app.inject({
+      method: "PUT",
+      url,
+      cookies: { [sessionCookieName]: "valid" },
+      payload: { value: 1 }
+    });
+    expect(response.statusCode).toBe(404);
+    expect(ticketRepository.setReplyVote).not.toHaveBeenCalled();
   });
   it("does not expose database errors", async () => {
     const { app, ticketRepository } = setup();

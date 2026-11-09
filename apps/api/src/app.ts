@@ -4,16 +4,28 @@ import Fastify, { type FastifyServerOptions } from "fastify";
 
 import { authRoutes } from "./auth/auth-route.js";
 import type { AuthRepository } from "./auth/auth-repository.js";
+import type { NotificationRepository } from "./notifications/notification-repository.js";
+import { notificationRoutes } from "./notifications/notification-route.js";
+import type { SettingsRepository } from "./settings/settings-repository.js";
+import { settingsRoutes } from "./settings/settings-route.js";
 import { ticketRoutes } from "./tickets/ticket-route.js";
 import type { TicketRepository } from "./tickets/ticket-repository.js";
 
 interface BuildAppOptions {
   authRepository: AuthRepository;
   ticketRepository: TicketRepository;
+  notificationRepository: NotificationRepository;
+  settingsRepository: SettingsRepository;
   logger?: FastifyServerOptions["logger"];
 }
 
-export function buildApp({ authRepository, ticketRepository, logger = true }: BuildAppOptions) {
+export function buildApp({
+  authRepository,
+  ticketRepository,
+  notificationRepository,
+  settingsRepository,
+  logger = true
+}: BuildAppOptions) {
   const app = Fastify({
     logger,
     ajv: {
@@ -49,10 +61,15 @@ export function buildApp({ authRepository, ticketRepository, logger = true }: Bu
       error.statusCode === 429
     ) {
       const isRegistration = request.method === "POST" && request.routeOptions.url === "/api/users";
+      const isSettings = request.routeOptions.url?.startsWith("/api/settings") ?? false;
       return reply.status(429).send({
         error: {
           code: "RATE_LIMITED",
-          message: isRegistration ? "Too many account-creation attempts" : "Too many login attempts"
+          message: isRegistration
+            ? "Too many account-creation attempts"
+            : isSettings
+              ? "Too many settings updates"
+              : "Too many login attempts"
         }
       });
     }
@@ -76,6 +93,8 @@ export function buildApp({ authRepository, ticketRepository, logger = true }: Bu
   void app.register(rateLimit, { global: false });
   void app.register(authRoutes, { authRepository });
   void app.register(ticketRoutes, { authRepository, ticketRepository });
+  void app.register(notificationRoutes, { authRepository, notificationRepository });
+  void app.register(settingsRoutes, { authRepository, settingsRepository });
 
   return app;
 }

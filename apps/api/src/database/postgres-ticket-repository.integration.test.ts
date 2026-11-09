@@ -3,8 +3,10 @@ import { asc, eq } from "drizzle-orm";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
-import { ticketStatuses } from "../tickets/ticket-contract.js";
+import { ticketStatuses, type TicketPriority } from "../tickets/ticket-contract.js";
 import {
+  notifications,
+  replyEndorsements,
   sessions,
   ticketReplies,
   ticketReplyVotes,
@@ -20,6 +22,7 @@ if (!databaseUrl) {
 }
 
 const { database, close } = createDatabase(databaseUrl);
+const actorId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 
 describe("PostgresTicketRepository", () => {
   beforeEach(async () => {
@@ -49,6 +52,8 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42",
       additionalInformation: null,
       status: "OPEN",
+      priority: "MEDIUM",
+      visibility: "PUBLIC",
       assignedTechnicianId: null
     });
     expect(created.id).toMatch(
@@ -80,6 +85,118 @@ describe("PostgresTicketRepository", () => {
     expect(listed.map((listedTicket) => listedTicket.title)).toEqual(["Newest", "Middle"]);
   });
 
+  it("filters tickets by visibility for anonymous users, owners, and technicians", async () => {
+    const [owner, otherUser, technician] = await database
+      .insert(users)
+      .values([
+        {
+          name: "Ticket Owner",
+          username: "ticket.owner",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "Other User",
+          username: "other.user",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "IT Technician",
+          username: "it.technician",
+          passwordHash: "not-used",
+          role: "TECHNICIAN"
+        }
+      ])
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public", visibility: "PUBLIC" });
+    await repository.create(
+      { ...input, title: "Authenticated", visibility: "AUTHENTICATED" },
+      owner!
+    );
+    await repository.create({ ...input, title: "Private owner", visibility: "PRIVATE" }, owner!);
+    await repository.create(
+      { ...input, title: "Private other", visibility: "PRIVATE" },
+      otherUser!
+    );
+
+    const titles = async (viewer: { id: string; role: "USER" | "TECHNICIAN" } | null) =>
+      (await repository.listRecent(10, viewer)).map((ticket) => ticket.title).sort();
+
+    expect(await titles(null)).toEqual(["Public"]);
+    expect(await titles({ id: otherUser!.id, role: "USER" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Public"
+    ]);
+    expect(await titles({ id: technician!.id, role: "TECHNICIAN" })).toEqual([
+      "Authenticated",
+      "Private other",
+      "Private owner",
+      "Public"
+    ]);
+  });
+
+  it("filters by visibility before applying priority sorting and the limit", async () => {
+    const [owner] = await database
+      .insert(users)
+      .values({
+        name: "Ticket Owner",
+        username: "priority.owner",
+        passwordHash: "not-used",
+        role: "USER"
+      })
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const input = { description: "Description", setup: "Setup" };
+
+    await repository.create({ ...input, title: "Public low", priority: "LOW" });
+    await repository.create(
+      { ...input, title: "Private owner high", priority: "HIGH", visibility: "PRIVATE" },
+      owner!
+    );
+
+    const listed = await repository.listRecent(1, null, "priority");
+
+    expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
+  });
+
+  it("sorts by priority then newest first before applying the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = (title: string, priority: TicketPriority, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      priority,
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    await database
+      .insert(tickets)
+      .values([
+        ticket("Low newest", "LOW", "2026-09-30T12:00:00.000Z"),
+        ticket("Medium older", "MEDIUM", "2026-09-26T12:00:00.000Z"),
+        ticket("High older", "HIGH", "2026-09-27T12:00:00.000Z"),
+        ticket("High newer", "HIGH", "2026-09-29T12:00:00.000Z"),
+        ticket("Medium newer", "MEDIUM", "2026-09-28T12:00:00.000Z")
+      ]);
+
+    const titles = async (limit: number) =>
+      (await repository.listRecent(limit, null, "priority")).map((listed) => listed.title);
+
+    expect(await titles(5)).toEqual([
+      "High newer",
+      "High older",
+      "Medium newer",
+      "Medium older",
+      "Low newest"
+    ]);
+    expect(await titles(3)).toEqual(["High newer", "High older", "Medium newer"]);
+  });
+
   it("persists and returns every approved ticket status", async () => {
     await database.insert(tickets).values(
       ticketStatuses.map((status, index) => ({
@@ -100,7 +217,7 @@ describe("PostgresTicketRepository", () => {
     expect(storedStatuses.map((ticket) => ticket.status)).toEqual(ticketStatuses);
   });
 
-  it("advances through every adjacent status and updates the timestamp", async () => {
+  it("advances through each adjacent status up to resolved and updates the timestamp", async () => {
     const repository = new PostgresTicketRepository(database);
     const ticket = await repository.create({
       title: "Laptop will not start",
@@ -113,8 +230,8 @@ describe("PostgresTicketRepository", () => {
       .set({ updatedAt: initialUpdatedAt })
       .where(eq(tickets.id, ticket.id));
 
-    for (const status of ticketStatuses.slice(1)) {
-      const result = await repository.updateStatus(ticket.id, status);
+    for (const status of ["UNDER_REVIEW", "IN_PROGRESS", "RESOLVED"] as const) {
+      const result = await repository.updateStatus(ticket.id, status, actorId);
 
       expect(result).toMatchObject({ type: "updated", ticket: { status } });
       if (result.type !== "updated") {
@@ -126,7 +243,7 @@ describe("PostgresTicketRepository", () => {
     expect(finalTicket?.updatedAt.getTime()).toBeGreaterThan(initialUpdatedAt.getTime());
   });
 
-  it("rejects skipped, backward, and terminal transitions", async () => {
+  it("rejects skipped, backward, completion, and terminal transitions", async () => {
     const repository = new PostgresTicketRepository(database);
     const ticket = await repository.create({
       title: "Laptop will not start",
@@ -134,29 +251,29 @@ describe("PostgresTicketRepository", () => {
       setup: "Framework Laptop 13, Fedora 42"
     });
 
-    expect(await repository.updateStatus(ticket.id, "IN_PROGRESS")).toEqual({
+    expect(await repository.updateStatus(ticket.id, "IN_PROGRESS", actorId)).toEqual({
       type: "invalid-transition"
     });
-    expect(await repository.updateStatus(ticket.id, "UNDER_REVIEW")).toMatchObject({
+    expect(await repository.updateStatus(ticket.id, "UNDER_REVIEW", actorId)).toMatchObject({
       type: "updated",
       ticket: { status: "UNDER_REVIEW" }
     });
-    expect(await repository.updateStatus(ticket.id, "OPEN")).toEqual({
+    expect(await repository.updateStatus(ticket.id, "OPEN", actorId)).toEqual({
       type: "invalid-transition"
     });
 
-    for (const status of ["IN_PROGRESS", "RESOLVED", "COMPLETED"] as const) {
-      expect(await repository.updateStatus(ticket.id, status)).toMatchObject({
+    for (const status of ["IN_PROGRESS", "RESOLVED"] as const) {
+      expect(await repository.updateStatus(ticket.id, status, actorId)).toMatchObject({
         type: "updated",
         ticket: { status }
       });
     }
 
-    expect(await repository.updateStatus(ticket.id, "COMPLETED")).toMatchObject({
-      type: "unchanged",
-      ticket: { status: "COMPLETED" }
+    expect(await repository.updateStatus(ticket.id, "COMPLETED", actorId)).toEqual({
+      type: "invalid-transition"
     });
-    expect(await repository.updateStatus(ticket.id, "RESOLVED")).toEqual({
+    await database.update(tickets).set({ status: "COMPLETED" }).where(eq(tickets.id, ticket.id));
+    expect(await repository.updateStatus(ticket.id, "RESOLVED", actorId)).toEqual({
       type: "invalid-transition"
     });
   });
@@ -174,7 +291,7 @@ describe("PostgresTicketRepository", () => {
       .set({ status: "IN_PROGRESS", updatedAt })
       .where(eq(tickets.id, ticket.id));
 
-    const result = await repository.updateStatus(ticket.id, "IN_PROGRESS");
+    const result = await repository.updateStatus(ticket.id, "IN_PROGRESS", actorId);
 
     expect(result).toMatchObject({ type: "unchanged", ticket: { status: "IN_PROGRESS" } });
     if (result.type !== "unchanged") {
@@ -187,7 +304,7 @@ describe("PostgresTicketRepository", () => {
     const repository = new PostgresTicketRepository(database);
 
     expect(
-      await repository.updateStatus("00000000-0000-4000-8000-000000000000", "UNDER_REVIEW")
+      await repository.updateStatus("00000000-0000-4000-8000-000000000000", "UNDER_REVIEW", actorId)
     ).toEqual({ type: "ticket-not-found" });
   });
 
@@ -244,7 +361,12 @@ describe("PostgresTicketRepository", () => {
 
     const created = await repository.createReply(ticket.id, "Third");
 
-    expect(created).toMatchObject({ ticketId: ticket.id, body: "Third" });
+    expect(created).toMatchObject({
+      ticketId: ticket.id,
+      body: "Third",
+      kind: "COMMENT",
+      endorsements: []
+    });
     expect(created.createdAt).toBeInstanceOf(Date);
     expect((await repository.listRecentReplies(ticket.id, 10)).map((reply) => reply.body)).toEqual([
       "First",
@@ -255,6 +377,22 @@ describe("PostgresTicketRepository", () => {
       "Second",
       "Third"
     ]);
+  });
+
+  it("stores a reply as a comment when no kind is given", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create({
+      title: "Title",
+      description: "Description",
+      setup: "Setup"
+    });
+
+    const [stored] = await database
+      .insert(ticketReplies)
+      .values({ ticketId: ticket.id, body: "Stored before reply kinds existed" })
+      .returning();
+
+    expect(stored?.kind).toBe("COMMENT");
   });
 
   it("rejects a reply to a ticket that does not exist", async () => {
@@ -506,5 +644,161 @@ describe("PostgresTicketRepository", () => {
     await repository.setTicketVote(ticket.id, user!.id, 1);
     await database.delete(tickets);
     expect(await database.select().from(ticketVotes)).toHaveLength(0);
+  });
+
+  describe("solution endorsements", () => {
+    const input = { title: "Printer offline", description: "Description", setup: "Setup" };
+
+    async function seed(status: (typeof ticketStatuses)[number] = "IN_PROGRESS") {
+      const [owner, technician, otherTechnician] = await database
+        .insert(users)
+        .values([
+          { name: "Ticket Owner", username: "owner", passwordHash: "x", role: "USER" },
+          { name: "Dana Lee", username: "dana", passwordHash: "x", role: "TECHNICIAN" },
+          { name: "Sam Park", username: "sam", passwordHash: "x", role: "TECHNICIAN" }
+        ])
+        .returning();
+      const repository = new PostgresTicketRepository(database);
+      const ticket = await repository.create(input, owner!);
+      await database.update(tickets).set({ status }).where(eq(tickets.id, ticket.id));
+      const solution = await repository.createReply(ticket.id, "Reinstall the driver.", "SOLUTION");
+      const comment = await repository.createReply(ticket.id, "Same here.");
+
+      return {
+        repository,
+        owner: owner!,
+        technician: technician!,
+        otherTechnician: otherTechnician!,
+        ticket,
+        solution,
+        comment
+      };
+    }
+
+    it("creates, replaces, and lists one endorsement per technician", async () => {
+      const { repository, technician, otherTechnician, ticket, solution } = await seed();
+
+      const first = await repository.endorseReply(ticket.id, solution.id, technician.id, {
+        notes: "Use v4.2.",
+        markResolved: false
+      });
+      await repository.endorseReply(ticket.id, solution.id, otherTechnician.id, {
+        notes: null,
+        markResolved: false
+      });
+      const replaced = await repository.endorseReply(ticket.id, solution.id, technician.id, {
+        notes: "Use v4.3.",
+        markResolved: false
+      });
+
+      expect(first).toMatchObject({ type: "endorsed", ticket: { status: "IN_PROGRESS" } });
+      expect(replaced.type).toBe("endorsed");
+      expect(await database.select().from(replyEndorsements)).toHaveLength(2);
+      const [listed] = (await repository.listRecentReplies(ticket.id, 10)).filter(
+        (reply) => reply.id === solution.id
+      );
+      expect(listed?.kind).toBe("SOLUTION");
+      expect(listed?.endorsements).toMatchObject([
+        { technicianId: technician.id, technicianName: "Dana Lee", notes: "Use v4.3." },
+        { technicianId: otherTechnician.id, technicianName: "Sam Park", notes: null }
+      ]);
+      expect(listed!.endorsements[0]!.updatedAt.getTime()).toBeGreaterThanOrEqual(
+        listed!.endorsements[0]!.createdAt.getTime()
+      );
+    });
+
+    it("rejects comments and replies that belong to another ticket", async () => {
+      const { repository, technician, ticket, solution, comment } = await seed();
+      const otherTicket = await repository.create(input);
+      const endorse = { notes: null, markResolved: false };
+
+      expect(await repository.endorseReply(ticket.id, comment.id, technician.id, endorse)).toEqual({
+        type: "not-a-solution"
+      });
+      expect(
+        await repository.endorseReply(otherTicket.id, solution.id, technician.id, endorse)
+      ).toEqual({ type: "reply-not-found" });
+      expect(await database.select().from(replyEndorsements)).toEqual([]);
+    });
+
+    it("resolves an in-progress ticket and notifies its owner in the same transaction", async () => {
+      const { repository, owner, technician, ticket, solution } = await seed("IN_PROGRESS");
+
+      const result = await repository.endorseReply(ticket.id, solution.id, technician.id, {
+        notes: null,
+        markResolved: true
+      });
+
+      expect(result).toMatchObject({ type: "endorsed", ticket: { status: "RESOLVED" } });
+      expect(await database.select().from(notifications)).toMatchObject([
+        {
+          userId: owner.id,
+          ticketId: ticket.id,
+          previousStatus: "IN_PROGRESS",
+          newStatus: "RESOLVED"
+        }
+      ]);
+      expect(await database.select().from(replyEndorsements)).toHaveLength(1);
+    });
+
+    it("writes nothing when marking resolved would skip a stage", async () => {
+      const { repository, technician, ticket, solution } = await seed("OPEN");
+
+      const result = await repository.endorseReply(ticket.id, solution.id, technician.id, {
+        notes: "Try this",
+        markResolved: true
+      });
+
+      expect(result).toEqual({ type: "invalid-transition" });
+      expect(await database.select().from(replyEndorsements)).toEqual([]);
+      expect(await database.select().from(notifications)).toEqual([]);
+      expect((await repository.findById(ticket.id))?.status).toBe("OPEN");
+    });
+
+    it("endorses an already resolved ticket without another notification", async () => {
+      const { repository, technician, ticket, solution } = await seed("RESOLVED");
+
+      const result = await repository.endorseReply(ticket.id, solution.id, technician.id, {
+        notes: null,
+        markResolved: true
+      });
+
+      expect(result).toMatchObject({ type: "endorsed", ticket: { status: "RESOLVED" } });
+      expect(await database.select().from(notifications)).toEqual([]);
+    });
+
+    it("withdraws only the caller's endorsement on the matching ticket", async () => {
+      const { repository, technician, otherTechnician, ticket, solution } = await seed();
+      const otherTicket = await repository.create(input);
+      const endorse = { notes: null, markResolved: false };
+      await repository.endorseReply(ticket.id, solution.id, technician.id, endorse);
+      await repository.endorseReply(ticket.id, solution.id, otherTechnician.id, endorse);
+
+      expect(
+        await repository.withdrawEndorsement(otherTicket.id, solution.id, technician.id)
+      ).toEqual({ type: "endorsement-not-found" });
+      expect(await repository.withdrawEndorsement(ticket.id, solution.id, technician.id)).toEqual({
+        type: "withdrawn"
+      });
+      expect(await repository.withdrawEndorsement(ticket.id, solution.id, technician.id)).toEqual({
+        type: "endorsement-not-found"
+      });
+      expect(await database.select().from(replyEndorsements)).toMatchObject([
+        { technicianId: otherTechnician.id }
+      ]);
+    });
+
+    it("removes endorsements with their technician or ticket", async () => {
+      const { repository, technician, otherTechnician, ticket, solution } = await seed();
+      const endorse = { notes: null, markResolved: false };
+      await repository.endorseReply(ticket.id, solution.id, technician.id, endorse);
+      await repository.endorseReply(ticket.id, solution.id, otherTechnician.id, endorse);
+
+      await database.delete(users).where(eq(users.id, technician.id));
+      expect(await database.select().from(replyEndorsements)).toHaveLength(1);
+
+      await database.delete(tickets).where(eq(tickets.id, ticket.id));
+      expect(await database.select().from(replyEndorsements)).toEqual([]);
+    });
   });
 });

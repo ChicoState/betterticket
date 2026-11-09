@@ -2,20 +2,20 @@
 
 ## Status and source of truth
 
-BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, a minimal provisioned-user login and technician-assignment backend, CLI-designated IT (technician) accounts, and authenticated ticket and reply voting. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, a minimal provisioned-user login, technician-assignment, and status-update backend, CLI-designated IT (technician) accounts, ticket status notifications, notification settings (email preferences; delivery not yet active), suggested solutions with technician endorsements, and authenticated ticket and reply voting. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 
-| Area           | Location                                                          | Status                                  |
-| -------------- | ----------------------------------------------------------------- | --------------------------------------- |
-| Frontend       | `apps/web`                                                        | React/Vite tickets and replies.         |
-| API            | `apps/api`                                                        | Fastify/Drizzle tickets, replies, auth. |
-| Infrastructure | `compose.yml`, `docker/`, `.env.example`                          | Present.                                |
-| Scripts        | `scripts/smoke.sh`                                                | Present; infrastructure-only.           |
-| Tests          | Colocated `*.test.ts(x)` files                                    | Unit, component, and DB integration.    |
-| CI             | `.github/workflows/pr-checks.yml`, `.github/workflows/codeql.yml` | Present.                                |
-| Docs           | `README.md`, `infrastructure_plan.md`, `docs/`                    | Present.                                |
-| Agent skills   | `.agents/skills/`                                                 | Present.                                |
+| Area           | Location                                                          | Status                                            |
+| -------------- | ----------------------------------------------------------------- | ------------------------------------------------- |
+| Frontend       | `apps/web`                                                        | React/Vite tickets, solutions, notices, settings. |
+| API            | `apps/api`                                                        | Fastify/Drizzle tickets, endorsements, auth, etc. |
+| Infrastructure | `compose.yml`, `docker/`, `.env.example`                          | Present.                                          |
+| Scripts        | `scripts/smoke.sh`                                                | Present; infrastructure-only.                     |
+| Tests          | Colocated `*.test.ts(x)` files                                    | Unit, component, and DB integration.              |
+| CI             | `.github/workflows/pr-checks.yml`, `.github/workflows/codeql.yml` | Present.                                          |
+| Docs           | `README.md`, `infrastructure_plan.md`, `docs/`                    | Present.                                          |
+| Agent skills   | `.agents/skills/`                                                 | Present.                                          |
 
 ## Required reading and boundaries
 
@@ -49,7 +49,7 @@ These correspond to the current pull-request workflow. The smoke test uses an is
 
 PostgreSQL is exposed only on `127.0.0.1:5433` for host clients; the toolchain uses `postgres:5432`. Keep the host `DATABASE_URL` port in local `.env` consistent with the Compose mapping.
 
-After applying migrations, provision MVP users interactively with `docker compose --profile tools run --rm toolchain pnpm user:create`. Change an existing account between `USER` and `TECHNICIAN` (IT) with `docker compose --profile tools run --rm toolchain pnpm user:set-role`. Never place passwords or provisioned credentials in tracked files or command arguments.
+After applying migrations, provision MVP users interactively with `docker compose --profile tools run --rm toolchain pnpm user:create`. Change an existing account between `USER` and `TECHNICIAN` (IT) with `docker compose --profile tools run --rm toolchain pnpm user:set-role`. Never place passwords or provisioned credentials in tracked files or command arguments. For local testing only, `docker compose --profile tools run --rm toolchain pnpm db:example` loads example users (password `password`), tickets, replies, endorsed solutions, notifications, and notification settings into an empty database; pass `--reset` to replace existing data.
 
 ## Change checklist
 

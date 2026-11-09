@@ -9,12 +9,33 @@ export const ticketStatuses = [
 
 export type TicketStatus = (typeof ticketStatuses)[number];
 
+export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
+
+export type TicketPriority = (typeof ticketPriorities)[number];
+
+export const ticketSorts = ["newest", "priority"] as const;
+
+export type TicketSort = (typeof ticketSorts)[number];
+
+/**
+ * Technicians may only advance a ticket one stage at a time and never close it; the owner
+ * confirms completion.
+ */
+export function canTechnicianChangeStatus(from: TicketStatus, to: TicketStatus): boolean {
+  return to !== "COMPLETED" && ticketStatuses.indexOf(to) === ticketStatuses.indexOf(from) + 1;
+}
+
+export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
+export type TicketVisibility = (typeof ticketVisibilities)[number];
+
 export interface CreateTicketInput {
   title: string;
   description: string;
   setup: string;
   additionalInformation?: string;
   postAnonymously?: boolean;
+  priority?: TicketPriority;
+  visibility?: TicketVisibility;
 }
 
 export interface Ticket {
@@ -24,6 +45,9 @@ export interface Ticket {
   setup: string;
   additionalInformation: string | null;
   status: TicketStatus;
+  priority: TicketPriority;
+  visibility: TicketVisibility;
+  canReply: boolean;
   assignedTechnicianId: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -58,7 +82,9 @@ export const createTicketBodySchema = {
     description: requiredText(5_000),
     setup: requiredText(3_000),
     additionalInformation: requiredText(3_000),
-    postAnonymously: { type: "boolean" }
+    postAnonymously: { type: "boolean" },
+    priority: { type: "string", enum: ticketPriorities },
+    visibility: { type: "string", enum: ticketVisibilities }
   }
 } as const;
 
@@ -72,6 +98,9 @@ export const ticketResponseSchema = {
     "setup",
     "additionalInformation",
     "status",
+    "priority",
+    "visibility",
+    "canReply",
     "assignedTechnicianId",
     "createdByName",
     "createdAt",
@@ -84,6 +113,9 @@ export const ticketResponseSchema = {
     setup: { type: "string" },
     additionalInformation: { type: ["string", "null"] },
     status: { type: "string", enum: ticketStatuses },
+    priority: { type: "string", enum: ticketPriorities },
+    visibility: { type: "string", enum: ticketVisibilities },
+    canReply: { type: "boolean" },
     assignedTechnicianId: { type: ["string", "null"], format: "uuid" },
     createdByName: { type: ["string", "null"] },
     createdAt: { type: "string", format: "date-time" },
@@ -116,6 +148,13 @@ export const ticketListResponseSchema = {
   }
 } as const;
 
+export const ticketListQuerySchema = {
+  type: "object",
+  properties: {
+    sort: { type: "string", enum: ticketSorts, default: "newest" }
+  }
+} as const;
+
 export interface TicketParams {
   id: string;
 }
@@ -129,8 +168,21 @@ export const ticketParamsSchema = {
   }
 } as const;
 
+export const replyKinds = ["SOLUTION", "COMMENT"] as const;
+export type ReplyKind = (typeof replyKinds)[number];
+
 export interface CreateReplyInput {
   body: string;
+  kind?: ReplyKind;
+}
+
+export interface Endorsement {
+  id: string;
+  technicianName: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isOwn: boolean;
 }
 
 export interface Reply {
@@ -139,8 +191,10 @@ export interface Reply {
   userVote: -1 | 1 | null;
   id: string;
   ticketId: string;
+  kind: ReplyKind;
   body: string;
   createdAt: string;
+  endorsements: Endorsement[];
 }
 
 export const createReplyBodySchema = {
@@ -148,22 +202,49 @@ export const createReplyBodySchema = {
   additionalProperties: false,
   required: ["body"],
   properties: {
-    body: requiredText(5_000)
+    body: requiredText(5_000),
+    kind: { type: "string", enum: replyKinds }
+  }
+} as const;
+
+export const endorsementResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "technicianName", "notes", "createdAt", "updatedAt", "isOwn"],
+  properties: {
+    id: { type: "string", format: "uuid" },
+    technicianName: { type: "string" },
+    notes: { type: ["string", "null"] },
+    createdAt: { type: "string", format: "date-time" },
+    updatedAt: { type: "string", format: "date-time" },
+    isOwn: { type: "boolean" }
   }
 } as const;
 
 export const replyResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "ticketId", "body", "createdAt", "upvotes", "downvotes", "userVote"],
+  required: [
+    "id",
+    "ticketId",
+    "kind",
+    "body",
+    "createdAt",
+    "endorsements",
+    "upvotes",
+    "downvotes",
+    "userVote"
+  ],
   properties: {
     id: { type: "string", format: "uuid" },
     upvotes: { type: "integer", minimum: 0 },
     downvotes: { type: "integer", minimum: 0 },
     userVote: { enum: [-1, 1, null] },
     ticketId: { type: "string", format: "uuid" },
+    kind: { type: "string", enum: replyKinds },
     body: { type: "string" },
-    createdAt: { type: "string", format: "date-time" }
+    createdAt: { type: "string", format: "date-time" },
+    endorsements: { type: "array", items: endorsementResponseSchema }
   }
 } as const;
 
@@ -220,6 +301,52 @@ export const updateTicketStatusBodySchema = {
   }
 } as const;
 
+export interface ReplyEndorsementParams {
+  ticketId: string;
+  replyId: string;
+}
+
+export const replyEndorsementParamsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["ticketId", "replyId"],
+  properties: {
+    ticketId: { type: "string", format: "uuid" },
+    replyId: { type: "string", format: "uuid" }
+  }
+} as const;
+
+export const endorsementNotesMaxLength = 2_000;
+
+export interface EndorseReplyInput {
+  notes?: string;
+  markResolved?: boolean;
+}
+
+export const endorseReplyBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    notes: { type: "string", maxLength: endorsementNotesMaxLength },
+    markResolved: { type: "boolean" }
+  }
+} as const;
+
+export interface EndorsementUpdate {
+  reply: Reply;
+  ticket: Ticket;
+}
+
+export const endorsementUpdateResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "ticket"],
+  properties: {
+    reply: replyResponseSchema,
+    ticket: ticketResponseSchema
+  }
+} as const;
+
 export const apiErrorResponseSchema = {
   type: "object",
   additionalProperties: false,
@@ -245,6 +372,10 @@ export function normalizeCreateTicketInput(input: CreateTicketInput): CreateTick
     ...(input.additionalInformation === undefined
       ? {}
       : { additionalInformation: input.additionalInformation.trim() }),
-    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously })
+    ...(input.postAnonymously === undefined ? {} : { postAnonymously: input.postAnonymously }),
+    ...(input.priority === undefined
+      ? { priority: "MEDIUM" as const }
+      : { priority: input.priority }),
+    ...(input.visibility === undefined ? {} : { visibility: input.visibility })
   };
 }

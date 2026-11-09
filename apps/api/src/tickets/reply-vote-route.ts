@@ -4,6 +4,7 @@ import { sessionCookieName } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import { apiErrorResponseSchema, type ApiError } from "./ticket-contract.js";
 import type { VoteValue, VoteState, TicketRepository } from "./ticket-repository.js";
+import { canAccessTicket } from "./ticket-access.js";
 
 interface Options {
   authRepository: AuthRepository;
@@ -51,6 +52,12 @@ export const replyVoteRoutes: FastifyPluginAsync<Options> = async (
           return reply.status(401).send({
             error: { code: "AUTHENTICATION_REQUIRED", message: "Sign in to vote on replies" }
           });
+        }
+        const ticket = await ticketRepository.findById(request.params.ticketId);
+        if (!ticket || !canAccessTicket(ticket, user)) {
+          return reply
+            .status(404)
+            .send({ error: { code: "NOT_FOUND", message: "The ticket was not found" } });
         }
         const result = await ticketRepository.setReplyVote(
           request.params.ticketId,

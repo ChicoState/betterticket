@@ -10,6 +10,8 @@ import type {
   TicketRecord,
   TicketRepository
 } from "../tickets/ticket-repository.js";
+import type { NotificationRepository } from "../notifications/notification-repository.js";
+import type { SettingsRepository } from "../settings/settings-repository.js";
 
 const technician: AuthenticatedUser = {
   id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -96,6 +98,30 @@ const unusedTicketRepository: TicketRepository = {
   },
   updateStatus: async (): Promise<StatusUpdateResult> => {
     throw new Error("not used");
+  },
+  endorseReply: async () => {
+    throw new Error("not used");
+  },
+  withdrawEndorsement: async () => {
+    throw new Error("not used");
+  }
+};
+
+const unusedNotificationRepository: NotificationRepository = {
+  listRecent: async () => {
+    throw new Error("not used");
+  },
+  markAllRead: async () => {
+    throw new Error("not used");
+  }
+};
+
+const unusedSettingsRepository: SettingsRepository = {
+  findNotificationSettings: async () => {
+    throw new Error("not used");
+  },
+  saveNotificationSettings: async () => {
+    throw new Error("not used");
   }
 };
 
@@ -111,6 +137,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -135,6 +163,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -153,6 +183,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -175,6 +207,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -197,6 +231,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -221,6 +257,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -242,6 +280,8 @@ describe("session routes", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -274,6 +314,8 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository,
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -304,10 +346,37 @@ describe("public user registration", () => {
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
+  it("accepts short passwords but rejects empty ones", async () => {
+    const app = buildApp({
+      authRepository: new FakeAuthRepository(),
+      ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const shortPassword = await app.inject({
+      method: "POST",
+      url: "/api/users",
+      payload: { name: "Uma User", username: "uma", password: "a" }
+    });
+    const emptyPassword = await app.inject({
+      method: "POST",
+      url: "/api/users",
+      payload: { name: "Uma User", username: "uma-empty", password: "" }
+    });
+
+    expect(shortPassword.statusCode).toBe(201);
+    expect(emptyPassword.statusCode).toBe(400);
+  });
+
   it("rejects a role supplied by the browser", async () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -330,6 +399,8 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);
@@ -350,6 +421,8 @@ describe("public user registration", () => {
     const app = buildApp({
       authRepository: new FakeAuthRepository(),
       ticketRepository: unusedTicketRepository,
+      notificationRepository: unusedNotificationRepository,
+      settingsRepository: unusedSettingsRepository,
       logger: false
     });
     apps.push(app);

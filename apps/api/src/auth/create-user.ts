@@ -29,8 +29,8 @@ function validateInput(input: CreateUserInput): void {
       "Username may contain lowercase letters, numbers, periods, underscores, and hyphens"
     );
   }
-  if (input.password.length < 12 || input.password.length > 128) {
-    throw new Error("Password must contain between 12 and 128 characters");
+  if (!input.password || input.password.length > 128) {
+    throw new Error("Password must contain between 1 and 128 characters");
   }
 }
 

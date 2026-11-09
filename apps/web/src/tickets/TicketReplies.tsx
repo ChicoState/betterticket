@@ -2,8 +2,17 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import type { AuthenticatedUser } from "../auth/auth-api.js";
 import { TicketReplyVote } from "./ticket_voted_solution.js";
-import { createReply, listReplies, type Reply } from "./ticket-api.js";
+import {
+  createReply,
+  listReplies,
+  type Reply,
+  type ReplyKind,
+  type Ticket,
+  type TicketStatus,
+  type TicketVisibility
+} from "./ticket-api.js";
 import { formatCreatedAt } from "./ticket-format.js";
+import { SolutionEndorsement } from "./SolutionEndorsement.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; replies: Reply[] } | { type: "error" };
 
@@ -12,10 +21,33 @@ type SubmissionState =
 
 interface TicketRepliesProps {
   ticketId: string;
+  visibility: TicketVisibility;
+  ticketStatus?: TicketStatus;
+  isTechnician?: boolean;
   currentUser?: AuthenticatedUser | null;
+  onTicketUpdated?: (ticket: Ticket) => void;
 }
 
-export function TicketReplies({ ticketId, currentUser = null }: TicketRepliesProps) {
+/** Endorsed solutions first (most endorsements, then oldest), then unendorsed oldest first. */
+export function sortSolutions(replies: Reply[]): Reply[] {
+  return replies
+    .filter((reply) => reply.kind === "SOLUTION")
+    .map((reply, index) => ({ reply, index }))
+    .sort(
+      (left, right) =>
+        right.reply.endorsements.length - left.reply.endorsements.length || left.index - right.index
+    )
+    .map(({ reply }) => reply);
+}
+
+export function TicketReplies({
+  ticketId,
+  visibility,
+  ticketStatus = "OPEN",
+  isTechnician = false,
+  currentUser = null,
+  onTicketUpdated = () => {}
+}: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [submission, setSubmission] = useState<SubmissionState>({ type: "idle" });
@@ -49,11 +81,13 @@ export function TicketReplies({ ticketId, currentUser = null }: TicketRepliesPro
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const body = String(new FormData(form).get("body") ?? "").trim();
+    const formData = new FormData(form);
+    const body = String(formData.get("body") ?? "").trim();
+    const kind: ReplyKind = formData.get("kind") === "SOLUTION" ? "SOLUTION" : "COMMENT";
     setSubmission({ type: "submitting" });
 
     try {
-      const reply = await createReply(ticketId, body);
+      const reply = await createReply(ticketId, body, kind);
       form.reset();
       setLoad((current) =>
         current.type === "loaded"
@@ -65,6 +99,21 @@ export function TicketReplies({ ticketId, currentUser = null }: TicketRepliesPro
       setSubmission({ type: "error" });
     }
   }
+
+  function replaceReply(updated: Reply) {
+    setLoad((current) =>
+      current.type === "loaded"
+        ? {
+            type: "loaded",
+            replies: current.replies.map((reply) => (reply.id === updated.id ? updated : reply))
+          }
+        : current
+    );
+  }
+
+  const solutions = load.type === "loaded" ? sortSolutions(load.replies) : [];
+  const comments =
+    load.type === "loaded" ? load.replies.filter((reply) => reply.kind === "COMMENT") : [];
 
   return (
     <section className="replies" aria-labelledby="replies-title">
@@ -87,38 +136,102 @@ export function TicketReplies({ ticketId, currentUser = null }: TicketRepliesPro
 
       {load.type === "loaded" ? (
         <>
-          {load.replies.length === 0 ? (
-            <p className="list-message">No replies yet.</p>
-          ) : (
-            <ol className="reply-list">
-              {load.replies.map((reply) => (
-                <li className="reply" key={reply.id}>
-                  <p className="ticket-meta">
-                    Replied{" "}
-                    <time dateTime={reply.createdAt}>{formatCreatedAt(reply.createdAt)}</time>
-                  </p>
-                  <p className="ticket-text">{reply.body}</p>
-                  <TicketReplyVote
-                    ticketId={ticketId}
-                    replyId={reply.id}
-                    upvotes={reply.upvotes}
-                    downvotes={reply.downvotes}
-                    userVote={currentUser ? reply.userVote : null}
-                    canVote={currentUser !== null}
-                  />
-                </li>
-              ))}
-            </ol>
-          )}
+          <section className="reply-group" aria-labelledby="solutions-title">
+            <h3 id="solutions-title">Suggested solutions</h3>
+            {solutions.length === 0 ? (
+              <p className="list-message">No suggested solutions yet.</p>
+            ) : (
+              <ol className="reply-list">
+                {solutions.map((reply) => (
+                  <li
+                    className={`reply reply-solution${reply.endorsements.length > 0 ? " reply-endorsed" : ""}`}
+                    key={reply.id}
+                  >
+                    <p className="ticket-meta">
+                      {reply.endorsements.length > 0 ? (
+                        <span className="endorsed-badge">Endorsed by IT</span>
+                      ) : null}{" "}
+                      Suggested{" "}
+                      <time dateTime={reply.createdAt}>{formatCreatedAt(reply.createdAt)}</time>
+                    </p>
+                    <p className="ticket-text">{reply.body}</p>
+                    <TicketReplyVote
+                      ticketId={ticketId}
+                      replyId={reply.id}
+                      upvotes={reply.upvotes}
+                      downvotes={reply.downvotes}
+                      userVote={currentUser ? reply.userVote : null}
+                      canVote={currentUser !== null}
+                    />
+                    <SolutionEndorsement
+                      ticketId={ticketId}
+                      ticketStatus={ticketStatus}
+                      reply={reply}
+                      isTechnician={isTechnician}
+                      onReplyUpdated={replaceReply}
+                      onTicketUpdated={onTicketUpdated}
+                    />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="reply-group" aria-labelledby="discussion-title">
+            <h3 id="discussion-title">Discussion</h3>
+            {comments.length === 0 ? (
+              <p className="list-message">No comments yet.</p>
+            ) : (
+              <ol className="reply-list">
+                {comments.map((reply) => (
+                  <li className="reply" key={reply.id}>
+                    <p className="ticket-meta">
+                      Replied{" "}
+                      <time dateTime={reply.createdAt}>{formatCreatedAt(reply.createdAt)}</time>
+                    </p>
+                    <p className="ticket-text">{reply.body}</p>
+                    <TicketReplyVote
+                      ticketId={ticketId}
+                      replyId={reply.id}
+                      upvotes={reply.upvotes}
+                      downvotes={reply.downvotes}
+                      userVote={currentUser ? reply.userVote : null}
+                      canVote={currentUser !== null}
+                    />
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
 
           <form className="reply-form" onSubmit={handleSubmit}>
             <fieldset disabled={submission.type === "submitting"}>
               <legend>Add a reply</legend>
 
+              <fieldset className="reply-kind">
+                <legend>What are you posting?</legend>
+                <div className="checkbox-field">
+                  <input
+                    id="reply-kind-solution"
+                    name="kind"
+                    type="radio"
+                    value="SOLUTION"
+                    required
+                  />
+                  <label htmlFor="reply-kind-solution">Suggest a solution</label>
+                </div>
+                <div className="checkbox-field">
+                  <input id="reply-kind-comment" name="kind" type="radio" value="COMMENT" />
+                  <label htmlFor="reply-kind-comment">Add a comment</label>
+                </div>
+              </fieldset>
+
               <div className="field">
                 <label htmlFor="reply-body">Your reply</label>
                 <p className="field-hint" id="reply-body-hint">
-                  Replies are anonymous and publicly visible. You can reply without an account.
+                  {visibility === "PUBLIC"
+                    ? "Replies are anonymous and publicly visible. You can reply without an account."
+                    : "Replies are anonymous to other visitors and visible to everyone allowed to view this ticket."}
                 </p>
                 <textarea
                   id="reply-body"

@@ -84,6 +84,13 @@ textarea {
   color: #0b5967;
 }
 
+.account-status-label {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .account-icon {
   width: 1.25rem;
   height: 1.25rem;
@@ -160,6 +167,83 @@ textarea {
   margin: 0.35rem 0.55rem 0.2rem;
   color: #9b2617;
   font-size: 0.875rem;
+}
+
+.notification-menu {
+  margin-right: 0.5rem;
+}
+
+.notification-badge {
+  min-width: 1.25rem;
+  border-radius: 999px;
+  background: #9b2617;
+  color: #ffffff;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.notification-pane {
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.notification-heading {
+  margin: 0;
+  border-bottom: 1px solid #d6dcda;
+  padding: 0.45rem 0.55rem 0.65rem;
+  font-size: 1rem;
+}
+
+.notification-list {
+  max-height: 22rem;
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-item {
+  display: grid;
+  gap: 0.15rem;
+  border-bottom: 1px solid #eef1f0;
+  padding: 0.6rem 0.55rem;
+}
+
+.notification-item:last-child {
+  border-bottom: 0;
+}
+
+.notification-item.is-unread {
+  border-left: 0.2rem solid #0b5967;
+  background: #f4f9f8;
+}
+
+.notification-item a {
+  color: #17212b;
+  text-decoration: none;
+}
+
+.notification-item a:hover,
+.notification-item a:focus-visible {
+  color: #0b5967;
+  text-decoration: underline;
+}
+
+.notification-new {
+  color: #0b5967;
+  font-weight: 700;
+}
+
+.notification-item time {
+  color: #64727a;
+  font-size: 0.8125rem;
+}
+
+.notification-empty {
+  margin: 0;
+  color: #53616a;
+  padding: 0.6rem 0.55rem;
 }
 
 .site-nav a[aria-current="page"] {
@@ -336,6 +420,44 @@ main {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.ticket-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.35rem;
+}
+
+.visibility-badge {
+  border: 1px solid #b7c9d5;
+  border-radius: 999px;
+  color: #285268;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.priority-badge {
+  border: 1px solid #d6dcda;
+  border-radius: 999px;
+  background: #f6f7f7;
+  color: #53616a;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ticket-sort-control {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  color: #53616a;
+  font-weight: 700;
 }
 
 .ticket-meta {
@@ -561,6 +683,87 @@ main {
   margin-top: 0.5rem;
 }
 
+.reply-group {
+  margin-top: 1.5rem;
+}
+
+.reply-group h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.reply-endorsed {
+  border-left-color: #174c34;
+}
+
+.endorsed-badge {
+  border: 1px solid #b7d5c3;
+  border-radius: 999px;
+  background: #eef8f2;
+  color: #174c34;
+  padding: 0.1rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.endorsement-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0 0 0 0.75rem;
+  border-left: 2px solid #b7d5c3;
+  list-style: none;
+}
+
+.endorsement .ticket-text {
+  margin-top: 0.25rem;
+}
+
+.endorsement-controls {
+  margin-top: 0.75rem;
+}
+
+.endorsement-form fieldset {
+  gap: 1rem;
+}
+
+.endorsement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.endorsement-actions .ticket-meta {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.link-button {
+  border: 0;
+  background: none;
+  color: #0b5967;
+  padding: 0.55rem 0.25rem;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.reply-kind {
+  gap: 0.5rem;
+}
+
+.reply-kind legend {
+  margin-bottom: 0.5rem;
+  font-weight: 750;
+}
+
 .reply-form {
   margin-top: 1.5rem;
   background: #ffffff;
@@ -775,6 +978,20 @@ footer p {
   .success-message {
     display: grid;
   }
+}
+
+.settings-statuses {
+  gap: 0.75rem;
+}
+
+.settings-statuses legend {
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.settings-statuses:disabled {
+  opacity: 0.6;
 }
 
 .vote-controls {

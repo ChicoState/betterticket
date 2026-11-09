@@ -19,7 +19,11 @@ A reply has this shape:
 }
 ```
 
-`GET /api/tickets/:id/replies` returns `200` with `{ "replies": [] }`. Replies are ordered oldest first and limited to the 200 most recent for the ticket.
+`GET /api/tickets/:id/replies` returns `200` with `{ "replies": [] }` only when the current viewer
+can access the ticket. Replies are ordered oldest first and limited to the 200 most recent for the
+ticket. Posting follows the same visibility rule: public tickets allow anonymous replies,
+authenticated tickets allow any signed-in user, and private tickets allow only the creator and
+technicians.
 
 `POST /api/tickets/:id/replies` accepts `{ "body": "..." }` and returns `201` with the stored reply. `body` is required, must contain a non-whitespace character, and is at most 5,000 characters; surrounding whitespace is trimmed before storage. Unknown fields are rejected.
 
@@ -57,6 +61,6 @@ Unchanged from [ticket creation](ticket-creation.md). Replies are stored in a ne
 
 ## Open Questions
 
-- How replies are attributed to users and technicians once accounts exist, and how anonymous replies are shown then.
+- How replies are attributed to users and technicians once accounts exist, and how anonymous replies are shown then. Partly answered by [ADR-010](../decisions/010-suggested-solutions-and-technician-endorsements.md): replies stay anonymous, are typed as solutions or comments, and technician endorsements are attributed.
 - Whether a reply should reopen a ticket or notify anyone once statuses and accounts exist.
 - Paging through more than 200 replies on one ticket.

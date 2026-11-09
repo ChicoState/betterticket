@@ -1,12 +1,12 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login and technician-assignment backend. Tickets, replies, users, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, and per-user notification settings, and suggested solutions that IT technicians can endorse. Tickets, replies, endorsements, users, notifications, notification settings, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
 | Location                    | Purpose                                                               |
 | --------------------------- | --------------------------------------------------------------------- |
-| `apps/web`                  | React/Vite ticket, reply, and creation frontend with component tests. |
+| `apps/web`                  | React/Vite ticket, reply, endorsement, and creation frontend + tests. |
 | `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.       |
 | `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services.  |
 | `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                 |
@@ -76,11 +76,23 @@ The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`,
 
 ## Ticket progress
 
-Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and `COMPLETED` is terminal. See [the feature spec](docs/specs/ticket-progress.md) and [the technician status-update ADR](docs/decisions/007-technician-status-updates.md).
+Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and technicians stop at `RESOLVED`; `COMPLETED` is reserved for the ticket owner's confirmation in a later issue #8 slice. See [the feature spec](docs/specs/ticket-progress.md), [ADR-007](docs/decisions/007-technician-status-updates.md), and [ADR-010](docs/decisions/010-technician-status-updates-and-owner-notifications.md).
+
+## Ticket status notifications
+
+Each technician status change notifies the signed-in user who created the ticket, including anonymous posts, whose notifications stay private. Signed-in users see a notification button in the header with an unread count. The browser polls `GET /api/notifications` every 30 seconds and when the window regains focus, and opening the pane calls `POST /api/notifications/read`. See [the feature spec](docs/specs/ticket-status-notifications.md) and [ADR-010](docs/decisions/010-technician-status-updates-and-owner-notifications.md).
+
+## Notification settings
+
+Signed-in users can open **Settings** from the account menu (`/settings`) to save an email address, turn email updates on or off, and choose which status changes (Under review, In progress, Resolved) should send an email. Email is opt-in, and in-app notifications stay on either way. The page uses `GET`/`PUT /api/settings/notifications`, which are scoped to the session user. Email delivery is not active yet; see [the settings spec](docs/specs/notification-settings.md) and [ADR-011](docs/decisions/011-notification-settings-and-email-preferences.md).
 
 ## Ticket replies baseline
 
 Each ticket page shows its replies, oldest first, with a form for adding one without signing in. `GET /api/tickets/:id/replies` returns the ticket's 200 most recent replies as `{ "replies": [...] }`, and `POST /api/tickets/:id/replies` stores a `{ "body": "..." }` reply of up to 5,000 characters. Replies are anonymous and public: they carry no author or role, so a submitter's reply and a technician's look the same until replies are tied to accounts. See [the feature spec](docs/specs/ticket-replies.md) and [ADR-004](docs/decisions/004-anonymous-ticket-replies.md) for scope and rationale.
+
+## Suggested solutions and endorsements
+
+Each post on a ticket is either a suggested solution or a comment, chosen when it is posted (`POST /api/tickets/:id/replies` accepts an optional `"kind": "SOLUTION" | "COMMENT"`, defaulting to `COMMENT`). The ticket page lists suggested solutions above the discussion, with endorsed solutions first. Signed-in technicians can endorse a solution with optional notes through `PUT /api/tickets/:ticketId/replies/:replyId/endorsement` (`{ "notes"?: string, "markResolved"?: boolean }`) and withdraw their own endorsement with `DELETE` on the same path. Endorsements show the technician's name. `markResolved` moves an `IN_PROGRESS` ticket to `RESOLVED` and notifies its owner in the same transaction. Posts themselves stay anonymous. See [the feature spec](docs/specs/solution-endorsements.md) and [ADR-010](docs/decisions/010-suggested-solutions-and-technician-endorsements.md).
 
 ## Technician assignment MVP
 
@@ -95,6 +107,21 @@ The command requests a name, username, password, and either the `USER` or `TECHN
 `POST /api/sessions` logs a user in and sets an HttpOnly session cookie; `DELETE /api/sessions/current` logs the user out. An authenticated technician can call `PATCH /api/tickets/:ticketId/assignment` with `{"assignedTechnicianId":"<technician UUID>"}` to assign or reassign a ticket, or with `{"assignedTechnicianId":null}` to unassign it. The selected user must also be a technician, and assignment never changes ticket status.
 
 See [the technician-assignment spec](docs/specs/technician-assignment.md) and [ADR-003](docs/decisions/003-session-authentication-and-technician-assignment.md) for the complete MVP scope and security decisions.
+
+## Example data
+
+For local testing, load a small example dataset (users, tickets in every status, replies, endorsed solutions, and
+notifications) after applying migrations:
+
+```sh
+docker compose --profile tools run --rm toolchain pnpm db:example
+```
+
+It creates the accounts `alice` and `bob` (`USER`) and `terry` and `tina` (`TECHNICIAN`), all with
+the password `password`. The command refuses to run against a database that already has users or
+tickets; add `--reset` to delete all existing users, sessions, tickets, replies, and
+notifications first. It refuses to run when `NODE_ENV=production`. Never load example data into a
+shared or production database.
 
 ## IT accounts
 

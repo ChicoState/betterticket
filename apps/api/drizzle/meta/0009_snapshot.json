@@ -1,5 +1,5 @@
 {
-  "id": "9e6afd09-ec65-42ac-afc3-c37c7c7aaffa",
+  "id": "d345d488-d0eb-4234-b89c-d53ee363568e",
   "prevId": "1339deac-b140-40f2-a9c2-bc6dbd4787be",
   "version": "7",
   "dialect": "postgresql",
@@ -161,99 +161,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.reply_endorsements": {
-      "name": "reply_endorsements",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "reply_id": {
-          "name": "reply_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "technician_id": {
-          "name": "technician_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "reply_endorsements_reply_id_idx": {
-          "name": "reply_endorsements_reply_id_idx",
-          "columns": [
-            {
-              "expression": "reply_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "reply_endorsements_reply_id_ticket_replies_id_fk": {
-          "name": "reply_endorsements_reply_id_ticket_replies_id_fk",
-          "tableFrom": "reply_endorsements",
-          "tableTo": "ticket_replies",
-          "columnsFrom": ["reply_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reply_endorsements_technician_id_users_id_fk": {
-          "name": "reply_endorsements_technician_id_users_id_fk",
-          "tableFrom": "reply_endorsements",
-          "tableTo": "users",
-          "columnsFrom": ["technician_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "reply_endorsements_reply_id_technician_id_unique": {
-          "name": "reply_endorsements_reply_id_technician_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["reply_id", "technician_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.sessions": {
       "name": "sessions",
       "schema": "",
@@ -311,14 +218,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "reply_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'COMMENT'"
         },
         "body": {
           "name": "body",
@@ -412,6 +311,14 @@
         "status": {
           "name": "status",
           "type": "ticket_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'OPEN'"
+        },
+        "replyStatus": {
+          "name": "replyStatus",
+          "type": "ticket_reply_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -547,15 +454,15 @@
     }
   },
   "enums": {
-    "public.reply_kind": {
-      "name": "reply_kind",
-      "schema": "public",
-      "values": ["SOLUTION", "COMMENT"]
-    },
     "public.ticket_priority": {
       "name": "ticket_priority",
       "schema": "public",
       "values": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "public.ticket_reply_status": {
+      "name": "ticket_reply_status",
+      "schema": "public",
+      "values": ["OPEN", "CLOSED"]
     },
     "public.ticket_status": {
       "name": "ticket_status",

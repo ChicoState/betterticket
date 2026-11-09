@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { listTickets, ticketPath, type Ticket, type TicketSort } from "./ticket-api.js";
-import { formatCreatedAt, formatStatus, formatVisibility } from "./ticket-format.js";
+import {
+  formatCreatedAt,
+  formatReplyStatus,
+  formatStatus,
+  formatVisibility
+} from "./ticket-format.js";
 
 type LoadState = { type: "loading" } | { type: "loaded"; tickets: Ticket[] } | { type: "error" };
 
@@ -81,6 +86,9 @@ export function TicketList() {
                     <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
                     <span className="priority-badge">
                       {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
+                    </span>
+                    <span className="reply-status-badge">
+                      {formatReplyStatus(ticket.replyStatus ?? "OPEN")}
                     </span>
                   </span>
                 </header>

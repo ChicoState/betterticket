@@ -21,6 +21,7 @@ import {
   ticketListResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
+  updateTicketReplyStatusBodySchema,
   updateTicketStatusBodySchema,
   type ApiError,
   type CreateReplyInput,
@@ -36,6 +37,7 @@ import {
   type TicketList,
   type TicketSort,
   type TicketParams,
+  type UpdateTicketReplyStatusInput,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
 import type {
@@ -59,9 +61,11 @@ function toTicket(ticket: TicketRecord, viewer: TicketViewer | null): Ticket {
     setup: ticket.setup,
     additionalInformation: ticket.additionalInformation,
     status: ticket.status,
+    replyStatus: ticket.replyStatus ?? "OPEN",
+    canManageReplyStatus: ticket.creatorUserId != null && ticket.creatorUserId === viewer?.id,
     priority: ticket.priority,
     visibility: ticket.visibility,
-    canReply: canAccessTicket(ticket, viewer),
+    canReply: canAccessTicket(ticket, viewer) && ticket.replyStatus !== "CLOSED",
     assignedTechnicianId: ticket.assignedTechnicianId,
     createdByName: ticket.createdByName,
     createdAt: ticket.createdAt.toISOString(),
@@ -276,6 +280,7 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
           201: replyResponseSchema,
           400: apiErrorResponseSchema,
           404: apiErrorResponseSchema,
+          409: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
       }
@@ -288,13 +293,70 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(404).send(ticketNotFound);
       }
 
-      const created = await ticketRepository.createReply(
+      const result = await ticketRepository.createReply(
         ticket.id,
         request.body.body.trim(),
         request.body.kind ?? "COMMENT"
       );
 
-      return reply.status(201).send(toReply(created, viewer));
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
+      }
+      if (result.type === "ticket-closed") {
+        return reply.status(409).send({
+          error: { code: "TICKET_CLOSED", message: "This ticket is closed to new replies" }
+        });
+      }
+
+      return reply.status(201).send(toReply(result.reply, viewer));
+    }
+  );
+
+  app.patch<{
+    Params: TicketParams;
+    Body: UpdateTicketReplyStatusInput;
+    Reply: Ticket | ApiError;
+  }>(
+    "/api/tickets/:id/reply-status",
+    {
+      schema: {
+        params: ticketParamsSchema,
+        body: updateTicketReplyStatusBodySchema,
+        response: {
+          200: ticketResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const token = request.cookies[sessionCookieName];
+      const user = token ? await authRepository.findUserBySession(token) : null;
+
+      if (!user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+
+      const result = await ticketRepository.updateReplyStatus!(
+        request.params.id,
+        user.id,
+        request.body.replyStatus
+      );
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
+      }
+      if (result.type === "not-owner") {
+        return reply.status(403).send({
+          error: { code: "FORBIDDEN", message: "Only the ticket owner can change reply status" }
+        });
+      }
+
+      return reply.status(200).send(toTicket(result.ticket, user));
     }
   );
 

@@ -47,8 +47,6 @@ bash scripts/smoke.sh
 
 These correspond to the current pull-request workflow. The smoke test uses an isolated Compose project and removes its own containers and volumes. `docker compose up --detach postgres object-storage` starts persistent local services; use `docker compose down` to stop them and add `--volumes` only when intentionally resetting local data.
 
-PostgreSQL is exposed only on `127.0.0.1:5433` for host clients; the toolchain uses `postgres:5432`. Keep the host `DATABASE_URL` port in local `.env` consistent with the Compose mapping.
-
 After applying migrations, provision MVP users interactively with `docker compose --profile tools run --rm toolchain pnpm user:create`. Change an existing account between `USER` and `TECHNICIAN` (IT) with `docker compose --profile tools run --rm toolchain pnpm user:set-role`. Never place passwords or provisioned credentials in tracked files or command arguments. For local testing only, `docker compose --profile tools run --rm toolchain pnpm db:example` loads example users (password `password`), tickets, replies, endorsed solutions, notifications, and notification settings into an empty database; pass `--reset` to replace existing data.
 
 ## Change checklist

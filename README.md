@@ -175,7 +175,7 @@ Apply migrations through `0010_ticket_and_reply_votes` with `docker compose --pr
 ## Troubleshooting
 
 - If Docker cannot connect, start Docker Desktop and rerun `docker compose config --quiet`.
-- PostgreSQL is exposed at `127.0.0.1:5433` to avoid conflicts with host PostgreSQL on port 5432. Host database clients use port 5433; the toolchain connects to `postgres:5432`. If port 5433 or 8333 is occupied, change the loopback mapping in `compose.yml` and update the host connection URL in your local `.env`.
+- If ports 5432 or 8333 are occupied, stop the conflicting local service or change the loopback mapping in `compose.yml`.
 - If Docker reports a bind-mount permission issue, grant Docker Desktop access to this repository and rerun the command.
 - If tests report that a required database relation or column does not exist, run `docker compose --profile tools run --rm toolchain pnpm db:migrate`.
 - If ports 3000 or 5173 are occupied, stop the conflicting application before running the development command.

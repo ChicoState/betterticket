@@ -6,7 +6,7 @@ Let the person who submitted a ticket and the technicians working on it hold a c
 
 ## Contract
 
-Authenticated reply voting extends this baseline with public vote totals and a private viewer selection; see [reply voting](reply-voting.md) and [ADR-008](../decisions/008-authenticated-reply-voting.md). Reply posting and reading remain public.
+Authenticated reply voting extends this baseline with public vote totals and a private viewer selection; see [reply voting](reply-voting.md) and [ADR-012](../decisions/012-authenticated-reply-voting.md). Reply posting and reading remain public.
 
 A reply has this shape:
 

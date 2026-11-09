@@ -1,4 +1,4 @@
-# ADR-008: Require Authentication for Reply Voting
+# ADR-012: Require Authentication for Reply Voting
 
 ## Status
 

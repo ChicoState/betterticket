@@ -1,4 +1,4 @@
-# ADR-009: Extend Authenticated Voting to Tickets
+# ADR-013: Extend Authenticated Voting to Tickets
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted on 2026-11-08 following the product owner's explicit request.
 
 ## Context
 
-ADR-008 added account-scoped reply voting. Users also need to upvote and downvote the request itself and want thumbs-up/down icons for all votes.
+ADR-012 added account-scoped reply voting. Users also need to upvote and downvote the request itself and want thumbs-up/down icons for all votes.
 
 ## Decision
 

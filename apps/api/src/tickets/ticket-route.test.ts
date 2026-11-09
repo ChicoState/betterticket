@@ -89,7 +89,7 @@ class FakeTicketRepository implements TicketRepository {
   readonly created: CreateTicketInput[] = [];
   readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
-  readonly listSorts: Array<"newest" | "priority" | undefined> = [];
+  readonly listSorts: Array<"votes" | "newest" | "priority" | undefined> = [];
   readonly createdReplies: Array<{ ticketId: string; body: string; kind?: ReplyKind }> = [];
   readonly replyListLimits: number[] = [];
   readonly endorsements: Array<{
@@ -133,7 +133,7 @@ class FakeTicketRepository implements TicketRepository {
   async listRecent(
     limit: number,
     _viewer?: { id: string; role: "USER" | "TECHNICIAN" } | null,
-    sort?: "newest" | "priority"
+    sort?: "votes" | "newest" | "priority"
   ): Promise<TicketRecord[]> {
     this.listLimits.push(limit);
     this.listSorts.push(sort);
@@ -162,6 +162,9 @@ class FakeTicketRepository implements TicketRepository {
         ticketId,
         kind: kind ?? "COMMENT",
         body,
+        upvotes: 0,
+        downvotes: 0,
+        userVote: null,
         createdAt: new Date("2026-10-07T18:00:00.000Z"),
         endorsements: []
       }
@@ -172,6 +175,23 @@ class FakeTicketRepository implements TicketRepository {
     this.replyListLimits.push(limit);
 
     return this.storedReplies.filter((reply) => reply.ticketId === ticketId);
+  }
+
+  async listTicketVotes(
+    ticketIds: string[]
+  ): Promise<Array<import("./ticket-repository.js").VoteState & { ticketId: string }>> {
+    return ticketIds.map((ticketId) => ({ ticketId, upvotes: 0, downvotes: 0, userVote: null }));
+  }
+
+  async getTicketVote(): Promise<import("./ticket-repository.js").VoteState | null> {
+    throw new Error("not used");
+  }
+  async setTicketVote(): Promise<import("./ticket-repository.js").SetTicketVoteResult> {
+    throw new Error("not used");
+  }
+
+  async setReplyVote(): Promise<import("./ticket-repository.js").SetReplyVoteResult> {
+    throw new Error("not used");
   }
 
   async assignTechnician(): Promise<AssignmentResult> {
@@ -461,6 +481,10 @@ describe("POST /api/tickets", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
       endorseReply: vi.fn(),
@@ -566,7 +590,8 @@ describe("GET /api/tickets", () => {
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-29T09:30:00.000Z",
-          updatedAt: "2026-09-29T09:30:00.000Z"
+          updatedAt: "2026-09-29T09:30:00.000Z",
+          votes: { upvotes: 0, downvotes: 0, userVote: null }
         },
         {
           id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -583,7 +608,8 @@ describe("GET /api/tickets", () => {
           assignedTechnicianId: null,
           createdByName: null,
           createdAt: "2026-09-28T18:00:00.000Z",
-          updatedAt: "2026-09-28T18:00:00.000Z"
+          updatedAt: "2026-09-28T18:00:00.000Z",
+          votes: { upvotes: 0, downvotes: 0, userVote: null }
         }
       ]
     });
@@ -643,7 +669,7 @@ describe("GET /api/tickets", () => {
 
     expect(ignored.statusCode).toBe(200);
     expect(rejected.statusCode).toBe(400);
-    expect(repository.listSorts).toEqual(["newest"]);
+    expect(repository.listSorts).toEqual(["votes"]);
   });
 
   it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {
@@ -686,6 +712,10 @@ describe("GET /api/tickets", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
       endorseReply: vi.fn(),
@@ -1010,6 +1040,10 @@ describe("GET /api/tickets/:id", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
       endorseReply: vi.fn(),
@@ -1038,6 +1072,10 @@ describe("GET /api/tickets/:id", () => {
       findById: vi.fn().mockRejectedValue(new Error("password=database-secret")),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
       endorseReply: vi.fn(),
@@ -1082,6 +1120,10 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn().mockResolvedValue(result),
       updateStatus: vi.fn(),
       endorseReply: vi.fn(),
@@ -1237,6 +1279,10 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
       findById: vi.fn(),
       createReply: vi.fn(),
       listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn().mockResolvedValue(result),
       endorseReply: vi.fn(),
@@ -1417,6 +1463,9 @@ describe("ticket replies", () => {
     ticketId: storedTicket.id,
     kind: "COMMENT",
     body: "Have you tried a different charger?",
+    upvotes: 0,
+    downvotes: 0,
+    userVote: null,
     createdAt: new Date("2026-09-29T09:30:00.000Z"),
     endorsements: []
   };
@@ -1481,6 +1530,10 @@ describe("ticket replies", () => {
         findById: vi.fn(),
         createReply: vi.fn(),
         listRecentReplies: vi.fn(),
+        listTicketVotes: vi.fn(),
+        getTicketVote: vi.fn(),
+        setTicketVote: vi.fn(),
+        setReplyVote: vi.fn(),
         assignTechnician: vi.fn(),
         updateStatus: vi.fn(),
         endorseReply: vi.fn(),
@@ -1521,6 +1574,9 @@ describe("ticket replies", () => {
         ticketId: storedTicket.id,
         kind: "COMMENT",
         body: "Yes, same result with a second charger.",
+        upvotes: 0,
+        downvotes: 0,
+        userVote: null,
         createdAt: "2026-10-07T18:00:00.000Z",
         endorsements: []
       });
@@ -1601,6 +1657,10 @@ describe("ticket replies", () => {
         findById: vi.fn().mockResolvedValue(storedTicket),
         createReply: vi.fn().mockRejectedValue(new Error("password=database-secret")),
         listRecentReplies: vi.fn(),
+        listTicketVotes: vi.fn(),
+        getTicketVote: vi.fn(),
+        setTicketVote: vi.fn(),
+        setReplyVote: vi.fn(),
         assignTechnician: vi.fn(),
         updateStatus: vi.fn(),
         endorseReply: vi.fn(),
@@ -1646,6 +1706,9 @@ describe("reply endorsements", () => {
     kind: "SOLUTION",
     body: "Reinstall the driver.",
     createdAt: new Date("2026-10-28T18:30:00.000Z"),
+    upvotes: 0,
+    downvotes: 0,
+    userVote: null,
     endorsements: [
       {
         id: "a1b2c3d4-0000-4000-8000-000000000001",
@@ -1711,6 +1774,9 @@ describe("reply endorsements", () => {
         kind: "SOLUTION",
         body: "Reinstall the driver.",
         createdAt: "2026-10-28T18:30:00.000Z",
+        upvotes: 0,
+        downvotes: 0,
+        userVote: null,
         endorsements: [
           {
             id: "a1b2c3d4-0000-4000-8000-000000000001",

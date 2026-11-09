@@ -166,6 +166,12 @@ Docker image tags are deliberately pinned. Dependabot proposes updates; review a
 
 Before enabling a release workflow, select the static host, API container host, registry, PostgreSQL provider, object-storage provider, and release owner. Then configure protected `staging` and `production` environments and the named secrets/variables listed in `infrastructure_plan.md`—including `API_CONTAINER_REGISTRY_TOKEN`, `API_DEPLOY_TOKEN`, `FRONTEND_DEPLOY_TOKEN`, `DATABASE_URL`, object-storage settings, and `AUTH_SECRET`. No release workflow is present yet because these providers have not been selected.
 
+## Ticket and reply voting
+
+Signed-in users and technicians can upvote or downvote directly from each card in the Tickets list or from the bottom of a ticket detail page, and vote independently on replies. Both controls use thumbs-up and thumbs-down icons. Each account has one vote per ticket and one per reply; select the same direction to remove it or the other direction to switch. Visitors can see totals and sign in to vote. The API checks the session on every vote request.
+
+Apply migrations through `0011_ticket_and_reply_votes` with `docker compose --profile tools run --rm toolchain pnpm db:migrate` before starting the updated application.
+
 ## Troubleshooting
 
 - If Docker cannot connect, start Docker Desktop and rerun `docker compose config --quiet`.

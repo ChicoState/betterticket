@@ -1,7 +1,15 @@
 import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { notifications, replyEndorsements, ticketReplies, tickets, users } from "./schema.js";
+import {
+  notifications,
+  replyEndorsements,
+  ticketReplies,
+  ticketReplyVotes,
+  ticketVotes,
+  tickets,
+  users
+} from "./schema.js";
 import {
   canTechnicianChangeStatus,
   type ReplyKind,
@@ -9,6 +17,10 @@ import {
 } from "../tickets/ticket-contract.js";
 import type {
   AssignmentResult,
+  VoteValue,
+  SetReplyVoteResult,
+  SetTicketVoteResult,
+  VoteState,
   CreateTicketInput,
   EndorseReplyRecordInput,
   EndorseResult,
@@ -63,7 +75,7 @@ export class PostgresTicketRepository implements TicketRepository {
   async listRecent(
     limit: number,
     viewer: TicketViewer | null = null,
-    sort: TicketSort = "newest"
+    sort: TicketSort = "votes"
   ): Promise<TicketRecord[]> {
     const visibilityFilter =
       viewer?.role === "TECHNICIAN"
@@ -79,14 +91,21 @@ export class PostgresTicketRepository implements TicketRepository {
               and(eq(tickets.visibility, "PRIVATE"), eq(tickets.creatorUserId, viewer.id))
             )
           : eq(tickets.visibility, "PUBLIC");
+    const newestFirst = [desc(tickets.createdAt), desc(tickets.id)];
     const orderBy =
       sort === "priority"
         ? [
             sql`CASE ${tickets.priority} WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END`,
-            desc(tickets.createdAt),
-            desc(tickets.id)
+            ...newestFirst
           ]
-        : [desc(tickets.createdAt), desc(tickets.id)];
+        : sort === "votes"
+          ? [
+              desc(
+                sql`(select coalesce(sum(${ticketVotes.value}), 0) from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id})`
+              ),
+              ...newestFirst
+            ]
+          : newestFirst;
     const results = await this.database
       .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)
@@ -124,7 +143,10 @@ export class PostgresTicketRepository implements TicketRepository {
       .returning();
 
     if (reply) {
-      return { type: "created", reply: { ...reply, endorsements: [] } };
+      return {
+        type: "created",
+        reply: { ...reply, endorsements: [], upvotes: 0, downvotes: 0, userVote: null }
+      };
     }
 
     return (await this.findById(ticketId))
@@ -132,9 +154,13 @@ export class PostgresTicketRepository implements TicketRepository {
       : { type: "ticket-not-found" };
   }
 
-  async listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]> {
+  async listRecentReplies(
+    ticketId: string,
+    limit: number,
+    userId?: string
+  ): Promise<ReplyRecord[]> {
     const newestFirst = await this.database
-      .select()
+      .select({ ...getTableColumns(ticketReplies), ...replyVoteColumns(userId) })
       .from(ticketReplies)
       .where(eq(ticketReplies.ticketId, ticketId))
       .orderBy(desc(ticketReplies.createdAt), desc(ticketReplies.id))
@@ -151,7 +177,7 @@ export class PostgresTicketRepository implements TicketRepository {
   ): Promise<EndorseResult> {
     return this.database.transaction(async (transaction) => {
       const [reply] = await transaction
-        .select()
+        .select({ ...getTableColumns(ticketReplies), ...replyVoteColumns(technicianId) })
         .from(ticketReplies)
         .where(and(eq(ticketReplies.id, replyId), eq(ticketReplies.ticketId, ticketId)))
         .limit(1);
@@ -215,6 +241,95 @@ export class PostgresTicketRepository implements TicketRepository {
       .returning({ id: replyEndorsements.id });
 
     return deleted.length > 0 ? { type: "withdrawn" } : { type: "endorsement-not-found" };
+  }
+
+  async setReplyVote(
+    ticketId: string,
+    replyId: string,
+    userId: string,
+    value: VoteValue | null
+  ): Promise<SetReplyVoteResult> {
+    return this.database.transaction(async (transaction) => {
+      // Serialize votes for this reply so the returned totals include the committed mutation.
+      const [reply] = await transaction
+        .select({ id: ticketReplies.id })
+        .from(ticketReplies)
+        .where(and(eq(ticketReplies.id, replyId), eq(ticketReplies.ticketId, ticketId)))
+        .for("update");
+      if (!reply) return { type: "reply-not-found" };
+      if (value === null) {
+        await transaction
+          .delete(ticketReplyVotes)
+          .where(and(eq(ticketReplyVotes.replyId, replyId), eq(ticketReplyVotes.userId, userId)));
+      } else {
+        await transaction
+          .insert(ticketReplyVotes)
+          .values({ replyId, userId, value })
+          .onConflictDoUpdate({
+            target: [ticketReplyVotes.replyId, ticketReplyVotes.userId],
+            set: { value }
+          });
+      }
+      const [vote] = await transaction
+        .select(replyVoteColumns(userId))
+        .from(ticketReplies)
+        .where(eq(ticketReplies.id, replyId));
+      if (!vote) throw new Error("Voted reply could not be read");
+      return { type: "updated", vote };
+    });
+  }
+
+  async listTicketVotes(
+    ticketIds: string[],
+    userId?: string
+  ): Promise<Array<VoteState & { ticketId: string }>> {
+    if (ticketIds.length === 0) return [];
+    return this.database
+      .select({ ticketId: tickets.id, ...ticketVoteColumns(userId) })
+      .from(tickets)
+      .where(inArray(tickets.id, ticketIds));
+  }
+
+  async getTicketVote(ticketId: string, userId?: string): Promise<VoteState | null> {
+    const [vote] = await this.database
+      .select(ticketVoteColumns(userId))
+      .from(tickets)
+      .where(eq(tickets.id, ticketId));
+    return vote ?? null;
+  }
+
+  async setTicketVote(
+    ticketId: string,
+    userId: string,
+    value: VoteValue | null
+  ): Promise<SetTicketVoteResult> {
+    return this.database.transaction(async (transaction) => {
+      const [ticket] = await transaction
+        .select({ id: tickets.id })
+        .from(tickets)
+        .where(eq(tickets.id, ticketId))
+        .for("update");
+      if (!ticket) return { type: "ticket-not-found" };
+      if (value === null) {
+        await transaction
+          .delete(ticketVotes)
+          .where(and(eq(ticketVotes.ticketId, ticketId), eq(ticketVotes.userId, userId)));
+      } else {
+        await transaction
+          .insert(ticketVotes)
+          .values({ ticketId, userId, value })
+          .onConflictDoUpdate({
+            target: [ticketVotes.ticketId, ticketVotes.userId],
+            set: { value }
+          });
+      }
+      const [vote] = await transaction
+        .select(ticketVoteColumns(userId))
+        .from(tickets)
+        .where(eq(tickets.id, ticketId));
+      if (!vote) throw new Error("Voted ticket could not be read");
+      return { type: "updated", vote };
+    });
   }
 
   async updateReplyStatus(
@@ -388,5 +503,37 @@ function toTicketRecord(
     ...ticketRecord,
     creatorUserId: ticket.creatorUserId,
     createdByName: ticket.isAnonymous ? null : creatorName
+  };
+}
+
+function replyVoteColumns(userId?: string) {
+  return {
+    upvotes:
+      sql<number>`(select count(*) from ${ticketReplyVotes} where ${ticketReplyVotes.replyId} = ${ticketReplies.id} and ${ticketReplyVotes.value} = 1)`.mapWith(
+        Number
+      ),
+    downvotes:
+      sql<number>`(select count(*) from ${ticketReplyVotes} where ${ticketReplyVotes.replyId} = ${ticketReplies.id} and ${ticketReplyVotes.value} = -1)`.mapWith(
+        Number
+      ),
+    userVote: userId
+      ? sql<VoteValue | null>`(select ${ticketReplyVotes.value} from ${ticketReplyVotes} where ${ticketReplyVotes.replyId} = ${ticketReplies.id} and ${ticketReplyVotes.userId} = ${userId})`
+      : sql<VoteValue | null>`null`
+  };
+}
+
+function ticketVoteColumns(userId?: string) {
+  return {
+    upvotes:
+      sql<number>`(select count(*) from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id} and ${ticketVotes.value} = 1)`.mapWith(
+        Number
+      ),
+    downvotes:
+      sql<number>`(select count(*) from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id} and ${ticketVotes.value} = -1)`.mapWith(
+        Number
+      ),
+    userVote: userId
+      ? sql<VoteValue | null>`(select ${ticketVotes.value} from ${ticketVotes} where ${ticketVotes.ticketId} = ${tickets.id} and ${ticketVotes.userId} = ${userId})`
+      : sql<VoteValue | null>`null`
   };
 }

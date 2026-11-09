@@ -4,16 +4,17 @@
 
 Allow anonymous and authenticated ticket creators to choose `LOW`, `MEDIUM`,
 or `HIGH` priority. New and existing tickets default to `MEDIUM`. Ticket
-lists remain newest-first by default and support database-backed priority
-sorting with deterministic newest-first tie-breaking.
+lists support database-backed priority sorting with deterministic newest-first
+tie-breaking. The default list order is by votes; see the
+[reply-voting spec](reply-voting.md#approved-extension-sort-tickets-by-votes).
 
 ## Contract
 
 - `POST /api/tickets` accepts optional `priority` with values `LOW`, `MEDIUM`,
   or `HIGH`.
 - Ticket responses always include priority.
-- `GET /api/tickets?sort=priority` sorts `HIGH`, `MEDIUM`, `LOW`; omitted sort
-  preserves newest-first ordering.
+- `GET /api/tickets?sort=priority` sorts `HIGH`, `MEDIUM`, `LOW`;
+  `sort=newest` gives newest-first ordering, and omitting `sort` orders by votes.
 - Visibility authorization is applied before the database limit.
 
 ## Boundaries

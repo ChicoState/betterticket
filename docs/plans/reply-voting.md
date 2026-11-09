@@ -59,7 +59,7 @@ Migration, persistence, authorization, and API tests pass before UI integration.
 
 ## Completion and Verification
 
-All six tasks completed on 2026-11-08. The additive `0005_lumpy_chat` migration was verified on an isolated PostgreSQL instance and applied successfully to the persistent local development database.
+All six tasks completed on 2026-11-08. The additive reply-vote migration (originally `0005_lumpy_chat`, now consolidated into `0010_ticket_and_reply_votes` after merging main) was verified on an isolated PostgreSQL instance and applied successfully to the persistent local development database.
 
 - Locked dependency installation, formatting, lint, typecheck, coverage thresholds, production build, and `git diff --check` passed.
 - The coverage run executed all 170 tests: 101 API tests, 68 web tests, and one migration-history test. API line coverage was 93.57%; web line coverage was 91.42%.
@@ -83,7 +83,7 @@ Each step is sequential. Schema/route work precedes UI integration; browser veri
 
 ### Extension Verification
 
-Completed on 2026-11-08. Migration `0006_nifty_riptide` was tested in isolation and applied to the existing local development database.
+Completed on 2026-11-08. The ticket-vote migration (originally `0006_nifty_riptide`, now consolidated into `0010_ticket_and_reply_votes`) was tested in isolation and applied to the existing local development database.
 
 - All 197 tests passed under coverage: 122 API tests, 74 web tests, and one migration-history test. Coverage thresholds, formatting, lint, typecheck, and production build passed.
 - Chromium verified separate ticket/reply thumb controls, keyboard voting, persistent selections after reload, switching/removal for each target, visitor API/UI denial, logout, and session expiry. No uncaught browser errors occurred.

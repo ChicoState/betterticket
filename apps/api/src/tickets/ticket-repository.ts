@@ -28,6 +28,19 @@ export interface TicketRecord {
   updatedAt: Date;
 }
 
+export interface NewAttachmentRecord {
+  id: string;
+  objectKey: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface AttachmentRecord extends NewAttachmentRecord {
+  ticketId: string;
+  createdAt: Date;
+}
+
 export interface EndorsementRecord {
   id: string;
   technicianId: string;
@@ -79,13 +92,21 @@ export type StatusUpdateResult =
   | { type: "invalid-transition" };
 
 export interface TicketRepository {
-  create(input: CreateTicketInput, creator?: TicketCreator | null): Promise<TicketRecord>;
+  create(
+    input: CreateTicketInput,
+    creator?: TicketCreator | null,
+    attachments?: NewAttachmentRecord[]
+  ): Promise<TicketRecord>;
   listRecent(
     limit: number,
     viewer?: TicketViewer | null,
     sort?: TicketSort
   ): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
+  /** Present on repositories used by the attachment routes; optional for focused legacy test fakes. */
+  listAttachments?(ticketId: string): Promise<AttachmentRecord[]>;
+  /** Present on repositories used by the attachment routes; optional for focused legacy test fakes. */
+  findAttachment?(ticketId: string, attachmentId: string): Promise<AttachmentRecord | null>;
   createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyCreationResult>;
   listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]>;
   updateReplyStatus?(

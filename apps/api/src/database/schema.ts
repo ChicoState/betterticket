@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -57,6 +58,28 @@ export const tickets = pgTable("tickets", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
 });
+
+export const ticketAttachments = pgTable(
+  "ticket_attachments",
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    objectKey: text("object_key").notNull().unique(),
+    fileName: varchar("file_name", { length: 255 }).notNull(),
+    contentType: varchar("content_type", { length: 127 }).notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    index("ticket_attachments_ticket_id_created_at_idx").on(
+      table.ticketId,
+      table.createdAt,
+      table.id
+    )
+  ]
+);
 
 export const ticketReplies = pgTable(
   "ticket_replies",

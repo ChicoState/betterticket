@@ -1,6 +1,6 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, and per-user notification settings, and suggested solutions that IT technicians can endorse. Tickets, replies, endorsements, users, notifications, notification settings, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus signed-in ticket attachments, a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, per-user notification settings, and suggested solutions that IT technicians can endorse. Ticket data and attachment metadata are stored in PostgreSQL; attachment content is stored in S3-compatible object storage.
 
 ## Repository map
 
@@ -46,7 +46,7 @@ BetterTicket is a public ticketing web application. It supports anonymous ticket
    docker compose --profile tools run --rm --service-ports toolchain pnpm dev
    ```
 
-6. Run the quality checks in the toolchain container, then the host Docker smoke test. PostgreSQL must be running because the API suite includes a real persistence test:
+6. Run the quality checks in the toolchain container, then the host Docker smoke test. PostgreSQL and object storage must be running because the API suite includes real persistence and object-storage tests:
 
    ```sh
    docker compose --profile tools run --rm toolchain pnpm format:check
@@ -69,6 +69,12 @@ BetterTicket is a public ticketing web application. It supports anonymous ticket
 ## Ticket creation baseline
 
 Anonymous visitors can submit a title, issue description, setup details, and optional additional information. `POST /api/tickets` validates the request, rejects unknown fields, and stores the ticket with a generated UUID, `OPEN` status, and timestamps. See [the feature spec](docs/specs/ticket-creation.md) and [ADR-001](docs/decisions/001-anonymous-ticket-creation.md) for scope and rationale.
+
+## Ticket attachments
+
+Signed-in users can add as many as five screenshots or other supported files while creating a ticket by choosing files or dropping them below the visibility control. The server accepts PNG, JPEG, WebP, GIF, PDF, UTF-8 text/log, DOCX, XLSX, and PPTX files; each file is limited to 10 MiB and all files together to 25 MiB. Attachment content is inspected instead of trusting the browser-provided MIME type, and macro-enabled Office documents are rejected. The ticket and all attachment metadata are created atomically; uploaded objects are removed if persistence fails.
+
+Attachments inherit the ticket's visibility. Images are previewed on the ticket page, while every attachment has an authenticated download route protected by the same ticket-access check. Anonymous ticket creation still uses the existing JSON API and does not accept files. See [the attachment spec](docs/specs/ticket-attachments.md), [implementation plan](docs/plans/ticket-attachments.md), and [ADR-012](docs/decisions/012-ticket-attachment-storage-and-access.md).
 
 ## Ticket viewer baseline
 

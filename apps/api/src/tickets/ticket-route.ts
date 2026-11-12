@@ -1,5 +1,24 @@
 import type { FastifyPluginAsync } from "fastify";
 
+import {
+  attachmentContentParamsSchema,
+  attachmentContentQuerySchema,
+  attachmentListParamsSchema,
+  attachmentListResponseSchema,
+  type AttachmentContentParams,
+  type AttachmentList,
+  type AttachmentListParams
+} from "../attachments/attachment-contract.js";
+import type { AttachmentStorage } from "../attachments/attachment-storage.js";
+import { AttachmentValidationError } from "../attachments/attachment-validation.js";
+import {
+  AttachmentLimitError,
+  cleanupAttachments,
+  parseTicketMultipart,
+  storeAttachments
+} from "../attachments/attachment-upload.js";
+import type { ValidatedAttachment } from "../attachments/attachment-validation.js";
+
 import { sessionCookieName } from "../auth/auth-contract.js";
 import type { AuthRepository } from "../auth/auth-repository.js";
 import { requireTechnician } from "../auth/require-technician.js";
@@ -41,6 +60,7 @@ import {
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
 import type {
+  NewAttachmentRecord,
   ReplyRecord,
   TicketRecord,
   TicketRepository,
@@ -51,6 +71,7 @@ import { canAccessTicket } from "./ticket-access.js";
 interface TicketRoutesOptions {
   authRepository: AuthRepository;
   ticketRepository: TicketRepository;
+  attachmentStorage: AttachmentStorage;
 }
 
 function toTicket(ticket: TicketRecord, viewer: TicketViewer | null): Ticket {
@@ -115,7 +136,7 @@ const replyNotFound: ApiError = {
 
 export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
-  { authRepository, ticketRepository }
+  { authRepository, ticketRepository, attachmentStorage }
 ) => {
   app.post<{ Body: CreateTicketInput; Reply: Ticket | ApiError }>(
     "/api/tickets",
@@ -128,6 +149,46 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
           401: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
+      },
+      preValidation: async (request, reply) => {
+        if (!request.isMultipart()) {
+          return;
+        }
+
+        const user = await currentUser(request, authRepository);
+        if (!user) {
+          return reply.status(401).send({
+            error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+          });
+        }
+
+        try {
+          const parsed = await parseTicketMultipart(request);
+          request.body = parsed.input as CreateTicketInput;
+          (
+            request as typeof request & { validatedAttachments: ValidatedAttachment[] }
+          ).validatedAttachments = parsed.attachments;
+        } catch (error) {
+          if (
+            error instanceof AttachmentLimitError ||
+            error instanceof app.multipartErrors.RequestFileTooLargeError ||
+            error instanceof app.multipartErrors.FilesLimitError ||
+            error instanceof app.multipartErrors.PartsLimitError
+          ) {
+            return reply.status(413).send({
+              error: {
+                code: "ATTACHMENT_LIMIT_EXCEEDED",
+                message: "Attachment limits were exceeded"
+              }
+            });
+          }
+          if (error instanceof AttachmentValidationError) {
+            return reply.status(400).send({
+              error: { code: "ATTACHMENT_INVALID", message: error.message }
+            });
+          }
+          throw error;
+        }
       }
     },
     async (request, reply) => {
@@ -138,9 +199,121 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
           error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
         });
       }
-      const ticket = await ticketRepository.create(input, user);
+      const attachments =
+        (request as typeof request & { validatedAttachments?: ValidatedAttachment[] })
+          .validatedAttachments ?? [];
+      const uploadedMetadata: NewAttachmentRecord[] = await storeAttachments(
+        attachmentStorage,
+        attachments
+      );
+      let ticket: TicketRecord;
+      try {
+        ticket = await ticketRepository.create(input, user, uploadedMetadata);
+      } catch (error) {
+        await cleanupAttachments(attachmentStorage, uploadedMetadata);
+        throw error;
+      }
 
       return reply.status(201).send(toTicket(ticket, user));
+    }
+  );
+
+  const attachmentNotFound: ApiError = {
+    error: { code: "NOT_FOUND", message: "The attachment was not found" }
+  };
+
+  app.get<{ Params: AttachmentListParams; Reply: AttachmentList | ApiError }>(
+    "/api/tickets/:ticketId/attachments",
+    {
+      schema: {
+        params: attachmentListParamsSchema,
+        response: {
+          200: attachmentListResponseSchema,
+          400: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const viewer = await currentUser(request, authRepository);
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      if (!ticket || !canAccessTicket(ticket, viewer)) {
+        return reply.status(404).send(attachmentNotFound);
+      }
+      if (!ticketRepository.listAttachments) {
+        throw new Error("Attachment repository is unavailable");
+      }
+      const attachments = await ticketRepository.listAttachments(ticket.id);
+      return reply.status(200).send({
+        attachments: attachments.map((attachment) => ({
+          id: attachment.id,
+          fileName: attachment.fileName,
+          contentType: attachment.contentType,
+          sizeBytes: attachment.sizeBytes,
+          createdAt: attachment.createdAt.toISOString()
+        }))
+      });
+    }
+  );
+
+  app.get<{
+    Params: AttachmentContentParams;
+    Querystring: { preview?: "true" };
+  }>(
+    "/api/tickets/:ticketId/attachments/:attachmentId",
+    {
+      schema: {
+        params: attachmentContentParamsSchema,
+        querystring: attachmentContentQuerySchema,
+        response: {
+          400: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const viewer = await currentUser(request, authRepository);
+      const ticket = await ticketRepository.findById(request.params.ticketId);
+      if (!ticket || !canAccessTicket(ticket, viewer) || !ticketRepository.findAttachment) {
+        return reply.status(404).send(attachmentNotFound);
+      }
+      const attachment = await ticketRepository.findAttachment(
+        ticket.id,
+        request.params.attachmentId
+      );
+      if (!attachment) {
+        return reply.status(404).send(attachmentNotFound);
+      }
+      const isImage = attachment.contentType.startsWith("image/");
+      if (request.query.preview === "true" && !isImage) {
+        return reply.status(400).send({
+          error: { code: "VALIDATION_ERROR", message: "This attachment cannot be previewed" }
+        });
+      }
+      const stored = await attachmentStorage.get(attachment.objectKey);
+      if (!stored) {
+        return reply.status(404).send(attachmentNotFound);
+      }
+
+      const disposition = request.query.preview === "true" ? "inline" : "attachment";
+      const asciiName = attachment.fileName.replace(/[^A-Za-z0-9._-]/g, "_");
+      const encodedName = encodeURIComponent(attachment.fileName).replace(
+        /['*]/g,
+        (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+      );
+      return reply
+        .header("content-type", attachment.contentType)
+        .header("content-length", stored.contentLength)
+        .header(
+          "content-disposition",
+          `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodedName}`
+        )
+        .header("cache-control", "private, no-store")
+        .header("content-security-policy", "default-src 'none'; sandbox")
+        .header("vary", "Cookie")
+        .send(stored.body);
     }
   );
 

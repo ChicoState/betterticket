@@ -1020,3 +1020,142 @@ footer p {
 .settings-statuses:disabled {
   opacity: 0.6;
 }
+
+.attachment-dropzone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 6.5rem;
+  border: 2px dashed #9aa6aa;
+  border-radius: 0.25rem;
+  background: #f7f9f8;
+  padding: 1rem;
+  text-align: center;
+}
+
+.attachment-dropzone:focus-within {
+  border-color: #0b5967;
+  outline: 0.2rem solid #e9a23b;
+  outline-offset: 0.15rem;
+}
+
+.attachment-dropzone input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.attachment-picker {
+  border: 1px solid #0b5967;
+  border-radius: 0.25rem;
+  background: #ffffff;
+  color: #0b5967;
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+}
+
+.attachment-picker:hover {
+  background: #eef8f2;
+}
+
+.attachment-selection,
+.attachment-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-selection li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #d6dcda;
+  border-radius: 0.25rem;
+  padding: 0.65rem 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.attachment-selection button {
+  border: 0;
+  background: transparent;
+  color: #7d281f;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.attachment-error {
+  min-height: 1.25rem;
+  margin: 0;
+  color: #7d281f;
+  font-size: 0.875rem;
+}
+
+.attachment-sign-in {
+  border-left: 0.25rem solid #e9a23b;
+  background: #fff8eb;
+  padding: 0.9rem 1rem;
+}
+
+.attachment-sign-in a,
+.ticket-attachments a {
+  color: #0b5967;
+  font-weight: 700;
+}
+
+.ticket-attachments {
+  margin-top: 1.5rem;
+  border-top: 1px solid #d6dcda;
+  padding-top: 1.25rem;
+}
+
+.ticket-attachments h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.attachment-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.attachment-list li {
+  min-width: 0;
+  border: 1px solid #d6dcda;
+  border-radius: 0.25rem;
+  background: #f7f9f8;
+  padding: 0.75rem;
+}
+
+.attachment-list img {
+  display: block;
+  width: 100%;
+  height: 10rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #d6dcda;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.attachment-list div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.attachment-list a {
+  overflow-wrap: anywhere;
+}
+
+.attachment-list span,
+.attachment-status {
+  color: #64727a;
+  font-size: 0.875rem;
+}

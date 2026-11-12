@@ -20,6 +20,7 @@ import {
   ticketProgress
 } from "./ticket-format.js";
 import { TicketReplies } from "./TicketReplies.js";
+import { TicketAttachments } from "./TicketAttachments.js";
 
 type LoadState =
   | { type: "loading" }
@@ -245,6 +246,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
             </>
           ) : null}
         </dl>
+        <TicketAttachments ticketId={ticket.id} />
       </article>
       <TicketReplies
         ticketId={ticket.id}

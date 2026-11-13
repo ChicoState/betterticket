@@ -78,6 +78,13 @@
       "when": 1793828434540,
       "tag": "0010_solution_endorsements",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794462487110,
+      "tag": "0011_clear_dazzler",
+      "breakpoints": true
     }
   ]
 }

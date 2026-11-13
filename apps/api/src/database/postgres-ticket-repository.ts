@@ -1,7 +1,14 @@
 import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
-import { notifications, replyEndorsements, ticketReplies, tickets, users } from "./schema.js";
+import {
+  notifications,
+  replyEndorsements,
+  ticketAttachments,
+  ticketReplies,
+  tickets,
+  users
+} from "./schema.js";
 import {
   canTechnicianChangeStatus,
   type ReplyKind,
@@ -9,10 +16,12 @@ import {
 } from "../tickets/ticket-contract.js";
 import type {
   AssignmentResult,
+  AttachmentRecord,
   CreateTicketInput,
   EndorseReplyRecordInput,
   EndorseResult,
   EndorsementRecord,
+  NewAttachmentRecord,
   ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
@@ -34,30 +43,42 @@ export class PostgresTicketRepository implements TicketRepository {
 
   async create(
     input: CreateTicketInput,
-    creator: TicketCreator | null = null
+    creator: TicketCreator | null = null,
+    attachments: NewAttachmentRecord[] = []
   ): Promise<TicketRecord> {
-    const [ticket] = await this.database
-      .insert(tickets)
-      .values({
-        title: input.title,
-        description: input.description,
-        setup: input.setup,
-        additionalInformation: input.additionalInformation,
-        visibility: input.visibility ?? "PUBLIC",
-        creatorUserId: creator?.id,
-        isAnonymous: input.postAnonymously ?? false,
-        priority: input.priority ?? "MEDIUM"
-      })
-      .returning();
+    return this.database.transaction(async (transaction) => {
+      const [ticket] = await transaction
+        .insert(tickets)
+        .values({
+          title: input.title,
+          description: input.description,
+          setup: input.setup,
+          additionalInformation: input.additionalInformation,
+          visibility: input.visibility ?? "PUBLIC",
+          creatorUserId: creator?.id,
+          isAnonymous: input.postAnonymously ?? false,
+          priority: input.priority ?? "MEDIUM"
+        })
+        .returning();
 
-    if (!ticket) {
-      throw new Error("Ticket insert did not return a row");
-    }
+      if (!ticket) {
+        throw new Error("Ticket insert did not return a row");
+      }
 
-    return {
-      ...ticket,
-      createdByName: input.postAnonymously ? null : (creator?.name ?? null)
-    };
+      if (attachments.length > 0) {
+        await transaction.insert(ticketAttachments).values(
+          attachments.map((attachment) => ({
+            ...attachment,
+            ticketId: ticket.id
+          }))
+        );
+      }
+
+      return {
+        ...ticket,
+        createdByName: input.postAnonymously ? null : (creator?.name ?? null)
+      };
+    });
   }
 
   async listRecent(
@@ -100,6 +121,24 @@ export class PostgresTicketRepository implements TicketRepository {
 
   async findById(id: string): Promise<TicketRecord | null> {
     return findTicket(this.database, id);
+  }
+
+  async listAttachments(ticketId: string): Promise<AttachmentRecord[]> {
+    return this.database
+      .select()
+      .from(ticketAttachments)
+      .where(eq(ticketAttachments.ticketId, ticketId))
+      .orderBy(asc(ticketAttachments.createdAt), asc(ticketAttachments.id));
+  }
+
+  async findAttachment(ticketId: string, attachmentId: string): Promise<AttachmentRecord | null> {
+    const [attachment] = await this.database
+      .select()
+      .from(ticketAttachments)
+      .where(and(eq(ticketAttachments.ticketId, ticketId), eq(ticketAttachments.id, attachmentId)))
+      .limit(1);
+
+    return attachment ?? null;
   }
 
   async createReply(

@@ -60,7 +60,8 @@ export interface CreateTicketInput {
 ## Boundaries
 
 - Always: validate untrusted input, use parameterized Drizzle queries, escape rendered text through React, and version schema changes.
-- Ask first: add authentication, attachments, contact data, ticket reading, or workflow transitions.
+- Ask first: add contact data or new workflow transitions. Creation-time attachments are specified
+  separately in [ticket attachments](ticket-attachments.md).
 - Never: store production secrets, accept unknown request properties, or expose database errors to clients.
 
 ## Success Criteria

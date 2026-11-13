@@ -179,4 +179,6 @@ These are developer-workstation prerequisites that will not be supplied by the p
 - **Assumptions:** Modern-browser support is sufficient; users need accounts and may upload files; one frontend and one API are preferable to microservices.
 - **Decisions still requiring an external account, credential, certificate, or organizational approval:** Static-host, container-host, PostgreSQL, object-storage providers; DNS domain; deployment tokens; storage credentials; and production environment approvers.
 - **Implementation choices confirmed:** pnpm workspace with future `apps/web` (React/Vite) and `apps/api` (Fastify) packages; Drizzle ORM/Kit migrations; 50% initial coverage floor. Release deployment configuration is deferred until providers and release ownership are selected.
-- **Items to confirm before expanding product implementation:** Authorization model, authentication/session design, anonymous-ticket ownership migration, exact providers, retention/backups, file limits and allowed types, accessibility requirements beyond the WCAG 2.1 AA baseline, and release ownership.
+- **Items to confirm before expanding product implementation:** Exact providers, retention/backups,
+  accessibility requirements beyond the WCAG 2.1 AA baseline, and release ownership. Ticket
+  attachment file limits and allowed types are resolved in `docs/specs/ticket-attachments.md`.

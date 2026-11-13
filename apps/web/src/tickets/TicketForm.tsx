@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 
 import type { AuthenticatedUser } from "../auth/auth-api.js";
 import { createTicket, ticketPath, type CreateTicketInput } from "./ticket-api.js";
+import { TicketAttachmentInput } from "./TicketAttachmentInput.js";
 
 type SubmissionState =
   | { type: "idle" }
@@ -32,6 +33,7 @@ interface TicketFormProps {
 
 export function TicketForm({ currentUser = null }: TicketFormProps) {
   const [submission, setSubmission] = useState<SubmissionState>(initialState);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,8 +41,9 @@ export function TicketForm({ currentUser = null }: TicketFormProps) {
     setSubmission({ type: "submitting" });
 
     try {
-      const ticket = await createTicket(readFormInput(form));
+      const ticket = await createTicket({ ...readFormInput(form), attachments });
       form.reset();
+      setAttachments([]);
       setSubmission({ type: "success", ticketId: ticket.id });
     } catch {
       setSubmission({ type: "error" });
@@ -165,6 +168,16 @@ export function TicketForm({ currentUser = null }: TicketFormProps) {
             <li>Private: only you and IT technicians can view and reply.</li>
           </ul>
         </div>
+
+        {currentUser ? (
+          <TicketAttachmentInput files={attachments} onChange={setAttachments} />
+        ) : (
+          <div className="field attachment-sign-in">
+            <strong>Attachments</strong>
+            <p className="field-hint">Sign in to attach screenshots or other files.</p>
+            <a href="/">Go to sign in</a>
+          </div>
+        )}
 
         <button className="submit-button" type="submit">
           {isSubmitting ? "Creating ticket…" : "Create ticket"}

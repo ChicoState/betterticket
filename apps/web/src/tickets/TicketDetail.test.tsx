@@ -29,9 +29,15 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function ticketFetch(ticketBody: unknown) {
-  return vi.fn((url: string) =>
-    Promise.resolve(jsonResponse(url.endsWith("/replies") ? { replies: [] } : ticketBody))
-  );
+  return vi.fn((url: string) => {
+    if (url.endsWith("/replies")) {
+      return Promise.resolve(jsonResponse({ replies: [] }));
+    }
+    if (url.endsWith("/attachments")) {
+      return Promise.resolve(jsonResponse({ attachments: [] }));
+    }
+    return Promise.resolve(jsonResponse(ticketBody));
+  });
 }
 
 const technician: AuthenticatedUser = {
@@ -77,6 +83,44 @@ describe("TicketDetail", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Replies" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post reply" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/replies`);
+  });
+
+  it("shows image previews and download links for ticket attachments", async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("/attachments")) {
+        return Promise.resolve(
+          jsonResponse({
+            attachments: [
+              {
+                id: "18b3475e-d17a-4bb0-8c7b-f287a4d79130",
+                fileName: "screen.png",
+                contentType: "image/png",
+                sizeBytes: 2048,
+                createdAt: "2026-11-11T18:00:00.000Z"
+              }
+            ]
+          })
+        );
+      }
+      if (url.endsWith("/replies")) {
+        return Promise.resolve(jsonResponse({ replies: [] }));
+      }
+      return Promise.resolve(jsonResponse(ticket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Attachments" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Preview of screen.png" })).toHaveAttribute(
+      "src",
+      `/api/tickets/${ticketId}/attachments/18b3475e-d17a-4bb0-8c7b-f287a4d79130?preview=true`
+    );
+    expect(screen.getByRole("link", { name: "Download screen.png" })).toHaveAttribute(
+      "href",
+      `/api/tickets/${ticketId}/attachments/18b3475e-d17a-4bb0-8c7b-f287a4d79130`
+    );
   });
 
   it("keeps priority visible when the owner closes replies", async () => {
@@ -357,6 +401,7 @@ describe("TicketDetail", () => {
         )
       )
       .mockResolvedValueOnce(jsonResponse(ticket))
+      .mockResolvedValueOnce(jsonResponse({ attachments: [] }))
       .mockResolvedValueOnce(jsonResponse({ replies: [] }));
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketDetail ticketId={ticketId} />);
@@ -371,6 +416,6 @@ describe("TicketDetail", () => {
       "Laptop will not start"
     );
     expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

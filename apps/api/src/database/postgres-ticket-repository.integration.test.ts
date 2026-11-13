@@ -8,6 +8,7 @@ import {
   notifications,
   replyEndorsements,
   sessions,
+  ticketAttachments,
   ticketReplies,
   tickets,
   users
@@ -24,6 +25,7 @@ const actorId = "8d98734d-647b-4ae5-a9a3-59eb30c160a6";
 
 describe("PostgresTicketRepository", () => {
   beforeEach(async () => {
+    await database.delete(ticketAttachments);
     await database.delete(ticketReplies);
     await database.delete(tickets);
     await database.delete(sessions);
@@ -60,6 +62,69 @@ describe("PostgresTicketRepository", () => {
     expect(created.createdAt).toBeInstanceOf(Date);
     expect(created.updatedAt).toBeInstanceOf(Date);
     expect(created.replyStatus).toBe("OPEN");
+  });
+
+  it("creates attachment metadata with its ticket and retrieves it only by matching IDs", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const attachmentId = "18b3475e-d17a-4bb0-8c7b-f287a4d79130";
+    const created = await repository.create(
+      { title: "Screenshot attached", description: "Description", setup: "Setup" },
+      null,
+      [
+        {
+          id: attachmentId,
+          objectKey: "attachments/random-object-key",
+          fileName: "screenshot.png",
+          contentType: "image/png",
+          sizeBytes: 1234
+        }
+      ]
+    );
+
+    await expect(repository.listAttachments(created.id)).resolves.toMatchObject([
+      {
+        id: attachmentId,
+        ticketId: created.id,
+        objectKey: "attachments/random-object-key",
+        fileName: "screenshot.png",
+        contentType: "image/png",
+        sizeBytes: 1234
+      }
+    ]);
+    await expect(repository.findAttachment(created.id, attachmentId)).resolves.toMatchObject({
+      id: attachmentId,
+      ticketId: created.id
+    });
+    await expect(
+      repository.findAttachment("00000000-0000-4000-8000-000000000000", attachmentId)
+    ).resolves.toBeNull();
+  });
+
+  it("rolls back ticket creation when attachment metadata cannot be inserted", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const attachment = {
+      id: "18b3475e-d17a-4bb0-8c7b-f287a4d79130",
+      objectKey: "attachments/duplicate-object-key",
+      fileName: "first.png",
+      contentType: "image/png",
+      sizeBytes: 1234
+    };
+    await repository.create(
+      { title: "First ticket", description: "Description", setup: "Setup" },
+      null,
+      [attachment]
+    );
+
+    await expect(
+      repository.create(
+        { title: "Rolled back ticket", description: "Description", setup: "Setup" },
+        null,
+        [{ ...attachment, id: "2f5bd8f2-e239-44bb-a8ba-c245ac41917d" }]
+      )
+    ).rejects.toThrow();
+
+    const storedTickets = await database.select().from(tickets).orderBy(asc(tickets.title));
+    expect(storedTickets.map((ticket) => ticket.title)).toEqual(["First ticket"]);
   });
 
   it("lists the most recently created tickets first up to the limit", async () => {

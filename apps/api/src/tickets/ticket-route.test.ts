@@ -22,6 +22,7 @@ import type {
   StatusUpdateResult,
   TicketRecord,
   TicketRepository,
+  TicketSearch,
   WithdrawResult
 } from "./ticket-repository.js";
 import type { NotificationRepository } from "../notifications/notification-repository.js";
@@ -92,6 +93,8 @@ class FakeTicketRepository implements TicketRepository {
   readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
   readonly listSorts: Array<"votes" | "newest" | "priority" | undefined> = [];
+  readonly listViewers: Array<"USER" | "TECHNICIAN" | null> = [];
+  readonly listSearches: Array<TicketSearch | undefined> = [];
   readonly createdReplies: Array<{ ticketId: string; body: string; kind?: ReplyKind }> = [];
   readonly replyListLimits: number[] = [];
   readonly endorsements: Array<{
@@ -135,10 +138,13 @@ class FakeTicketRepository implements TicketRepository {
   async listRecent(
     limit: number,
     _viewer?: { id: string; role: "USER" | "TECHNICIAN" } | null,
-    sort?: "votes" | "newest" | "priority"
+    sort?: "votes" | "newest" | "priority",
+    search?: TicketSearch
   ): Promise<TicketRecord[]> {
     this.listLimits.push(limit);
     this.listSorts.push(sort);
+    this.listViewers.push(_viewer ? _viewer.role : null);
+    this.listSearches.push(search);
 
     return this.stored;
   }
@@ -672,6 +678,135 @@ describe("GET /api/tickets", () => {
     expect(ignored.statusCode).toBe(200);
     expect(rejected.statusCode).toBe(400);
     expect(repository.listSorts).toEqual(["votes"]);
+  });
+
+  describe("search", () => {
+    function buildSearchApp(stored: TicketRecord[] = []) {
+      const repository = new FakeTicketRepository(stored);
+      const app = buildApp({
+        authRepository,
+        ticketRepository: repository,
+        notificationRepository,
+        settingsRepository: unusedSettingsRepository,
+        logger: false
+      });
+      apps.push(app);
+      return { app, repository };
+    }
+
+    it("lists without a search when q is absent or blank", async () => {
+      const { app, repository } = buildSearchApp();
+
+      await app.inject({ method: "GET", url: "/api/tickets" });
+      await app.inject({ method: "GET", url: "/api/tickets?q=" });
+      const blank = await app.inject({ method: "GET", url: "/api/tickets?q=%20%20&match=any" });
+
+      expect(blank.statusCode).toBe(200);
+      expect(repository.listSearches).toEqual([undefined, undefined, undefined]);
+      expect(repository.listLimits).toEqual([100, 100, 100]);
+    });
+
+    it("passes every search term, the sort, and the viewer to the repository", async () => {
+      const { app, repository } = buildSearchApp();
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/tickets?q=Printer%20%20OFFLINE%20printer&sort=priority",
+        headers: { cookie: "betterticket_session=technician-session" }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(repository.listSearches).toEqual([{ terms: ["printer", "offline"], match: "all" }]);
+      expect(repository.listSorts).toEqual(["priority"]);
+      expect(repository.listViewers).toEqual(["TECHNICIAN"]);
+    });
+
+    it("passes a similar-ticket search and a smaller limit", async () => {
+      const { app, repository } = buildSearchApp();
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/tickets?q=The%20printer%20is%20offline&match=any&limit=5"
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(repository.listSearches).toEqual([{ terms: ["printer", "offline"], match: "any" }]);
+      expect(repository.listLimits).toEqual([5]);
+      expect(repository.listViewers).toEqual([null]);
+    });
+
+    it("returns no tickets without querying when a similar-ticket search has no usable terms", async () => {
+      const { app, repository } = buildSearchApp();
+
+      const response = await app.inject({ method: "GET", url: "/api/tickets?q=it%20is&match=any" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ tickets: [] });
+      expect(repository.listSearches).toEqual([]);
+    });
+
+    it.each([
+      ["a query longer than 200 characters", `q=${"a".repeat(201)}`],
+      ["an unknown match mode", "q=printer&match=fuzzy"],
+      ["a limit of zero", "limit=0"],
+      ["a limit above the maximum", "limit=101"],
+      ["a limit that is not a number", "limit=many"]
+    ])("rejects %s without querying", async (_name, query) => {
+      const { app, repository } = buildSearchApp();
+
+      const response = await app.inject({ method: "GET", url: `/api/tickets?${query}` });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+      expect(repository.listLimits).toEqual([]);
+    });
+
+    it("accepts a query of exactly 200 characters", async () => {
+      const { app, repository } = buildSearchApp();
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/tickets?q=${"a".repeat(200)}`
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(repository.listSearches).toEqual([{ terms: ["a".repeat(200)], match: "all" }]);
+    });
+
+    it("still hides restricted tickets a repository returns for a search", async () => {
+      const record = (id: string, visibility: TicketRecord["visibility"]): TicketRecord => ({
+        id,
+        title: `Printer ${visibility}`,
+        description: "Jobs stay queued.",
+        setup: "Office printer",
+        additionalInformation: null,
+        status: "OPEN",
+        priority: "MEDIUM",
+        visibility,
+        creatorUserId: "cc086f3d-2c21-4c63-a4d4-5a5d0d3e7b9c",
+        assignedTechnicianId: null,
+        createdByName: null,
+        createdAt: new Date("2026-09-29T09:30:00.000Z"),
+        updatedAt: new Date("2026-09-29T09:30:00.000Z")
+      });
+      const { app } = buildSearchApp([
+        record("2f1c5b0e-6f0a-4c59-9a55-0f6f2f4c8f11", "PUBLIC"),
+        record("cc04d84c-9aee-4d35-8af3-999d861aaed6", "AUTHENTICATED"),
+        record("5d4c1f0e-6f0a-4a57-9d0b-3a0b6a1f2c11", "PRIVATE")
+      ]);
+
+      const anonymous = await app.inject({ method: "GET", url: "/api/tickets?q=printer" });
+      const otherUser = await app.inject({
+        method: "GET",
+        url: "/api/tickets?q=printer",
+        headers: { cookie: "betterticket_session=user-session" }
+      });
+
+      const titles = (response: { json(): { tickets: Ticket[] } }) =>
+        response.json().tickets.map((ticket) => ticket.title);
+      expect(titles(anonymous)).toEqual(["Printer PUBLIC"]);
+      expect(titles(otherUser)).toEqual(["Printer PUBLIC", "Printer AUTHENTICATED"]);
+    });
   });
 
   it.each(ticketStatuses)("returns %s as an approved ticket status", async (status) => {

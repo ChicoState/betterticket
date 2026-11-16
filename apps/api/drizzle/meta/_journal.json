@@ -92,6 +92,13 @@
       "when": 1794992155990,
       "tag": "0012_merge_ticket_features",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795038236428,
+      "tag": "0013_ticket_search_trigrams",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,7 @@ import { SettingsPage } from "./settings/SettingsPage.js";
 import { TicketDetail } from "./tickets/TicketDetail.js";
 import { TicketForm } from "./tickets/TicketForm.js";
 import { TicketList } from "./tickets/TicketList.js";
+import { TicketSuggestions } from "./tickets/TicketSuggestions.js";
 
 const newTicketPath = "/new";
 const ticketListPath = "/tickets";
@@ -59,6 +60,7 @@ export function App() {
   const page = readPage(window.location.pathname);
   const [, refreshLocation] = useState(0);
   const [session, setSession] = useState<AccountSession | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
   const isLoginPage = page.type === "login";
   const isNewTicketPage = page.type === "new";
 
@@ -143,18 +145,17 @@ export function App() {
         <SettingsPage session={session} />
       ) : isNewTicketPage ? (
         <main className="form-page">
-          <section className="intro" aria-labelledby="page-title">
-            <p className="eyebrow">Support request</p>
-            <h1 id="page-title">Tell us what went wrong.</h1>
-            <p>
-              Share enough context for a technician to start investigating. You can create this
-              ticket without an account.
-            </p>
+          <section className="form-panel" aria-labelledby="page-title">
+            <h1 id="page-title">Create a ticket</h1>
+            <TicketForm
+              currentUser={session?.type === "authenticated" ? session.user : null}
+              onTitleChange={setDraftTitle}
+            />
           </section>
 
-          <section className="form-panel" aria-label="Create a support ticket">
-            <TicketForm currentUser={session?.type === "authenticated" ? session.user : null} />
-          </section>
+          <div className="form-sidebar">
+            <TicketSuggestions title={draftTitle} />
+          </div>
         </main>
       ) : page.type === "list" ? (
         <main className="tickets-page">

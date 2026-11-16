@@ -211,8 +211,42 @@ function isListedTicket(value: unknown): value is ListedTicket {
   return isTicket(value) && "votes" in value && isVoteState(value.votes);
 }
 
-export async function listTickets(sort: TicketSort = "votes"): Promise<ListedTicket[]> {
-  const response = await fetch(sort === "votes" ? "/api/tickets" : `/api/tickets?sort=${sort}`);
+export const ticketSearchMaxLength = 200;
+
+export interface TicketSearchOptions {
+  /** Search text. Blank text lists tickets without searching. */
+  query?: string;
+  /** `all` finds tickets containing every word; `any` finds similar tickets, best match first. */
+  match?: "all" | "any";
+  limit?: number;
+}
+
+export function ticketListUrl(sort: TicketSort = "votes", search: TicketSearchOptions = {}) {
+  const parameters = new URLSearchParams();
+  const query = search.query?.trim();
+
+  if (sort !== "votes") {
+    parameters.set("sort", sort);
+  }
+  if (query) {
+    parameters.set("q", query);
+    if (search.match === "any") {
+      parameters.set("match", "any");
+    }
+  }
+  if (search.limit !== undefined) {
+    parameters.set("limit", String(search.limit));
+  }
+
+  const queryString = parameters.toString();
+  return queryString ? `/api/tickets?${queryString}` : "/api/tickets";
+}
+
+export async function listTickets(
+  sort: TicketSort = "votes",
+  search: TicketSearchOptions = {}
+): Promise<ListedTicket[]> {
+  const response = await fetch(ticketListUrl(sort, search));
 
   if (!response.ok) {
     throw new Error("Ticket listing failed");

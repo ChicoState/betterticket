@@ -2,13 +2,13 @@
 
 ## Status and source of truth
 
-BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, signed-in ticket attachments backed by S3-compatible storage, a minimal provisioned-user login, technician-assignment, and status-update backend, CLI-designated IT (technician) accounts, ticket status notifications, notification settings (email preferences; delivery not yet active), suggested solutions with technician endorsements, and authenticated ticket and reply voting. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, signed-in ticket attachments backed by S3-compatible storage, a minimal provisioned-user login, technician-assignment, and status-update backend, CLI-designated IT (technician) accounts, ticket status notifications, notification settings (email preferences; delivery not yet active), suggested solutions with technician endorsements, authenticated ticket and reply voting, and ticket search with similar-ticket suggestions on the new-ticket form. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 
 | Area           | Location                                                          | Status                                            |
 | -------------- | ----------------------------------------------------------------- | ------------------------------------------------- |
-| Frontend       | `apps/web`                                                        | React/Vite tickets, solutions, notices, settings. |
+| Frontend       | `apps/web`                                                        | React/Vite tickets, search, solutions, settings.  |
 | API            | `apps/api`                                                        | Fastify/Drizzle tickets, endorsements, auth, etc. |
 | Infrastructure | `compose.yml`, `docker/`, `.env.example`                          | Present.                                          |
 | Scripts        | `scripts/smoke.sh`                                                | Present; infrastructure-only.                     |

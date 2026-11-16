@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
@@ -175,6 +175,20 @@ describe("App", () => {
     );
     expect(screen.getByRole("link", { name: "Tickets" })).toHaveAttribute("href", "/tickets");
     expect(fetch).toHaveBeenCalledWith("/api/sessions/current");
+  });
+
+  it("suggests similar tickets beside the form as the title is typed", async () => {
+    window.history.pushState({}, "", "/new");
+    render(<App />);
+
+    expect(screen.getByRole("heading", { level: 2, name: "Already solved?" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Printer offline" } });
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith("/api/tickets?q=Printer+offline&match=any&limit=5")
+    );
+    expect(await screen.findByText("No similar tickets found.")).toBeInTheDocument();
   });
 
   it("shows a single ticket at /tickets/:id", async () => {

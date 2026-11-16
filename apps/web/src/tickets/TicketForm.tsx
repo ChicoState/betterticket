@@ -29,9 +29,11 @@ function readFormInput(form: HTMLFormElement): CreateTicketInput {
 
 interface TicketFormProps {
   currentUser?: AuthenticatedUser | null;
+  /** Called with the title as it is typed, and with an empty title when the form resets. */
+  onTitleChange?: (title: string) => void;
 }
 
-export function TicketForm({ currentUser = null }: TicketFormProps) {
+export function TicketForm({ currentUser = null, onTitleChange }: TicketFormProps) {
   const [submission, setSubmission] = useState<SubmissionState>(initialState);
   const [attachments, setAttachments] = useState<File[]>([]);
 
@@ -44,6 +46,7 @@ export function TicketForm({ currentUser = null }: TicketFormProps) {
       const ticket = await createTicket({ ...readFormInput(form), attachments });
       form.reset();
       setAttachments([]);
+      onTitleChange?.("");
       setSubmission({ type: "success", ticketId: ticket.id });
     } catch {
       setSubmission({ type: "error" });
@@ -68,6 +71,7 @@ export function TicketForm({ currentUser = null }: TicketFormProps) {
             type="text"
             maxLength={160}
             aria-describedby="title-hint"
+            onChange={(event) => onTitleChange?.(event.target.value)}
             required
           />
         </div>

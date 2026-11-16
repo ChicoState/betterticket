@@ -51,6 +51,7 @@ describe("TicketList", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    window.history.replaceState({}, "", "/");
   });
 
   it("shows a loading status and then the tickets in API order", async () => {
@@ -156,6 +157,187 @@ describe("TicketList", () => {
 
     expect(await screen.findAllByRole("article")).toHaveLength(2);
     expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=newest");
+  });
+
+  describe("search", () => {
+    function type(text: string) {
+      fireEvent.change(screen.getByLabelText("Search tickets"), { target: { value: text } });
+    }
+
+    it("searches as the visitor types, reports the matches, and keeps the query in the URL", async () => {
+      let respond: (response: Response) => void = () => {};
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ tickets }))
+        .mockReturnValueOnce(new Promise<Response>((resolve) => (respond = resolve)));
+      vi.stubGlobal("fetch", fetchMock);
+      window.history.replaceState({}, "", "/tickets");
+      render(<TicketList />);
+      await screen.findAllByRole("article");
+
+      expect(screen.getByRole("search")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Search tickets")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
+      type("  printer & driver  ");
+
+      expect(await screen.findByRole("status")).toHaveTextContent("Searching tickets…");
+      // The previous tickets stay visible until the results arrive.
+      expect(screen.getAllByRole("article")).toHaveLength(2);
+      expect(screen.getByRole("list")).toHaveAttribute("aria-busy", "true");
+
+      respond(jsonResponse({ tickets: [tickets[0]] }));
+
+      expect(await screen.findByText("1 ticket matches “printer & driver”.")).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?q=printer+%26+driver");
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(screen.getByRole("list", { name: "Matching tickets" })).toHaveAttribute(
+        "aria-busy",
+        "false"
+      );
+      expect(window.location.pathname).toBe("/tickets");
+      expect(new URLSearchParams(window.location.search).get("q")).toBe("printer & driver");
+    });
+
+    it("waits for a pause in typing and searches only for the latest text", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+      vi.stubGlobal("fetch", fetchMock);
+      render(<TicketList />);
+      await screen.findAllByRole("article");
+
+      type("p");
+      type("pr");
+      type("printer");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await screen.findByText("2 tickets match “printer”.");
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?q=printer");
+    });
+
+    it("searches at once when the form is submitted", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+      vi.stubGlobal("fetch", fetchMock);
+      render(<TicketList />);
+      await screen.findAllByRole("article");
+
+      type("laptop");
+      fireEvent.submit(screen.getByRole("search"));
+
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?q=laptop");
+      await screen.findByText("2 tickets match “laptop”.");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts with the search from the page URL and keeps it when the sort changes", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+      vi.stubGlobal("fetch", fetchMock);
+      window.history.replaceState({}, "", "/tickets?q=laptop");
+      render(<TicketList />);
+
+      expect(screen.getByRole("status")).toHaveTextContent("Searching tickets…");
+      expect(await screen.findByText("2 tickets match “laptop”.")).toBeInTheDocument();
+      expect(screen.getByLabelText("Search tickets")).toHaveValue("laptop");
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?q=laptop");
+
+      fireEvent.change(screen.getByLabelText("Sort tickets"), { target: { value: "priority" } });
+      await screen.findByText("2 tickets match “laptop”.");
+
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets?sort=priority&q=laptop");
+    });
+
+    it("explains an empty result and offers the new-ticket form", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ tickets: [] })));
+      window.history.replaceState({}, "", "/tickets?q=toaster");
+      render(<TicketList />);
+
+      expect(await screen.findByText("No tickets match “toaster”.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "create a ticket" })).toHaveAttribute("href", "/new");
+      expect(screen.queryByText("No tickets have been submitted yet.")).not.toBeInTheDocument();
+    });
+
+    it("clears the search at once and returns to the full list", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ tickets: [] }))
+        .mockResolvedValueOnce(jsonResponse({ tickets }));
+      vi.stubGlobal("fetch", fetchMock);
+      window.history.replaceState({}, "", "/tickets?q=toaster");
+      render(<TicketList />);
+      await screen.findByText("No tickets match “toaster”.");
+
+      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets");
+      expect(await screen.findAllByRole("article")).toHaveLength(2);
+      expect(screen.getByRole("list", { name: "Submitted tickets" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Search tickets")).toHaveValue("");
+      expect(window.location.search).toBe("");
+      expect(screen.queryByRole("button", { name: "Clear search" })).not.toBeInTheDocument();
+    });
+
+    it("returns to the full list when the search box is emptied", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(jsonResponse({ tickets })));
+      vi.stubGlobal("fetch", fetchMock);
+      window.history.replaceState({}, "", "/tickets?q=laptop");
+      render(<TicketList />);
+      await screen.findByText("2 tickets match “laptop”.");
+
+      type("   ");
+
+      await screen.findByRole("list", { name: "Submitted tickets" });
+      expect(fetchMock).toHaveBeenLastCalledWith("/api/tickets");
+      expect(window.location.search).toBe("");
+    });
+
+    it("shows the load error for a failed search and searches again on new text", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({}, 500))
+        .mockResolvedValueOnce(jsonResponse({ tickets }));
+      vi.stubGlobal("fetch", fetchMock);
+      window.history.replaceState({}, "", "/tickets?q=laptop");
+      render(<TicketList />);
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("We couldn't load the tickets.");
+      expect(screen.getByLabelText("Search tickets")).toHaveValue("laptop");
+      expect(screen.getByRole("button", { name: "Clear search" })).toBeInTheDocument();
+
+      type("printer");
+
+      expect(await screen.findByText("2 tickets match “printer”.")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("keeps a failed search's error until the text changes and retries it on submit", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({}, 500))
+        .mockResolvedValueOnce(jsonResponse({ tickets }));
+      vi.stubGlobal("fetch", fetchMock);
+      window.history.replaceState({}, "", "/tickets?q=laptop");
+      render(<TicketList />);
+      await screen.findByRole("alert");
+
+      // Only whitespace changed, so this is still the failed search, not a new one.
+      type("laptop ");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      fireEvent.submit(screen.getByRole("search"));
+
+      expect(await screen.findByText("2 tickets match “laptop”.")).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("shows an empty state when no tickets exist", async () => {

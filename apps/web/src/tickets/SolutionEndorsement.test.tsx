@@ -13,7 +13,10 @@ const solution: Reply = {
   kind: "SOLUTION",
   body: "Reinstall the driver.",
   createdAt: "2026-10-28T18:30:00.000Z",
-  endorsements: []
+  endorsements: [],
+  upvotes: 0,
+  downvotes: 0,
+  userVote: null
 };
 
 const ownEndorsement = {

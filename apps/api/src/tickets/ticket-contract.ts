@@ -1,3 +1,4 @@
+import { voteStateResponseSchema } from "./vote-contract.js";
 export const ticketStatuses = [
   "OPEN",
   "UNDER_REVIEW",
@@ -16,7 +17,7 @@ export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
 
 export type TicketPriority = (typeof ticketPriorities)[number];
 
-export const ticketSorts = ["newest", "priority"] as const;
+export const ticketSorts = ["votes", "newest", "priority"] as const;
 
 export type TicketSort = (typeof ticketSorts)[number];
 
@@ -139,7 +140,9 @@ export const ticketResponseSchema = {
 export const ticketListLimit = 100;
 
 export interface TicketList {
-  tickets: Ticket[];
+  tickets: Array<
+    Ticket & { votes: { upvotes: number; downvotes: number; userVote: -1 | 1 | null } }
+  >;
 }
 
 export const ticketListResponseSchema = {
@@ -150,7 +153,11 @@ export const ticketListResponseSchema = {
     tickets: {
       type: "array",
       maxItems: ticketListLimit,
-      items: ticketResponseSchema
+      items: {
+        ...ticketResponseSchema,
+        required: [...ticketResponseSchema.required, "votes"],
+        properties: { ...ticketResponseSchema.properties, votes: voteStateResponseSchema }
+      }
     }
   }
 } as const;
@@ -158,7 +165,7 @@ export const ticketListResponseSchema = {
 export const ticketListQuerySchema = {
   type: "object",
   properties: {
-    sort: { type: "string", enum: ticketSorts, default: "newest" }
+    sort: { type: "string", enum: ticketSorts, default: "votes" }
   }
 } as const;
 
@@ -202,6 +209,9 @@ export interface Endorsement {
 }
 
 export interface Reply {
+  upvotes: number;
+  downvotes: number;
+  userVote: -1 | 1 | null;
   id: string;
   ticketId: string;
   kind: ReplyKind;
@@ -237,9 +247,22 @@ export const endorsementResponseSchema = {
 export const replyResponseSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "ticketId", "kind", "body", "createdAt", "endorsements"],
+  required: [
+    "id",
+    "ticketId",
+    "kind",
+    "body",
+    "createdAt",
+    "endorsements",
+    "upvotes",
+    "downvotes",
+    "userVote"
+  ],
   properties: {
     id: { type: "string", format: "uuid" },
+    upvotes: { type: "integer", minimum: 0 },
+    downvotes: { type: "integer", minimum: 0 },
+    userVote: { enum: [-1, 1, null] },
     ticketId: { type: "string", format: "uuid" },
     kind: { type: "string", enum: replyKinds },
     body: { type: "string" },

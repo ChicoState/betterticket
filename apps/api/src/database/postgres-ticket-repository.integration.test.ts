@@ -9,6 +9,8 @@ import {
   replyEndorsements,
   sessions,
   ticketReplies,
+  ticketReplyVotes,
+  ticketVotes,
   tickets,
   users
 } from "./schema.js";
@@ -161,6 +163,61 @@ describe("PostgresTicketRepository", () => {
     const listed = await repository.listRecent(1, null, "priority");
 
     expect(listed.map((ticket) => ticket.title)).toEqual(["Public low"]);
+  });
+
+  it("sorts by vote score then newest first by default, before applying the limit", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const voters = await database
+      .insert(users)
+      .values(
+        ["a", "b", "c"].map((name) => ({
+          name,
+          username: `sort.${name}`,
+          passwordHash: "unused",
+          role: "USER" as const
+        }))
+      )
+      .returning();
+    const ticket = (title: string, createdAt: string) => ({
+      title,
+      description: "Description",
+      setup: "Setup",
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(createdAt)
+    });
+    const [popular, disliked, , , mixed] = await database
+      .insert(tickets)
+      .values([
+        ticket("Popular", "2026-09-26T12:00:00.000Z"),
+        ticket("Disliked", "2026-09-30T12:00:00.000Z"),
+        ticket("Unvoted older", "2026-09-27T12:00:00.000Z"),
+        ticket("Unvoted newer", "2026-09-28T12:00:00.000Z"),
+        ticket("Mixed", "2026-09-29T12:00:00.000Z")
+      ])
+      .returning();
+    await database.insert(ticketVotes).values([
+      { ticketId: popular!.id, userId: voters[0]!.id, value: 1 },
+      { ticketId: popular!.id, userId: voters[1]!.id, value: 1 },
+      { ticketId: mixed!.id, userId: voters[0]!.id, value: 1 },
+      { ticketId: mixed!.id, userId: voters[1]!.id, value: 1 },
+      { ticketId: mixed!.id, userId: voters[2]!.id, value: -1 },
+      { ticketId: disliked!.id, userId: voters[0]!.id, value: -1 }
+    ]);
+
+    const titles = async (limit: number) =>
+      (await repository.listRecent(limit)).map((listed) => listed.title);
+
+    expect(await titles(5)).toEqual([
+      "Popular",
+      "Mixed",
+      "Unvoted newer",
+      "Unvoted older",
+      "Disliked"
+    ]);
+    expect(await titles(2)).toEqual(["Popular", "Mixed"]);
+    expect((await repository.listRecent(5, null, "votes")).map((listed) => listed.title)).toEqual(
+      await titles(5)
+    );
   });
 
   it("sorts by priority then newest first before applying the limit", async () => {
@@ -521,6 +578,169 @@ describe("PostgresTicketRepository", () => {
 
     expect(result).toEqual({ type: "ticket-not-found" });
   });
+  it("persists account votes, switches/removes them, and keeps viewer state private", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create({ title: "Voting", description: "Test", setup: "Test" });
+    const reply = await createdReply(repository, ticket.id, "Try a restart");
+    const [first, second] = await database
+      .insert(users)
+      .values([
+        { name: "First", username: "vote.first", passwordHash: "unused", role: "USER" as const },
+        {
+          name: "Second",
+          username: "vote.second",
+          passwordHash: "unused",
+          role: "TECHNICIAN" as const
+        }
+      ])
+      .returning();
+    await Promise.all(
+      Array.from({ length: 5 }, () => repository.setReplyVote(ticket.id, reply.id, first!.id, 1))
+    );
+    expect(await database.select().from(ticketReplyVotes)).toHaveLength(1);
+    await repository.setReplyVote(ticket.id, reply.id, second!.id, -1);
+    expect(await repository.listRecentReplies(ticket.id, 10, first!.id)).toMatchObject([
+      { upvotes: 1, downvotes: 1, userVote: 1 }
+    ]);
+    expect(await repository.listRecentReplies(ticket.id, 10, second!.id)).toMatchObject([
+      { upvotes: 1, downvotes: 1, userVote: -1 }
+    ]);
+    expect(await repository.listRecentReplies(ticket.id, 10)).toMatchObject([
+      { upvotes: 1, downvotes: 1, userVote: null }
+    ]);
+    expect(await repository.setReplyVote(ticket.id, reply.id, first!.id, -1)).toEqual({
+      type: "updated",
+      vote: { upvotes: 0, downvotes: 2, userVote: -1 }
+    });
+    await repository.setReplyVote(ticket.id, reply.id, first!.id, null);
+    expect(await repository.setReplyVote(ticket.id, reply.id, first!.id, null)).toEqual({
+      type: "updated",
+      vote: { upvotes: 0, downvotes: 1, userVote: null }
+    });
+    const storedTicket = await repository.findById(ticket.id);
+    expect(storedTicket!.updatedAt).toEqual(ticket.updatedAt);
+  });
+
+  it("rejects cross-ticket voting and invalid database vote values", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const input = { title: "Voting", description: "Test", setup: "Test" };
+    const ticket = await repository.create(input);
+    const other = await repository.create(input);
+    const reply = await createdReply(repository, ticket.id, "Reply");
+    const [user] = await database
+      .insert(users)
+      .values({ name: "Voter", username: "voter", passwordHash: "unused", role: "USER" })
+      .returning();
+    expect(await repository.setReplyVote(other.id, reply.id, user!.id, 1)).toEqual({
+      type: "reply-not-found"
+    });
+    expect(await repository.setReplyVote(other.id, reply.id, user!.id, null)).toEqual({
+      type: "reply-not-found"
+    });
+    expect(await database.select().from(ticketReplyVotes)).toHaveLength(0);
+    await expect(
+      database.insert(ticketReplyVotes).values({ replyId: reply.id, userId: user!.id, value: 0 })
+    ).rejects.toThrow();
+    await repository.setReplyVote(ticket.id, reply.id, user!.id, 1);
+    await database.delete(users);
+    expect(await database.select().from(ticketReplyVotes)).toHaveLength(0);
+  });
+  it("persists independent ticket votes, serializes duplicates, and isolates each viewer", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create({
+      title: "Ticket votes",
+      description: "Test",
+      setup: "Test"
+    });
+    const reply = await createdReply(repository, ticket.id, "Reply");
+    const [first, second] = await database
+      .insert(users)
+      .values([
+        { name: "First", username: "ticket.first", passwordHash: "unused", role: "USER" as const },
+        {
+          name: "Second",
+          username: "ticket.second",
+          passwordHash: "unused",
+          role: "TECHNICIAN" as const
+        }
+      ])
+      .returning();
+    expect(await repository.getTicketVote(ticket.id)).toEqual({
+      upvotes: 0,
+      downvotes: 0,
+      userVote: null
+    });
+    await Promise.all(
+      Array.from({ length: 5 }, () => repository.setTicketVote(ticket.id, first!.id, 1))
+    );
+    expect(await database.select().from(ticketVotes)).toHaveLength(1);
+    await repository.setTicketVote(ticket.id, second!.id, -1);
+    await repository.setReplyVote(ticket.id, reply.id, first!.id, -1);
+    expect(await repository.getTicketVote(ticket.id, first!.id)).toEqual({
+      upvotes: 1,
+      downvotes: 1,
+      userVote: 1
+    });
+    expect(await repository.getTicketVote(ticket.id, second!.id)).toEqual({
+      upvotes: 1,
+      downvotes: 1,
+      userVote: -1
+    });
+    expect(await repository.getTicketVote(ticket.id)).toEqual({
+      upvotes: 1,
+      downvotes: 1,
+      userVote: null
+    });
+    expect(await repository.listTicketVotes([ticket.id], first!.id)).toEqual([
+      { ticketId: ticket.id, upvotes: 1, downvotes: 1, userVote: 1 }
+    ]);
+    expect(await repository.listTicketVotes([ticket.id])).toEqual([
+      { ticketId: ticket.id, upvotes: 1, downvotes: 1, userVote: null }
+    ]);
+    expect(await repository.listTicketVotes([])).toEqual([]);
+    const unvoted = await repository.create({
+      title: "Unvoted",
+      description: "Test",
+      setup: "Test"
+    });
+    expect(await repository.listTicketVotes([unvoted.id], first!.id)).toEqual([
+      { ticketId: unvoted.id, upvotes: 0, downvotes: 0, userVote: null }
+    ]);
+
+    expect(await repository.setTicketVote(ticket.id, first!.id, -1)).toEqual({
+      type: "updated",
+      vote: { upvotes: 0, downvotes: 2, userVote: -1 }
+    });
+    await repository.setTicketVote(ticket.id, first!.id, null);
+    expect(await repository.setTicketVote(ticket.id, first!.id, null)).toEqual({
+      type: "updated",
+      vote: { upvotes: 0, downvotes: 1, userVote: null }
+    });
+    expect(await repository.listRecentReplies(ticket.id, 10, first!.id)).toMatchObject([
+      { upvotes: 0, downvotes: 1, userVote: -1 }
+    ]);
+    expect((await repository.findById(ticket.id))!.updatedAt).toEqual(ticket.updatedAt);
+  });
+
+  it("rejects absent tickets and invalid ticket-vote values and cascades deletion", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const absentId = "00000000-0000-4000-8000-000000000000";
+    const [user] = await database
+      .insert(users)
+      .values({ name: "Voter", username: "ticket.voter", passwordHash: "unused", role: "USER" })
+      .returning();
+    expect(await repository.getTicketVote(absentId)).toBeNull();
+    expect(await repository.setTicketVote(absentId, user!.id, 1)).toEqual({
+      type: "ticket-not-found"
+    });
+    const ticket = await repository.create({ title: "Votes", description: "Test", setup: "Test" });
+    await expect(
+      database.insert(ticketVotes).values({ ticketId: ticket.id, userId: user!.id, value: 0 })
+    ).rejects.toThrow();
+    await repository.setTicketVote(ticket.id, user!.id, 1);
+    await database.delete(tickets);
+    expect(await database.select().from(ticketVotes)).toHaveLength(0);
+  });
 
   describe("solution endorsements", () => {
     const input = { title: "Printer offline", description: "Description", setup: "Setup" };
@@ -685,3 +905,9 @@ describe("PostgresTicketRepository", () => {
     });
   });
 });
+
+async function createdReply(repository: PostgresTicketRepository, ticketId: string, body: string) {
+  const result = await repository.createReply(ticketId, body);
+  if (result.type !== "created") throw new Error("Vote seed reply was not created");
+  return result.reply;
+}

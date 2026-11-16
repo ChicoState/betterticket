@@ -10,7 +10,7 @@ export interface CreateTicketInput {
 
 export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
 export type TicketPriority = (typeof ticketPriorities)[number];
-export const ticketSorts = ["newest", "priority"] as const;
+export const ticketSorts = ["votes", "newest", "priority"] as const;
 export type TicketSort = (typeof ticketSorts)[number];
 
 export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
@@ -127,8 +127,16 @@ function isTicket(value: unknown): value is Ticket {
   );
 }
 
-export async function listTickets(sort: TicketSort = "newest"): Promise<Ticket[]> {
-  const response = await fetch(sort === "priority" ? "/api/tickets?sort=priority" : "/api/tickets");
+export interface ListedTicket extends Ticket {
+  votes: VoteState;
+}
+
+function isListedTicket(value: unknown): value is ListedTicket {
+  return isTicket(value) && "votes" in value && isVoteState(value.votes);
+}
+
+export async function listTickets(sort: TicketSort = "votes"): Promise<ListedTicket[]> {
+  const response = await fetch(sort === "votes" ? "/api/tickets" : `/api/tickets?sort=${sort}`);
 
   if (!response.ok) {
     throw new Error("Ticket listing failed");
@@ -140,7 +148,7 @@ export async function listTickets(sort: TicketSort = "newest"): Promise<Ticket[]
     body === null ||
     !("tickets" in body) ||
     !Array.isArray(body.tickets) ||
-    !body.tickets.every(isTicket)
+    !body.tickets.every(isListedTicket)
   ) {
     throw new Error("Ticket listing returned an invalid response");
   }
@@ -233,7 +241,7 @@ export interface Endorsement {
   isOwn: boolean;
 }
 
-export interface Reply {
+export interface Reply extends VoteState {
   id: string;
   kind: ReplyKind;
   body: string;
@@ -266,6 +274,7 @@ function isReply(value: unknown): value is Reply {
   const reply = value as Record<string, unknown>;
 
   return (
+    isVoteState(reply) &&
     typeof reply.id === "string" &&
     replyKinds.includes(reply.kind as ReplyKind) &&
     typeof reply.body === "string" &&
@@ -320,6 +329,68 @@ export async function createReply(ticketId: string, body: string, kind: ReplyKin
   }
 
   return reply;
+}
+
+export type VoteValue = -1 | 1;
+export interface VoteState {
+  upvotes: number;
+  downvotes: number;
+  userVote: VoteValue | null;
+}
+function isVoteState(value: unknown): value is VoteState {
+  if (typeof value !== "object" || value === null) return false;
+  const state = value as Record<string, unknown>;
+  return (
+    typeof state.upvotes === "number" &&
+    Number.isSafeInteger(state.upvotes) &&
+    state.upvotes >= 0 &&
+    typeof state.downvotes === "number" &&
+    Number.isSafeInteger(state.downvotes) &&
+    state.downvotes >= 0 &&
+    (state.userVote === null || state.userVote === 1 || state.userVote === -1)
+  );
+}
+export class VoteError extends Error {
+  constructor(readonly status: number) {
+    super("Unable to save vote");
+    this.name = "VoteError";
+  }
+}
+export async function setReplyVote(
+  ticketId: string,
+  replyId: string,
+  value: VoteValue | null
+): Promise<VoteState> {
+  return saveVote(`${repliesUrl(ticketId)}/${encodeURIComponent(replyId)}/vote`, value);
+}
+export async function getTicketVote(ticketId: string): Promise<VoteState> {
+  return readVoteResponse(await fetch(ticketVoteUrl(ticketId)));
+}
+export async function setTicketVote(ticketId: string, value: VoteValue | null): Promise<VoteState> {
+  return saveVote(ticketVoteUrl(ticketId), value);
+}
+function ticketVoteUrl(ticketId: string): string {
+  return `/api/tickets/${encodeURIComponent(ticketId)}/vote`;
+}
+async function saveVote(url: string, value: VoteValue | null): Promise<VoteState> {
+  return readVoteResponse(
+    await fetch(
+      url,
+      value === null
+        ? { method: "DELETE" }
+        : {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ value })
+          }
+    )
+  );
+}
+async function readVoteResponse(response: Response): Promise<VoteState> {
+  if (!response.ok) throw new VoteError(response.status);
+  const state: unknown = await response.json();
+  if (!isVoteState(state)) throw new Error("Voting returned an invalid response");
+  return state;
 }
 
 export async function updateTicketReplyStatus(

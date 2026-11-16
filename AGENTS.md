@@ -2,7 +2,7 @@
 
 ## Status and source of truth
 
-BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, a minimal provisioned-user login, technician-assignment, and status-update backend, CLI-designated IT (technician) accounts, ticket status notifications, notification settings (email preferences; delivery not yet active), and suggested solutions with technician endorsements. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
+BetterTicket has infrastructure, anonymous ticket-creation, ticket-viewing, and ticket-reply baselines, a minimal provisioned-user login, technician-assignment, and status-update backend, CLI-designated IT (technician) accounts, ticket status notifications, notification settings (email preferences; delivery not yet active), suggested solutions with technician endorsements, and authenticated ticket and reply voting. `infrastructure_plan.md` remains the approved infrastructure source of truth; `docs/specs/`, `docs/plans/`, and `docs/decisions/` record approved product scope and architecture. Do not change those decisions without revising the relevant plan/spec through `planning-and-task-breakdown` or `spec-driven-development` first.
 
 ## Repository map
 

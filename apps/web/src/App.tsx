@@ -169,7 +169,7 @@ export function App() {
             </a>
           </section>
 
-          <TicketList />
+          <TicketList currentUser={session?.type === "authenticated" ? session.user : null} />
         </main>
       ) : (
         <AuthGateway onAuthenticated={() => window.location.assign(ticketListPath)} />

@@ -17,7 +17,7 @@ server-computed `canReply` flag. Public tickets are visible to everyone, authent
 visible only to signed-in users, and private tickets are visible only to their creator and
 technicians. Unauthorized tickets are omitted from lists and return the generic not-found response
 from direct lookup. A null creator name is displayed as `Anonymous`; usernames, user IDs, and private
-anonymous attribution are never public. Tickets are ordered newest first by creation time and limited
+anonymous attribution are never public. Tickets are ordered by vote score by default (newest first among ties; see the reply-voting spec) and limited
 to the 100 most recent. Unexpected failures return `500` with the stable error object and no database
 details.
 

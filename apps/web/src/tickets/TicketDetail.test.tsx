@@ -30,7 +30,15 @@ function jsonResponse(body: unknown, status = 200) {
 
 function ticketFetch(ticketBody: unknown) {
   return vi.fn((url: string) =>
-    Promise.resolve(jsonResponse(url.endsWith("/replies") ? { replies: [] } : ticketBody))
+    Promise.resolve(
+      jsonResponse(
+        url.endsWith("/vote")
+          ? { upvotes: 0, downvotes: 0, userVote: null }
+          : url.endsWith("/replies")
+            ? { replies: [] }
+            : ticketBody
+      )
+    )
   );
 }
 
@@ -158,9 +166,9 @@ describe("TicketDetail", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Confirm completed" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "We couldn't confirm this ticket as completed."
-    );
+    expect(
+      await screen.findByText(/We couldn't confirm this ticket as completed\./)
+    ).toHaveAttribute("role", "alert");
   });
 
   it.each(["OPEN", "IN_PROGRESS", "COMPLETED"])(
@@ -254,6 +262,8 @@ describe("TicketDetail", () => {
 
   it("updates the timeline after a technician advances the ticket", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
       if (url.endsWith("/replies")) {
         return Promise.resolve(jsonResponse({ replies: [] }));
       }
@@ -287,10 +297,15 @@ describe("TicketDetail", () => {
       kind: "SOLUTION",
       body: "Reinstall the driver.",
       createdAt: "2026-10-28T18:30:00.000Z",
-      endorsements: []
+      endorsements: [],
+      upvotes: 0,
+      downvotes: 0,
+      userVote: null
     };
     const inProgress = { ...ticket, status: "IN_PROGRESS" };
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
       if (init?.method === "PUT") {
         return Promise.resolve(
           jsonResponse({
@@ -334,6 +349,8 @@ describe("TicketDetail", () => {
       resolveUpdate = resolve;
     });
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
       if (url.endsWith("/replies")) {
         return Promise.resolve(jsonResponse({ replies: [] }));
       }
@@ -358,6 +375,8 @@ describe("TicketDetail", () => {
 
   it("shows an accessible error when the status update is rejected", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
       if (url.endsWith("/replies")) {
         return Promise.resolve(jsonResponse({ replies: [] }));
       }
@@ -431,6 +450,7 @@ describe("TicketDetail", () => {
         )
       )
       .mockResolvedValueOnce(jsonResponse(ticket))
+      .mockResolvedValueOnce(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }))
       .mockResolvedValueOnce(jsonResponse({ replies: [] }));
     vi.stubGlobal("fetch", fetchMock);
     render(<TicketDetail ticketId={ticketId} />);
@@ -445,6 +465,6 @@ describe("TicketDetail", () => {
       "Laptop will not start"
     );
     expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

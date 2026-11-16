@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
+import type { AuthenticatedUser } from "../auth/auth-api.js";
+import { TicketReplyVote } from "./ticket_voted_solution.js";
 import {
   createReply,
   listReplies,
@@ -26,6 +28,7 @@ interface TicketRepliesProps {
   visibility?: TicketVisibility;
   ticketStatus?: TicketStatus;
   isTechnician?: boolean;
+  currentUser?: AuthenticatedUser | null;
   onTicketUpdated?: (ticket: Ticket) => void;
 }
 
@@ -48,6 +51,7 @@ export function TicketReplies({
   visibility = "PUBLIC",
   ticketStatus = "OPEN",
   isTechnician = false,
+  currentUser = null,
   onTicketUpdated = () => {}
 }: TicketRepliesProps) {
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
@@ -160,6 +164,14 @@ export function TicketReplies({
                       <time dateTime={reply.createdAt}>{formatCreatedAt(reply.createdAt)}</time>
                     </p>
                     <p className="ticket-text">{reply.body}</p>
+                    <TicketReplyVote
+                      ticketId={ticketId}
+                      replyId={reply.id}
+                      upvotes={reply.upvotes}
+                      downvotes={reply.downvotes}
+                      userVote={currentUser ? reply.userVote : null}
+                      canVote={currentUser !== null}
+                    />
                     <SolutionEndorsement
                       ticketId={ticketId}
                       ticketStatus={ticketStatus}
@@ -187,6 +199,14 @@ export function TicketReplies({
                       <time dateTime={reply.createdAt}>{formatCreatedAt(reply.createdAt)}</time>
                     </p>
                     <p className="ticket-text">{reply.body}</p>
+                    <TicketReplyVote
+                      ticketId={ticketId}
+                      replyId={reply.id}
+                      upvotes={reply.upvotes}
+                      downvotes={reply.downvotes}
+                      userVote={currentUser ? reply.userVote : null}
+                      canVote={currentUser !== null}
+                    />
                   </li>
                 ))}
               </ol>

@@ -128,7 +128,8 @@ bash scripts/smoke.sh
 
 ## Deferred to the Issue #8 Slice
 
-- The ticket owner confirms `RESOLVED → COMPLETED`.
+- ~~The ticket owner confirms `RESOLVED → COMPLETED`.~~ Delivered by `POST /api/tickets/:id/complete`
+  (see `docs/specs/ticket-closure.md`). The owner is the actor, so it creates no notification.
 - A `RESOLVED` ticket auto-completes after a set period if the owner has not confirmed it. The
   period length, and whether it is configurable, is still to be decided.
 - Both completions should create a notification through the same path as this slice.

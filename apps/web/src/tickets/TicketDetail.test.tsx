@@ -111,6 +111,80 @@ describe("TicketDetail", () => {
     });
   });
 
+  it("lets the owner confirm a resolved ticket as completed", async () => {
+    const resolvedTicket = {
+      ...ticket,
+      status: "RESOLVED",
+      replyStatus: "OPEN",
+      canManageReplyStatus: true
+    };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/replies")) {
+        return Promise.resolve(jsonResponse({ replies: [] }));
+      }
+      if (init?.method === "POST") {
+        return Promise.resolve(jsonResponse({ ...resolvedTicket, status: "COMPLETED" }));
+      }
+      return Promise.resolve(jsonResponse(resolvedTicket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm completed" }));
+
+    expect(await screen.findByText("Completed", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm completed" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close ticket" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/complete`, {
+      method: "POST"
+    });
+  });
+
+  it("shows an accessible error when completion is rejected", async () => {
+    const resolvedTicket = { ...ticket, status: "RESOLVED", canManageReplyStatus: true };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/replies")) {
+        return Promise.resolve(jsonResponse({ replies: [] }));
+      }
+      if (init?.method === "POST") {
+        return Promise.resolve(
+          jsonResponse({ error: { code: "INVALID_STATUS_TRANSITION", message: "No" } }, 400)
+        );
+      }
+      return Promise.resolve(jsonResponse(resolvedTicket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm completed" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We couldn't confirm this ticket as completed."
+    );
+  });
+
+  it.each(["OPEN", "IN_PROGRESS", "COMPLETED"])(
+    "hides the completion control while the ticket is %s",
+    async (status) => {
+      vi.stubGlobal(
+        "fetch",
+        ticketFetch({ ...ticket, status, replyStatus: "OPEN", canManageReplyStatus: true })
+      );
+      render(<TicketDetail ticketId={ticketId} />);
+
+      expect(await screen.findByRole("button", { name: "Close ticket" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Confirm completed" })).not.toBeInTheDocument();
+    }
+  );
+
+  it("hides the completion control from viewers who do not own the ticket", async () => {
+    vi.stubGlobal("fetch", ticketFetch({ ...ticket, status: "RESOLVED" }));
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    await screen.findByRole("heading", { name: ticket.title });
+    expect(screen.queryByRole("button", { name: "Confirm completed" })).not.toBeInTheDocument();
+  });
+
   it("labels a private ticket with the concise visibility badge", async () => {
     vi.stubGlobal("fetch", ticketFetch({ ...ticket, visibility: "PRIVATE" }));
     render(<TicketDetail ticketId={ticketId} />);

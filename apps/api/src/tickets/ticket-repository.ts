@@ -78,6 +78,13 @@ export type StatusUpdateResult =
   | { type: "ticket-not-found" }
   | { type: "invalid-transition" };
 
+export type CompleteTicketResult =
+  | { type: "updated"; ticket: TicketRecord }
+  | { type: "unchanged"; ticket: TicketRecord }
+  | { type: "ticket-not-found" }
+  | { type: "not-owner" }
+  | { type: "invalid-transition" };
+
 export interface TicketRepository {
   create(input: CreateTicketInput, creator?: TicketCreator | null): Promise<TicketRecord>;
   listRecent(
@@ -93,6 +100,8 @@ export interface TicketRepository {
     ownerUserId: string,
     replyStatus: TicketReplyStatus
   ): Promise<UpdateReplyStatusResult>;
+  /** Lets the ticket's creator confirm a RESOLVED ticket as COMPLETED. */
+  completeTicket?(ticketId: string, ownerUserId: string): Promise<CompleteTicketResult>;
   assignTechnician(
     ticketId: string,
     assignedTechnicianId: string | null

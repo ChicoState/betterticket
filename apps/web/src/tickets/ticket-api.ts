@@ -322,6 +322,23 @@ export async function createReply(ticketId: string, body: string, kind: ReplyKin
   return reply;
 }
 
+export async function completeTicket(ticketId: string): Promise<Ticket> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/complete`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error("Ticket completion failed");
+  }
+
+  const ticket: unknown = await response.json();
+  if (!isTicket(ticket)) {
+    throw new Error("Ticket completion returned an invalid response");
+  }
+
+  return ticket;
+}
+
 export async function updateTicketReplyStatus(
   ticketId: string,
   replyStatus: TicketReplyStatus

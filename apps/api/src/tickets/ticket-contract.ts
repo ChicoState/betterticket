@@ -28,6 +28,11 @@ export function canTechnicianChangeStatus(from: TicketStatus, to: TicketStatus):
   return to !== "COMPLETED" && ticketStatuses.indexOf(to) === ticketStatuses.indexOf(from) + 1;
 }
 
+/** Only the ticket's creator confirms completion, and only once a technician has resolved it. */
+export function canOwnerCompleteTicket(from: TicketStatus): boolean {
+  return from === "RESOLVED";
+}
+
 export const ticketVisibilities = ["PUBLIC", "AUTHENTICATED", "PRIVATE"] as const;
 export type TicketVisibility = (typeof ticketVisibilities)[number];
 

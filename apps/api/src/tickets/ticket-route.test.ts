@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { buildApp } from "../app.js";
 import {
+  canOwnerCompleteTicket,
   canTechnicianChangeStatus,
   ticketStatuses,
   type ReplyKind,
@@ -11,6 +12,7 @@ import type { AuthenticatedUser, UserRole } from "../auth/auth-contract.js";
 import type { AuthRepository, CreatedSession } from "../auth/auth-repository.js";
 import type {
   AssignmentResult,
+  CompleteTicketResult,
   CreateTicketInput,
   EndorseReplyRecordInput,
   EndorseResult,
@@ -1392,6 +1394,132 @@ describe("canTechnicianChangeStatus", () => {
     ["OPEN", "COMPLETED", false]
   ] as const)("%s → %s is %s", (from, to, allowed) => {
     expect(canTechnicianChangeStatus(from, to)).toBe(allowed);
+  });
+});
+
+describe("canOwnerCompleteTicket", () => {
+  it.each(ticketStatuses.map((status) => [status, status === "RESOLVED"] as const))(
+    "%s → COMPLETED is %s",
+    (from, allowed) => {
+      expect(canOwnerCompleteTicket(from)).toBe(allowed);
+    }
+  );
+});
+
+describe("POST /api/tickets/:id/complete", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+  const ownerId = "bb97588e-0e8b-49e1-980b-4b9207121898";
+  const completedTicket: TicketRecord = {
+    id: ticketId,
+    title: "Laptop will not start",
+    description: "The power light flashes once.",
+    setup: "Framework Laptop 13, Fedora 42",
+    additionalInformation: null,
+    status: "COMPLETED",
+    priority: "MEDIUM",
+    visibility: "PUBLIC",
+    creatorUserId: ownerId,
+    assignedTechnicianId: null,
+    createdByName: "Uma User",
+    createdAt: new Date("2026-09-28T18:00:00.000Z"),
+    updatedAt: new Date("2026-10-08T18:00:00.000Z")
+  };
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  function buildCompleteApp(result: CompleteTicketResult) {
+    const repository: TicketRepository = {
+      create: vi.fn(),
+      listRecent: vi.fn(),
+      findById: vi.fn(),
+      createReply: vi.fn(),
+      listRecentReplies: vi.fn(),
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn(),
+      completeTicket: vi.fn().mockResolvedValue(result),
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
+    };
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+    return { app, repository };
+  }
+
+  function complete(app: ReturnType<typeof buildApp>, session?: string) {
+    return app.inject({
+      method: "POST",
+      url: `/api/tickets/${ticketId}/complete`,
+      headers: session ? { cookie: `betterticket_session=${session}` } : {}
+    });
+  }
+
+  it("requires a valid session", async () => {
+    const { app, repository } = buildCompleteApp({ type: "ticket-not-found" });
+
+    const response = await complete(app);
+
+    expect(response.statusCode).toBe(401);
+    expect(repository.completeTicket).not.toHaveBeenCalled();
+  });
+
+  it("lets the owner confirm completion and returns the ticket contract", async () => {
+    const { app, repository } = buildCompleteApp({ type: "updated", ticket: completedTicket });
+
+    const response = await complete(app, "user-session");
+
+    expect(response.statusCode).toBe(200);
+    expect(repository.completeTicket).toHaveBeenCalledWith(ticketId, ownerId);
+    expect(response.json()).toMatchObject({ status: "COMPLETED", canManageReplyStatus: true });
+  });
+
+  it("returns an already completed ticket unchanged", async () => {
+    const { app } = buildCompleteApp({ type: "unchanged", ticket: completedTicket });
+
+    const response = await complete(app, "user-session");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "COMPLETED" });
+  });
+
+  it("rejects callers who do not own the ticket", async () => {
+    const { app } = buildCompleteApp({ type: "not-owner" });
+
+    const response = await complete(app, "technician-session");
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: { code: "FORBIDDEN", message: "Only the ticket owner can confirm completion" }
+    });
+  });
+
+  it("rejects tickets that are not resolved", async () => {
+    const { app } = buildCompleteApp({ type: "invalid-transition" });
+
+    const response = await complete(app, "user-session");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "INVALID_STATUS_TRANSITION",
+        message: "Only a resolved ticket can be confirmed as completed"
+      }
+    });
+  });
+
+  it("returns not found for an unknown ticket", async () => {
+    const { app } = buildCompleteApp({ type: "ticket-not-found" });
+
+    const response = await complete(app, "user-session");
+
+    expect(response.statusCode).toBe(404);
   });
 });
 

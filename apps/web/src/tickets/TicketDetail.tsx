@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { AuthenticatedUser } from "../auth/auth-api.js";
 import {
+  completeTicket,
   getTicket,
   TicketStatusUpdateError,
   updateTicketReplyStatus,
@@ -43,6 +44,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
   const [attempt, setAttempt] = useState(0);
   const [replyStatusUpdate, setReplyStatusUpdate] = useState<"idle" | "saving" | "error">("idle");
   const [statusUpdate, setStatusUpdate] = useState<StatusUpdateState>({ type: "idle" });
+  const [completion, setCompletion] = useState<"idle" | "saving" | "error">("idle");
 
   useEffect(() => {
     let ignore = false;
@@ -81,6 +83,17 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
       setReplyStatusUpdate("idle");
     } catch {
       setReplyStatusUpdate("error");
+    }
+  }
+
+  async function confirmCompleted() {
+    setCompletion("saving");
+    try {
+      const ticket = await completeTicket(ticketId);
+      setLoad({ type: "loaded", ticket });
+      setCompletion("idle");
+    } catch {
+      setCompletion("error");
     }
   }
 
@@ -138,14 +151,20 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
   return (
     <>
       <article className="ticket-card ticket-detail" aria-labelledby="page-title">
-        <header className="ticket-card-header">
+        <header className="ticket-detail-header">
           <h1 id="page-title">{ticket.title}</h1>
-          <div className="ticket-detail-header-actions">
-            <span className="status-badge">{formatStatus(ticket.status)}</span>
-            <span className="reply-status-badge">
-              {formatReplyStatus(ticket.replyStatus ?? "OPEN")}
-            </span>
-            {ticket.canManageReplyStatus ? (
+          {ticket.canManageReplyStatus ? (
+            <div className="ticket-detail-header-actions">
+              {ticket.status === "RESOLVED" ? (
+                <button
+                  className="submit-button"
+                  type="button"
+                  disabled={completion === "saving"}
+                  onClick={() => void confirmCompleted()}
+                >
+                  {completion === "saving" ? "Confirming…" : "Confirm completed"}
+                </button>
+              ) : null}
               <button
                 className="submit-button"
                 type="button"
@@ -160,18 +179,27 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
                     ? "Close ticket"
                     : "Reopen ticket"}
               </button>
-            ) : null}
-          </div>
-          <span className="ticket-badges">
+            </div>
+          ) : null}
+          <div className="ticket-detail-badges">
+            <span className="status-badge">{formatStatus(ticket.status)}</span>
+            <span className="reply-status-badge">
+              {formatReplyStatus(ticket.replyStatus ?? "OPEN")}
+            </span>
             <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
             <span className="priority-badge">
               {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
             </span>
-          </span>
+          </div>
         </header>
         {replyStatusUpdate === "error" ? (
           <p className="error-message" role="alert">
             We couldn&apos;t update reply status. Please try again.
+          </p>
+        ) : null}
+        {completion === "error" ? (
+          <p className="error-message" role="alert">
+            We couldn&apos;t confirm this ticket as completed. Refresh the ticket and try again.
           </p>
         ) : null}
         <p className="ticket-meta">

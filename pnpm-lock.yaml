@@ -10,8 +10,8 @@ catalogs:
       specifier: ^6.1.1
       version: 6.1.1
     fastify:
-      specifier: ^5.0.0
-      version: 5.12.5
+      specifier: ^5.12.7
+      version: 5.12.7
     react:
       specifier: ^19.0.0
       version: 19.3.0
@@ -74,8 +74,8 @@ importers:
         specifier: ^12.2.0
         version: 12.2.1
       tsx:
-        specifier: ^4.0.0
-        version: 4.23.13
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -84,31 +84,31 @@ importers:
         version: 8.71.2(eslint@10.12.0)(typescript@6.0.3)
       vitest:
         specifier: ^4.0.0
-        version: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+        version: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/api:
     dependencies:
       "@aws-sdk/client-s3":
         specifier: ^3.1167.0
-        version: 3.1167.0
+        version: 3.1172.0
       "@fastify/cookie":
-        specifier: ^11.0.0
-        version: 11.1.2
+        specifier: ^11.1.3
+        version: 11.1.3
       "@fastify/multipart":
         specifier: ^10.1.8
-        version: 10.1.8
+        version: 10.1.9
       "@fastify/rate-limit":
-        specifier: ^11.2.0
-        version: 11.2.0
+        specifier: ^11.2.1
+        version: 11.2.1
       argon2:
-        specifier: ^0.44.0
-        version: 0.44.0
+        specifier: ^0.45.1
+        version: 0.45.1
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)
       fastify:
         specifier: "catalog:"
-        version: 5.12.5
+        version: 5.12.7
       file-type:
         specifier: ^22.3.0
         version: 22.3.0
@@ -129,14 +129,14 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
       tsx:
-        specifier: ^4.0.0
-        version: 4.23.13
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
       vitest:
         specifier: ^4.0.0
-        version: 4.1.11(@types/node@24.13.5)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+        version: 4.1.11(@types/node@24.13.5)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/web:
     dependencies:
@@ -161,7 +161,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       "@vitejs/plugin-react":
         specifier: "catalog:"
-        version: 6.1.1(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+        version: 6.1.1(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
       "@vitest/coverage-v8":
         specifier: ^4.0.0
         version: 4.1.11(vitest@4.1.11)
@@ -173,10 +173,10 @@ importers:
         version: 5.9.3
       vite:
         specifier: "catalog:"
-        version: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)
+        version: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^4.0.0
-        version: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+        version: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
 packages:
   "@acemir/cssom@0.9.31":
@@ -216,10 +216,10 @@ packages:
       }
     engines: { node: ">=20.0.0" }
 
-  "@aws-sdk/client-s3@3.1167.0":
+  "@aws-sdk/client-s3@3.1172.0":
     resolution:
       {
-        integrity: sha512-HMOyvnlf0+7DFjZjMxGYluL3kbaJMFfslmL7KVda7KFJU/gb0KROGuKhrv2s0abQ0Nryd006yGy0dsxz3BpK+w==
+        integrity: sha512-ByCRHFlL9yui61J5e4w9nrDZcRUbAzd+78z9Q1DQWoAT2HE1XwjtDGEx86GdNTu1+oSyerNhl8eijF6jMUvEpg==
       }
     engines: { node: ">=20.0.0" }
 
@@ -286,10 +286,10 @@ packages:
       }
     engines: { node: ">=20.0.0" }
 
-  "@aws-sdk/middleware-sdk-s3@3.972.89":
+  "@aws-sdk/middleware-sdk-s3@3.972.90":
     resolution:
       {
-        integrity: sha512-Lem2/ZT1eOicVATBukPRPm2S4JAmrTEkP3/dnJE9iTeyqIKqsJF2j04f5L0o+rrZIrwR13swiQMdzcE5jXRzNA==
+        integrity: sha512-UtdPoeKTfUyk4WI6iGirvuN+2MkVMNiWyYwHlwbdOBIonD66+Jm8qR4zdlJJDLqTIDmtvULTH0ZUyEyf/BGTsA==
       }
     engines: { node: ">=20.0.0" }
 
@@ -1236,16 +1236,16 @@ packages:
         integrity: sha512-NtuzM0SfaMJbGlnjr9LWQUN5LzgSrbB8tf/wRZNas+4E1O/Nmzl53e7ruT61HDZyRCJGC6FxIogmNZO1c5ETBA==
       }
 
-  "@fastify/busboy@3.2.5":
+  "@fastify/busboy@3.2.6":
     resolution:
       {
-        integrity: sha512-y8MTAeBlEQUNVnskmZQwpseZN3EgCksQNOULlfxWY6o6VEqh01+oExMgbM7gN6YLQ8pNDYeweNPKJRt8jQm2ZQ==
+        integrity: sha512-UPXdyAMbz/gNvjS8HONpJR2TDaHM3wQKMtSRPFkoh2LTeRRtnm+ICVYKgBYkTwlPOVzDNynOd34EH8qapwfelQ==
       }
 
-  "@fastify/cookie@11.1.2":
+  "@fastify/cookie@11.1.3":
     resolution:
       {
-        integrity: sha512-Dtrpk/YOGUsbRMvP/8ZqPpwnMRv0qSqodFdoQ2B589Obc7jw4s4Qla+cV72Bsm7WsZJnqlYFX/i7uSBq0xzg6g==
+        integrity: sha512-RBhlMNsmSG6C5KGiTkhSXBF75xIrUMSytDDBcpnVewhJ8XVYnJTu+SV6FYKXClIRsBuRjOfKbBSULvnPD3X/mg==
       }
 
   "@fastify/deepmerge@3.2.4":
@@ -1278,10 +1278,10 @@ packages:
         integrity: sha512-OA3KGBCy6KtIvLf8DINC5880o5iBlDX4SxzLQS8HorJAbqluzLRn80UXU0bxZn7UOFhFgpRJDasfwn9nG4FG4A==
       }
 
-  "@fastify/multipart@10.1.8":
+  "@fastify/multipart@10.1.9":
     resolution:
       {
-        integrity: sha512-GNZ6bKyqiKpb1VRhOJtb38X92NSEQIM+piO3sid13oP5xmuVmdbFq32khGh4Ru/jMAJoAVxt4yzuUNPwc/CdSg==
+        integrity: sha512-zAQfAo9m9e6uENaPsYuNgcNptxn9DgQnASZXgNK9gQwJVP6IdV2rBGPLc6Y8SSAYWoWoCFhya5OajO8QD5fKOQ==
       }
 
   "@fastify/proxy-addr@5.1.1":
@@ -1290,10 +1290,10 @@ packages:
         integrity: sha512-zv07Y9GEuDsJPegZoDFd4SDWaZOW8N2pa0GSrYmKpId/tjt1Hgo3BjZBVjdVpfVrHaA+Qv5jawtS2O50J5xM9g==
       }
 
-  "@fastify/rate-limit@11.2.0":
+  "@fastify/rate-limit@11.2.1":
     resolution:
       {
-        integrity: sha512-X7osJd4XSvMoejYrnJkSZYYjY1eNYoBqhjlzf1RakC2204qExFqZFTKj5+T7VuzA/iUI9Z3UoSqQRkB2HpG0oQ==
+        integrity: sha512-uTQjii3tJUnb6ZyEMcunuvKE3FDKNZEaPpxdyWADDgthHnUV1swdvwuiZfi3DDDgxm1iBrhOkQ/w0yDBQ8qJtA==
       }
 
   "@grpc/grpc-js@1.14.4":
@@ -1649,10 +1649,10 @@ packages:
         integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==
       }
 
-  "@smithy/core@3.40.0":
+  "@smithy/core@3.41.0":
     resolution:
       {
-        integrity: sha512-DssGno52pzZ5m6RlDtyKuBIpZNPg9pqgs0CnNDKz9IatxCsmvNmJNn5Zn6rf77MthZo9wf89OvZFhTY/RwxhxQ==
+        integrity: sha512-fuZ34H1uizS3WgcX9VXG7Uy8od5A5/kCc+CR3NkHLNm2H/BE9AUHG02VIdu8ZB7FYhLqsr/RZbqAoXuOCg/Oxg==
       }
     engines: { node: ">=18.0.0" }
 
@@ -1742,10 +1742,10 @@ packages:
       "@types/react-dom":
         optional: true
 
-  "@tokenizer/inflate@0.6.0":
+  "@tokenizer/inflate@0.6.1":
     resolution:
       {
-        integrity: sha512-+0RDxhBkyT9xMnGdJAwmats9yxRLR8ypJrQgrnLqOu4Gv/aHlnxYgdGVy2QTwvBl6IF/w2Hr+ZNirH+iMUbVZA==
+        integrity: sha512-EuqSyHdOXN61cc5/rsW6uUn1TJZJGZr56jlkUbsLwVJ6uHgvwQyFkYfOCf+zzPFAYjftPk1WeJnEhpLVvzbm1A==
       }
     engines: { node: ">=18" }
 
@@ -2137,10 +2137,10 @@ packages:
       }
     engines: { node: ">= 14" }
 
-  argon2@0.44.0:
+  argon2@0.45.1:
     resolution:
       {
-        integrity: sha512-zHPGN3S55sihSQo0dBbK0A5qpi2R31z7HZDZnry3ifOyj8bZZnpZND2gpmhnRGO1V/d555RwBqIK5W4Mrmv3ig==
+        integrity: sha512-skm+/WCjkGqCQxF7FG1LuZXM5yvbFjgbfiCGsud2oLgaDhh6b6dbH0b1EkghbM+xx4Bj8Ape+KKgixoIlWZicQ==
       }
     engines: { node: ">=16.17.0" }
 
@@ -2914,10 +2914,10 @@ packages:
         integrity: sha512-fZOty7z3O7vOliF6d8bHE3wiEh1KcNnKEQensSgTk9C1DvN6nRLS++XVd86v33Hw/8u9Un8A1zDrQ8ujcQDHEg==
       }
 
-  fastify@5.12.5:
+  fastify@5.12.7:
     resolution:
       {
-        integrity: sha512-OB2k1dlxs5/NAABqeKV2FUHkSD2BbENsCak8yULVcymn3fHIPDVa9TI3SDnJSWYSllZmSYuZXy2gTnsT+Sut1A==
+        integrity: sha512-v4pEPsTRPuqlDIYiQFB+BHjVN4SdHX9u0ABk0ZDUKbbdY1vsNryUd1j4Z+jQEZajvYIVk047Kimva9/AJ79GYw==
       }
 
   fastq@1.20.3:
@@ -2951,10 +2951,10 @@ packages:
       }
     engines: { node: ">=22" }
 
-  find-my-way@9.9.0:
+  find-my-way@9.10.1:
     resolution:
       {
-        integrity: sha512-sJsgZ1sQH2UDuowPuMKg8az7Qc8F0jnj+SKkFWU/+T0xcFlgV5skgXOGUqmQzOdmW6ALA7AhJINWx3qFBkbLHA==
+        integrity: sha512-UwbZdEdk59YXIGPW/rbDn/Ayr3mJ5fPH/HJeMPlK8Ez10aUin4iyRwgJvNTSkRfpZ2h8uLX0LbvZm/YUBUpymw==
       }
     engines: { node: ">=20" }
 
@@ -4227,10 +4227,10 @@ packages:
       }
     engines: { node: ">=8" }
 
-  strtok3@10.7.0:
+  strtok3@10.8.0:
     resolution:
       {
-        integrity: sha512-iAqrCpp7UXD2FZiHWhLXqdJ6CmNeVzRkkHAyyhhKMVtbVm2KtPX3D/bJNonvtcyLTHS4rwqP2pz9fsjK1K4z0Q==
+        integrity: sha512-e6bW3fD6V01DPmcbLfNtn0cjsiHvTKS/hivgbzqYMfHb/nLes4QQ0H5QBxlkPQayF4xv08AvlSgptGwN86Eemw==
       }
     engines: { node: ">=18" }
 
@@ -4388,10 +4388,10 @@ packages:
         integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==
       }
 
-  tsx@4.23.13:
+  tsx@4.23.15:
     resolution:
       {
-        integrity: sha512-BL5MGkRln6aDYhb0xbQlEAGw743BaZYWdbWtdJOBriYJboKgUUYCadFp2/FpBBZquBC/ezNBn7wMMPx7FDZUDw==
+        integrity: sha512-Yiex1Ovn8z2xPpOWckIiysV1SSyRMY9BkLF++q0yKiDxCqRhosKfMg3janKkiLBwZ5c/YryloKwGZcrEmtwxKw==
       }
     engines: { node: ">=18.0.0" }
     hasBin: true
@@ -4752,19 +4752,19 @@ snapshots:
     dependencies:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
-  "@aws-sdk/client-s3@3.1167.0":
+  "@aws-sdk/client-s3@3.1172.0":
     dependencies:
       "@aws-sdk/checksums": 3.1002.5
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/credential-provider-node": 3.972.97
-      "@aws-sdk/middleware-sdk-s3": 3.972.89
+      "@aws-sdk/middleware-sdk-s3": 3.972.90
       "@aws-sdk/signature-v4-multi-region": 3.996.52
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/fetch-http-handler": 5.8.1
       "@smithy/node-http-handler": 4.14.2
       "@smithy/types": 4.20.0
@@ -4775,7 +4775,7 @@ snapshots:
       "@aws-sdk/types": 3.975.1
       "@aws-sdk/xml-builder": 3.972.43
       "@aws/lambda-invoke-store": 0.3.0
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/signature-v4": 5.7.5
       "@smithy/types": 4.20.0
       bowser: 2.15.0
@@ -4785,7 +4785,7 @@ snapshots:
     dependencies:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -4793,7 +4793,7 @@ snapshots:
     dependencies:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/fetch-http-handler": 5.8.1
       "@smithy/node-http-handler": 4.14.2
       "@smithy/types": 4.20.0
@@ -4810,7 +4810,7 @@ snapshots:
       "@aws-sdk/credential-provider-web-identity": 3.972.90
       "@aws-sdk/nested-clients": 3.998.3
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/credential-provider-imds": 4.5.2
       "@smithy/types": 4.20.0
       tslib: 2.9.1
@@ -4820,7 +4820,7 @@ snapshots:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/nested-clients": 3.998.3
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -4833,7 +4833,7 @@ snapshots:
       "@aws-sdk/credential-provider-sso": 3.973.28
       "@aws-sdk/credential-provider-web-identity": 3.972.90
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/credential-provider-imds": 4.5.2
       "@smithy/types": 4.20.0
       tslib: 2.9.1
@@ -4842,7 +4842,7 @@ snapshots:
     dependencies:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -4852,7 +4852,7 @@ snapshots:
       "@aws-sdk/nested-clients": 3.998.3
       "@aws-sdk/token-providers": 3.1166.0
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -4861,16 +4861,16 @@ snapshots:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/nested-clients": 3.998.3
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
-  "@aws-sdk/middleware-sdk-s3@3.972.89":
+  "@aws-sdk/middleware-sdk-s3@3.972.90":
     dependencies:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/signature-v4-multi-region": 3.996.52
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -4879,7 +4879,7 @@ snapshots:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/signature-v4-multi-region": 3.996.52
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/fetch-http-handler": 5.8.1
       "@smithy/node-http-handler": 4.14.2
       "@smithy/types": 4.20.0
@@ -4897,7 +4897,7 @@ snapshots:
       "@aws-sdk/core": 3.981.0
       "@aws-sdk/nested-clients": 3.998.3
       "@aws-sdk/types": 3.975.1
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -5254,9 +5254,9 @@ snapshots:
       ajv-formats: 3.0.1(ajv@8.20.0)
       fast-uri: 4.2.1
 
-  "@fastify/busboy@3.2.5": {}
+  "@fastify/busboy@3.2.6": {}
 
-  "@fastify/cookie@11.1.2":
+  "@fastify/cookie@11.1.3":
     dependencies:
       cookie: 2.0.1
       fastify-plugin: 6.0.0
@@ -5275,9 +5275,9 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
-  "@fastify/multipart@10.1.8":
+  "@fastify/multipart@10.1.9":
     dependencies:
-      "@fastify/busboy": 3.2.5
+      "@fastify/busboy": 3.2.6
       "@fastify/deepmerge": 3.2.4
       "@fastify/error": 4.2.0
       fastify-plugin: 6.0.0
@@ -5288,7 +5288,7 @@ snapshots:
       "@fastify/forwarded": 3.0.2
       ipaddr.js: 2.5.0
 
-  "@fastify/rate-limit@11.2.0":
+  "@fastify/rate-limit@11.2.1":
     dependencies:
       "@lukeed/ms": 2.0.2
       fastify-plugin: 6.0.0
@@ -5446,32 +5446,32 @@ snapshots:
 
   "@rolldown/pluginutils@1.0.1": {}
 
-  "@smithy/core@3.40.0":
+  "@smithy/core@3.41.0":
     dependencies:
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
   "@smithy/credential-provider-imds@4.5.2":
     dependencies:
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
   "@smithy/fetch-http-handler@5.8.1":
     dependencies:
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
   "@smithy/node-http-handler@4.14.2":
     dependencies:
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
   "@smithy/signature-v4@5.7.5":
     dependencies:
-      "@smithy/core": 3.40.0
+      "@smithy/core": 3.41.0
       "@smithy/types": 4.20.0
       tslib: 2.9.1
 
@@ -5511,7 +5511,7 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+      vitest: 4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   "@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)":
     dependencies:
@@ -5523,10 +5523,10 @@ snapshots:
       "@types/react": 19.3.0
       "@types/react-dom": 19.3.0(@types/react@19.3.0)
 
-  "@tokenizer/inflate@0.6.0":
+  "@tokenizer/inflate@0.6.1":
     dependencies:
       debug: 4.4.3
-      strtok3: 10.7.0
+      strtok3: 10.8.0
       token-types: 6.2.0
     transitivePeerDependencies:
       - supports-color
@@ -5689,10 +5689,10 @@ snapshots:
       "@typescript-eslint/types": 8.71.2
       eslint-visitor-keys: 5.0.1
 
-  "@vitejs/plugin-react@6.1.1(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))":
+  "@vitejs/plugin-react@6.1.1(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))":
     dependencies:
       "@rolldown/pluginutils": 1.0.1
-      vite: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
 
   "@vitest/coverage-v8@4.1.11(vitest@4.1.11)":
     dependencies:
@@ -5706,7 +5706,7 @@ snapshots:
       obug: 2.2.1
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@types/node@24.13.5)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+      vitest: 4.1.11(@types/node@24.13.5)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
   "@vitest/expect@4.1.11":
     dependencies:
@@ -5717,21 +5717,21 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  "@vitest/mocker@4.1.11(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))":
+  "@vitest/mocker@4.1.11(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))":
     dependencies:
       "@vitest/spy": 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
 
-  "@vitest/mocker@4.1.11(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))":
+  "@vitest/mocker@4.1.11(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))":
     dependencies:
       "@vitest/spy": 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
 
   "@vitest/pretty-format@4.1.11":
     dependencies:
@@ -5825,7 +5825,7 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  argon2@0.44.0:
+  argon2@0.45.1:
     dependencies:
       "@phc/format": 1.0.0
       cross-env: 10.1.0
@@ -6071,7 +6071,7 @@ snapshots:
       "@drizzle-team/brocli": 0.10.2
       "@esbuild-kit/esm-loader": 2.6.5
       esbuild: 0.25.12
-      tsx: 4.23.13
+      tsx: 4.23.15
 
   drizzle-orm@0.45.3(@types/pg@8.23.1)(pg@8.23.0):
     optionalDependencies:
@@ -6288,7 +6288,7 @@ snapshots:
 
   fastify-plugin@6.0.0: {}
 
-  fastify@5.12.5:
+  fastify@5.12.7:
     dependencies:
       "@fastify/ajv-compiler": 4.0.6
       "@fastify/error": 4.2.0
@@ -6297,7 +6297,7 @@ snapshots:
       abstract-logging: 2.0.1
       avvio: 9.3.0
       fast-json-stringify: 7.0.1
-      find-my-way: 9.9.0
+      find-my-way: 9.10.1
       light-my-request: 6.6.0
       pino: 10.3.1
       process-warning: 5.1.0
@@ -6320,14 +6320,14 @@ snapshots:
 
   file-type@22.3.0:
     dependencies:
-      "@tokenizer/inflate": 0.6.0
-      strtok3: 10.7.0
+      "@tokenizer/inflate": 0.6.1
+      strtok3: 10.8.0
       token-types: 6.2.0
       uint8array-extras: 1.6.0
     transitivePeerDependencies:
       - supports-color
 
-  find-my-way@9.9.0:
+  find-my-way@9.10.1:
     dependencies:
       fast-deep-equal: 3.1.3
       fast-querystring: 1.1.2
@@ -7014,7 +7014,7 @@ snapshots:
     dependencies:
       min-indent: 1.0.1
 
-  strtok3@10.7.0:
+  strtok3@10.8.0:
     dependencies:
       "@tokenizer/token": 0.3.0
 
@@ -7143,7 +7143,7 @@ snapshots:
 
   tslib@2.9.1: {}
 
-  tsx@4.23.13:
+  tsx@4.23.15:
     dependencies:
       esbuild: 0.28.2
     optionalDependencies:
@@ -7186,7 +7186,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1):
+  vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -7197,10 +7197,10 @@ snapshots:
       "@types/node": 24.13.5
       esbuild: 0.28.2
       fsevents: 2.3.3
-      tsx: 4.23.13
+      tsx: 4.23.15
       yaml: 2.9.1
 
-  vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1):
+  vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -7211,13 +7211,13 @@ snapshots:
       "@types/node": 26.6.3
       esbuild: 0.28.2
       fsevents: 2.3.3
-      tsx: 4.23.13
+      tsx: 4.23.15
       yaml: 2.9.1
 
-  vitest@4.1.11(@types/node@24.13.5)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@24.13.5)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       "@vitest/expect": 4.1.11
-      "@vitest/mocker": 4.1.11(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+      "@vitest/mocker": 4.1.11(vite@8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
       "@vitest/pretty-format": 4.1.11
       "@vitest/runner": 4.1.11
       "@vitest/snapshot": 4.1.11
@@ -7234,7 +7234,7 @@ snapshots:
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@24.13.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       "@types/node": 24.13.5
@@ -7243,10 +7243,10 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  vitest@4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@26.6.3)(@vitest/coverage-v8@4.1.11)(jsdom@27.4.0)(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)):
     dependencies:
       "@vitest/expect": 4.1.11
-      "@vitest/mocker": 4.1.11(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+      "@vitest/mocker": 4.1.11(vite@8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
       "@vitest/pretty-format": 4.1.11
       "@vitest/runner": 4.1.11
       "@vitest/snapshot": 4.1.11
@@ -7263,7 +7263,7 @@ snapshots:
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vite: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1)
+      vite: 8.3.4(@types/node@26.6.3)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       "@types/node": 26.6.3

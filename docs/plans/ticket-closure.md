@@ -12,3 +12,5 @@
 - [x] Reject replies to closed tickets at the repository and API boundaries.
 - [x] Add reply-status presentation and owner controls to ticket pages.
 - [x] Cover API, persistence, and UI behavior with tests.
+- [x] Add owner-only `RESOLVED → COMPLETED` confirmation (`POST /api/tickets/:id/complete`) and a **Confirm completed** control on the ticket page.
+- [x] Lay out the ticket page header as title and owner actions on one row with all badges below, so the action buttons no longer shift with title or badge width.

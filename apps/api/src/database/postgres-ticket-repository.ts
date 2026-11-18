@@ -1,5 +1,18 @@
-import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  getTableColumns,
+  ilike,
+  inArray,
+  or,
+  sql,
+  type SQL
+} from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import {
   notifications,
@@ -34,6 +47,7 @@ import type {
   TicketCreator,
   TicketRecord,
   TicketRepository,
+  TicketSearch,
   TicketSort,
   TicketViewer,
   UpdateReplyStatusResult,
@@ -92,7 +106,8 @@ export class PostgresTicketRepository implements TicketRepository {
   async listRecent(
     limit: number,
     viewer: TicketViewer | null = null,
-    sort: TicketSort = "votes"
+    sort: TicketSort = "votes",
+    search?: TicketSearch
   ): Promise<TicketRecord[]> {
     const visibilityFilter =
       viewer?.role === "TECHNICIAN"
@@ -108,8 +123,15 @@ export class PostgresTicketRepository implements TicketRepository {
               and(eq(tickets.visibility, "PRIVATE"), eq(tickets.creatorUserId, viewer.id))
             )
           : eq(tickets.visibility, "PUBLIC");
+    const terms = (search?.terms ?? []).map((term) => this.searchTerm(term));
+    if (search && terms.length === 0) {
+      return [];
+    }
+
+    const matches = terms.map((term) => term.matches);
+    const searchFilter = search?.match === "any" ? or(...matches) : and(...matches);
     const newestFirst = [desc(tickets.createdAt), desc(tickets.id)];
-    const orderBy =
+    const sortOrder =
       sort === "priority"
         ? [
             sql`CASE ${tickets.priority} WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END`,
@@ -123,15 +145,82 @@ export class PostgresTicketRepository implements TicketRepository {
               ...newestFirst
             ]
           : newestFirst;
+    // Best matches first: tickets containing more of the terms, and exact rather than misspelled
+    // ones. A similar-ticket search has no other order; a plain search then applies the sort.
+    const relevance = desc(
+      sql.join(
+        terms.map((term) => term.score),
+        sql` + `
+      )
+    );
+    const orderBy = !search
+      ? sortOrder
+      : search.match === "any"
+        ? [relevance, ...newestFirst]
+        : [relevance, ...sortOrder];
     const results = await this.database
       .select({ ...getTableColumns(tickets), creatorName: users.name })
       .from(tickets)
       .leftJoin(users, eq(tickets.creatorUserId, users.id))
-      .where(visibilityFilter)
+      .where(and(visibilityFilter, searchFilter))
       .orderBy(...orderBy)
       .limit(limit);
 
     return results.map(toTicketRecord);
+  }
+
+  /**
+   * Builds the condition and relevance score for one search term. A term matches when it appears
+   * in the ticket's own text or in any of its replies. Punctuation is ignored on both sides, so
+   * "wifi" finds "Wi-Fi"; a term made only of punctuation is matched literally instead. Longer
+   * words also match a similar word or one with two letters swapped, so "pritner" finds
+   * "printer", at half the score.
+   */
+  private searchTerm(term: string): { matches: SQL; score: SQL } {
+    const plainTerm = term.replace(/[^\p{L}\p{N}]+/gu, "");
+    const pattern = `%${plainTerm || escapeLikePattern(term)}%`;
+    const text = (column: SQL | AnyPgColumn) => (plainTerm ? withoutPunctuation(column) : column);
+    const exact = this.inAnySearchedText((column) => ilike(text(column), pattern));
+
+    if (!fuzzyTermPattern.test(plainTerm)) {
+      return { matches: exact, score: sql`(${exact})::int` };
+    }
+
+    const swapped = sql.join(
+      swapAdjacentLetters(plainTerm).map((variant) => sql`${`%${variant}%`}`),
+      sql`, `
+    );
+    const similar = this.inAnySearchedText((column) => {
+      const plainText = withoutPunctuation(column);
+      return sql`(word_similarity(${plainTerm}, ${plainText}) >= ${sql.raw(String(fuzzyWordSimilarity))} or ${plainText} ilike any (array[${swapped}]))`;
+    });
+
+    return {
+      matches: sql`(${exact} or ${similar})`,
+      score: sql`(case when ${exact} then 1 when ${similar} then 0.5 else 0 end)`
+    };
+  }
+
+  /** True when the predicate holds for one of the ticket's text fields or one of its replies. */
+  private inAnySearchedText(predicate: (column: SQL | AnyPgColumn) => SQL): SQL {
+    const condition = or(
+      predicate(tickets.title),
+      predicate(tickets.description),
+      predicate(tickets.setup),
+      // Without the fallback a missing value makes a non-match NULL, which breaks the ranking.
+      predicate(sql`coalesce(${tickets.additionalInformation}, '')`),
+      exists(
+        this.database
+          .select({ id: ticketReplies.id })
+          .from(ticketReplies)
+          .where(and(eq(ticketReplies.ticketId, tickets.id), predicate(ticketReplies.body)))
+      )
+    );
+    if (!condition) {
+      throw new Error("Ticket search condition could not be built");
+    }
+
+    return condition;
   }
 
   async findById(id: string): Promise<TicketRecord | null> {
@@ -477,6 +566,45 @@ export class PostgresTicketRepository implements TicketRepository {
       return { type: result, ticket };
     });
   }
+}
+
+// Only words of letters this long are matched approximately: shorter words and numbers such as
+// room or version numbers are too easily confused with a different one.
+const fuzzyTermPattern = /^\p{L}{4,}$/u;
+
+// The share of a term's trigrams that a word in the text must contain (pg_trgm word_similarity).
+// 0.5 accepts one missing or wrong letter in a word of six or more letters.
+const fuzzyWordSimilarity = 0.5;
+
+const maxSwappedTermLength = 24;
+
+/**
+ * The term with each pair of neighbouring letters swapped. Swapped letters are a common typing
+ * mistake that shares too few trigrams with the intended word for similarity to catch.
+ */
+function swapAdjacentLetters(term: string): string[] {
+  const letters = [...term].slice(0, maxSwappedTermLength);
+  const variants = new Set<string>();
+
+  for (let index = 0; index < letters.length - 1; index += 1) {
+    const swapped = [...letters];
+    [swapped[index], swapped[index + 1]] = [letters[index + 1]!, letters[index]!];
+    variants.add(swapped.join(""));
+  }
+  variants.delete(letters.join(""));
+
+  // A term of one repeated letter has no variants; keep the array non-empty for the query.
+  return variants.size > 0 ? [...variants] : [letters.join("")];
+}
+
+/** The column's text with everything except letters, digits, and whitespace removed. */
+function withoutPunctuation(column: SQL | AnyPgColumn): SQL {
+  return sql`regexp_replace(${column}, '[^[:alnum:][:space:]]+', '', 'g')`;
+}
+
+/** Escapes the characters `LIKE` treats specially so a search term is matched literally. */
+function escapeLikePattern(term: string): string {
+  return term.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
 async function findTicket(executor: Executor, id: string): Promise<TicketRecord | null> {

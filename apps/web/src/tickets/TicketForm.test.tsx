@@ -32,6 +32,28 @@ describe("TicketForm", () => {
     vi.unstubAllGlobals();
   });
 
+  it("reports the title as it is typed and clears it after a successful submission", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(ticketResponse), {
+          status: 201,
+          headers: { "content-type": "application/json" }
+        })
+      )
+    );
+    const onTitleChange = vi.fn();
+    render(<TicketForm onTitleChange={onTitleChange} />);
+
+    fillRequiredFields();
+    expect(onTitleChange).toHaveBeenLastCalledWith("Laptop will not start");
+
+    fireEvent.click(screen.getByRole("button", { name: "Create ticket" }));
+
+    await screen.findByText("Your ticket has been created.");
+    expect(onTitleChange).toHaveBeenLastCalledWith("");
+  });
+
   it("submits the approved ticket fields and shows confirmation", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(ticketResponse), {

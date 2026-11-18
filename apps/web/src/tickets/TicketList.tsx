@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import type { AuthenticatedUser } from "../auth/auth-api.js";
 import { VoteControls } from "./VoteControls.js";
@@ -6,6 +6,7 @@ import {
   listTickets,
   setTicketVote,
   ticketPath,
+  ticketSearchMaxLength,
   type ListedTicket,
   type TicketSort
 } from "./ticket-api.js";
@@ -18,22 +19,51 @@ import {
 
 type LoadState =
   | { type: "loading" }
-  | { type: "loaded"; tickets: ListedTicket[]; viewerId: string | null }
+  | { type: "loaded"; tickets: ListedTicket[]; viewerId: string | null; query: string }
   | { type: "error" };
+
+const searchDebounceMilliseconds = 300;
+
+const searchParameter = "q";
+
+function readSearchFromLocation(): string {
+  const query = new URLSearchParams(window.location.search).get(searchParameter) ?? "";
+  return query.trim().slice(0, ticketSearchMaxLength);
+}
+
+/** Keeps the applied search in the page URL so it survives a reload and can be shared. */
+function writeSearchToLocation(query: string) {
+  const url = new URL(window.location.href);
+  if (query) {
+    url.searchParams.set(searchParameter, query);
+  } else {
+    url.searchParams.delete(searchParameter);
+  }
+  window.history.replaceState(window.history.state, "", url);
+}
+
+function formatMatchCount(count: number, query: string): string {
+  if (count === 0) {
+    return `No tickets match “${query}”.`;
+  }
+  return `${count} ${count === 1 ? "ticket matches" : "tickets match"} “${query}”.`;
+}
 
 export function TicketList({ currentUser = null }: { currentUser?: AuthenticatedUser | null }) {
   const viewerId = currentUser?.id ?? null;
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [sort, setSort] = useState<TicketSort>("votes");
+  const [query, setQuery] = useState(readSearchFromLocation);
+  const [draft, setDraft] = useState(query);
 
   useEffect(() => {
     let ignore = false;
 
-    listTickets(sort).then(
+    listTickets(sort, { query }).then(
       (tickets) => {
         if (!ignore) {
-          setLoad({ type: "loaded", tickets, viewerId });
+          setLoad({ type: "loaded", tickets, viewerId, query });
         }
       },
       () => {
@@ -46,7 +76,7 @@ export function TicketList({ currentUser = null }: { currentUser?: Authenticated
     return () => {
       ignore = true;
     };
-  }, [attempt, sort, viewerId]);
+  }, [attempt, sort, viewerId, query]);
 
   function retry() {
     setLoad({ type: "loading" });
@@ -58,8 +88,84 @@ export function TicketList({ currentUser = null }: { currentUser?: Authenticated
     setSort(nextSort);
   }
 
+  const draftQuery = draft.trim();
+
+  // Search as the visitor types, once they pause.
+  useEffect(() => {
+    if (draftQuery === query) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      writeSearchToLocation(draftQuery);
+      // Replace an error at once; tickets on screen stay until the new results arrive.
+      setLoad((current) => (current.type === "error" ? { type: "loading" } : current));
+      setQuery(draftQuery);
+    }, searchDebounceMilliseconds);
+
+    return () => window.clearTimeout(timer);
+  }, [draftQuery, query]);
+
+  /**
+   * Applies a search at once instead of waiting for a pause in typing. Repeating the current search
+   * after a failure tries it again.
+   */
+  function applySearch(nextQuery: string) {
+    setDraft(nextQuery);
+    writeSearchToLocation(nextQuery);
+    if (nextQuery === query) {
+      if (load.type === "error") {
+        retry();
+      }
+      return;
+    }
+    if (load.type === "error") {
+      setLoad({ type: "loading" });
+    }
+    setQuery(nextQuery);
+  }
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    applySearch(draftQuery);
+  }
+
+  // What the tickets on screen were found with; it trails `query` while a search is pending.
+  const shownQuery = load.type === "loaded" ? load.query : query;
+  const isSearchPending =
+    load.type === "loaded" && (load.query !== query || load.viewerId !== viewerId);
+
   return (
     <>
+      <form className="ticket-search" role="search" onSubmit={submitSearch}>
+        <label className="visually-hidden" htmlFor="ticket-search">
+          Search tickets
+        </label>
+        <input
+          id="ticket-search"
+          type="search"
+          maxLength={ticketSearchMaxLength}
+          value={draft}
+          placeholder="Search tickets"
+          onChange={(event) => setDraft(event.target.value)}
+        />
+      </form>
+
+      {query ? (
+        <div className="ticket-search-summary">
+          <p role="status">
+            {load.type === "loaded" && !isSearchPending
+              ? formatMatchCount(load.tickets.length, query)
+              : load.type === "error"
+                ? ""
+                : "Searching tickets…"}
+          </p>
+          <button className="text-button" type="button" onClick={() => applySearch("")}>
+            Clear search
+          </button>
+        </div>
+      ) : null}
+
       <div className="ticket-sort-control">
         <label htmlFor="ticket-sort">Sort tickets</label>
         <select
@@ -73,9 +179,11 @@ export function TicketList({ currentUser = null }: { currentUser?: Authenticated
         </select>
       </div>
       {load.type === "loading" || (load.type === "loaded" && load.viewerId !== viewerId) ? (
-        <p className="list-message" role="status">
-          Loading tickets…
-        </p>
+        query ? null : (
+          <p className="list-message" role="status">
+            Loading tickets…
+          </p>
+        )
       ) : load.type === "error" ? (
         <div className="error-message" role="alert">
           <p>We couldn&apos;t load the tickets. Please try again.</p>
@@ -84,9 +192,19 @@ export function TicketList({ currentUser = null }: { currentUser?: Authenticated
           </button>
         </div>
       ) : load.tickets.length === 0 ? (
-        <p className="list-message">No tickets have been submitted yet.</p>
+        shownQuery ? (
+          <p className="list-message">
+            Try different or fewer words, or <a href="/new">create a ticket</a> for your issue.
+          </p>
+        ) : (
+          <p className="list-message">No tickets have been submitted yet.</p>
+        )
       ) : (
-        <ul className="ticket-list" aria-label="Submitted tickets">
+        <ul
+          className="ticket-list"
+          aria-label={shownQuery ? "Matching tickets" : "Submitted tickets"}
+          aria-busy={isSearchPending}
+        >
           {load.tickets.map((ticket) => (
             <li key={ticket.id}>
               <article className="ticket-card" aria-labelledby={`ticket-${ticket.id}-title`}>

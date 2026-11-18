@@ -3,7 +3,11 @@ import { asc, eq } from "drizzle-orm";
 
 import { createDatabase } from "./client.js";
 import { PostgresTicketRepository } from "./postgres-ticket-repository.js";
-import { ticketStatuses, type TicketPriority } from "../tickets/ticket-contract.js";
+import {
+  ticketStatuses,
+  type TicketPriority,
+  type TicketSearch
+} from "../tickets/ticket-contract.js";
 import {
   notifications,
   replyEndorsements,
@@ -283,6 +287,278 @@ describe("PostgresTicketRepository", () => {
     expect((await repository.listRecent(5, null, "votes")).map((listed) => listed.title)).toEqual(
       await titles(5)
     );
+  });
+
+  describe("search", () => {
+    const base = { description: "Description", setup: "Setup" };
+    const all = (...terms: string[]) => ({ terms, match: "all" as const });
+    const any = (...terms: string[]) => ({ terms, match: "any" as const });
+
+    async function addReply(ticketId: string, body: string, kind: "SOLUTION" | "COMMENT") {
+      const result = await new PostgresTicketRepository(database).createReply(ticketId, body, kind);
+      expect(result.type).toBe("created");
+    }
+
+    it("matches a term in any ticket field or reply body, ignoring case", async () => {
+      const repository = new PostgresTicketRepository(database);
+      await repository.create({ ...base, title: "Zebra label PRINTER jams" });
+      await repository.create({
+        ...base,
+        title: "In description",
+        description: "The printer hums"
+      });
+      await repository.create({ ...base, title: "In setup", setup: "HP Printer, Windows 11" });
+      await repository.create({
+        ...base,
+        title: "In additional information",
+        additionalInformation: "Tried another printer"
+      });
+      const solved = await repository.create({ ...base, title: "Solved in a solution" });
+      const discussed = await repository.create({ ...base, title: "Mentioned in a comment" });
+      await repository.create({ ...base, title: "Unrelated laptop ticket" });
+      await addReply(solved.id, "Reinstall the Printer driver.", "SOLUTION");
+      await addReply(discussed.id, "Is the printer plugged in?", "COMMENT");
+
+      const found = await repository.listRecent(10, null, "newest", all("printer"));
+
+      expect(found.map((ticket) => ticket.title).sort()).toEqual([
+        "In additional information",
+        "In description",
+        "In setup",
+        "Mentioned in a comment",
+        "Solved in a solution",
+        "Zebra label PRINTER jams"
+      ]);
+    });
+
+    it("requires every term, which may match in different fields or replies", async () => {
+      const repository = new PostgresTicketRepository(database);
+      const split = await repository.create({ ...base, title: "Printer problem" });
+      await addReply(split.id, "It was offline; restart the spooler.", "SOLUTION");
+      await repository.create({ ...base, title: "Printer is offline" });
+      await repository.create({ ...base, title: "Printer out of toner" });
+      await repository.create({ ...base, title: "VPN is offline" });
+
+      const found = await repository.listRecent(10, null, "newest", all("printer", "offline"));
+
+      expect(found.map((ticket) => ticket.title).sort()).toEqual([
+        "Printer is offline",
+        "Printer problem"
+      ]);
+    });
+
+    it("ranks similar tickets by matched terms and then newest first", async () => {
+      const repository = new PostgresTicketRepository(database);
+      const ticket = (title: string, createdAt: string) => ({
+        ...base,
+        title,
+        createdAt: new Date(createdAt),
+        updatedAt: new Date(createdAt)
+      });
+      await database
+        .insert(tickets)
+        .values([
+          ticket("Printer offline in the library", "2026-09-26T12:00:00.000Z"),
+          ticket("Old printer ticket", "2026-09-27T12:00:00.000Z"),
+          ticket("New offline ticket", "2026-09-29T12:00:00.000Z"),
+          ticket("Unrelated laptop ticket", "2026-09-30T12:00:00.000Z")
+        ]);
+
+      // The priority sort is ignored for a similar-ticket search.
+      const found = await repository.listRecent(
+        10,
+        null,
+        "priority",
+        any("printer", "offline", "library")
+      );
+      const limited = await repository.listRecent(1, null, "newest", any("printer", "offline"));
+
+      expect(found.map((item) => item.title)).toEqual([
+        "Printer offline in the library",
+        "New offline ticket",
+        "Old printer ticket"
+      ]);
+      expect(limited.map((item) => item.title)).toEqual(["Printer offline in the library"]);
+    });
+
+    it("matches wildcard characters literally and binds hostile text safely", async () => {
+      const repository = new PostgresTicketRepository(database);
+      await repository.create({ ...base, title: "Disk at 100% on build_server" });
+      await repository.create({ ...base, title: "Disk at 100 percent on backup host" });
+      await repository.create({ ...base, title: "Path C:\\temp is missing" });
+
+      const titles = async (...terms: string[]) =>
+        (await repository.listRecent(10, null, "newest", all(...terms))).map((item) => item.title);
+
+      expect(await titles("build_server")).toEqual(["Disk at 100% on build_server"]);
+      expect(await titles("build%server")).toEqual(["Disk at 100% on build_server"]);
+      expect(await titles("%")).toEqual(["Disk at 100% on build_server"]);
+      expect(await titles("_")).toEqual(["Disk at 100% on build_server"]);
+      expect(await titles("\\")).toEqual(["Path C:\\temp is missing"]);
+      expect(await titles("c:\\temp")).toEqual(["Path C:\\temp is missing"]);
+      expect(await titles("'; drop table tickets; --")).toEqual([]);
+      expect(await database.select().from(tickets)).toHaveLength(3);
+    });
+
+    it("ignores punctuation in both the search and the ticket text", async () => {
+      const repository = new PostgresTicketRepository(database);
+      const hyphenated = await repository.create({ ...base, title: "Wi-Fi drops in the library" });
+      const plain = await repository.create({ ...base, title: "Guest wifi is slow" });
+      const reply = await repository.create({ ...base, title: "Can't sign in" });
+      await repository.create({ ...base, title: "Printer out of toner" });
+      await addReply(reply.id, "Reset your e-mail password, then rejoin the Wi-Fi.", "SOLUTION");
+      const wifiTickets = [plain.title, hyphenated.title, reply.title].sort();
+
+      const titles = async (...terms: string[]) =>
+        (await repository.listRecent(10, null, "newest", all(...terms)))
+          .map((item) => item.title)
+          .sort();
+
+      expect(await titles("wifi")).toEqual(wifiTickets);
+      expect(await titles("wi-fi")).toEqual(wifiTickets);
+      expect(await titles("WI.FI")).toEqual(wifiTickets);
+      expect(await titles("wi", "fi")).toEqual(wifiTickets);
+      expect(await titles("email")).toEqual([reply.title]);
+      expect(await titles("cant")).toEqual([reply.title]);
+      expect(
+        (await repository.listRecent(10, null, "newest", any("wifi", "library"))).map(
+          (item) => item.title
+        )
+      ).toEqual([hyphenated.title, reply.title, plain.title]);
+    });
+
+    it("finds misspelled words of four or more letters and ranks exact matches first", async () => {
+      const repository = new PostgresTicketRepository(database);
+      const ticket = (title: string, createdAt: string, priority: "LOW" | "HIGH" = "LOW") => ({
+        ...base,
+        title,
+        priority,
+        createdAt: new Date(createdAt),
+        updatedAt: new Date(createdAt)
+      });
+      const [solved] = await database
+        .insert(tickets)
+        .values([
+          ticket("Sign-in loop", "2026-09-25T12:00:00.000Z"),
+          ticket("Printer jams on every job", "2026-09-26T12:00:00.000Z"),
+          ticket("Pritner will not wake", "2026-09-27T12:00:00.000Z", "HIGH"),
+          ticket("Projector shows no signal in room 241", "2026-09-28T12:00:00.000Z"),
+          ticket("Monitor flickers", "2026-09-29T12:00:00.000Z")
+        ])
+        .returning();
+      await addReply(solved!.id, "Unplug the projector for a minute.", "SOLUTION");
+
+      const titles = async (search: TicketSearch, sort: "newest" | "priority" = "newest") =>
+        (await repository.listRecent(10, null, sort, search)).map((item) => item.title);
+
+      expect(await titles(all("pritner"))).toEqual([
+        "Pritner will not wake",
+        "Printer jams on every job"
+      ]);
+      // An exact match stays ahead of a misspelled one, whatever the sort.
+      expect(await titles(all("printer"), "priority")).toEqual([
+        "Printer jams on every job",
+        "Pritner will not wake"
+      ]);
+      expect(await titles(all("projecter"))).toEqual([
+        "Projector shows no signal in room 241",
+        "Sign-in loop"
+      ]);
+      expect(await titles(all("monitr", "flickers"))).toEqual(["Monitor flickers"]);
+      expect(await titles(any("projecter", "signal"))).toEqual([
+        "Projector shows no signal in room 241",
+        "Sign-in loop"
+      ]);
+
+      // Short words, numbers, and unrelated words are not matched approximately.
+      expect(await titles(all("jbo"))).toEqual([]);
+      expect(await titles(all("242"))).toEqual([]);
+      expect(await titles(all("2410"))).toEqual([]);
+      expect(await titles(all("keyboard"))).toEqual([]);
+      expect(await titles(all("promoter"))).toEqual([]);
+    });
+
+    it("applies visibility to searches, including matches found only in replies", async () => {
+      const [owner, otherUser, technician] = await database
+        .insert(users)
+        .values([
+          { name: "Ticket Owner", username: "search.owner", passwordHash: "x", role: "USER" },
+          { name: "Other User", username: "search.other", passwordHash: "x", role: "USER" },
+          { name: "IT Technician", username: "search.it", passwordHash: "x", role: "TECHNICIAN" }
+        ])
+        .returning();
+      const repository = new PostgresTicketRepository(database);
+      await repository.create({ ...base, title: "Public badge reader" });
+      await repository.create(
+        { ...base, title: "Members badge reader", visibility: "AUTHENTICATED" },
+        owner!
+      );
+      const secret = await repository.create(
+        { ...base, title: "Private ticket", visibility: "PRIVATE" },
+        owner!
+      );
+      await addReply(secret.id, "Reset the badge reader firmware.", "SOLUTION");
+
+      const titles = async (
+        viewer: { id: string; role: "USER" | "TECHNICIAN" } | null,
+        search: TicketSearch = all("badge")
+      ) =>
+        (await repository.listRecent(10, viewer, "newest", search))
+          .map((item) => item.title)
+          .sort();
+
+      expect(await titles(null)).toEqual(["Public badge reader"]);
+      expect(await titles(null, any("badge", "firmware"))).toEqual(["Public badge reader"]);
+      expect(await titles({ id: otherUser!.id, role: "USER" })).toEqual([
+        "Members badge reader",
+        "Public badge reader"
+      ]);
+      expect(await titles({ id: owner!.id, role: "USER" })).toEqual([
+        "Members badge reader",
+        "Private ticket",
+        "Public badge reader"
+      ]);
+      expect(await titles({ id: technician!.id, role: "TECHNICIAN" })).toEqual([
+        "Members badge reader",
+        "Private ticket",
+        "Public badge reader"
+      ]);
+    });
+
+    it("orders equally relevant results by vote score with the default sort", async () => {
+      const repository = new PostgresTicketRepository(database);
+      const [voter] = await database
+        .insert(users)
+        .values({ name: "Voter", username: "search.voter", passwordHash: "x", role: "USER" })
+        .returning();
+      const quiet = await repository.create({ ...base, title: "Printer quiet" });
+      const popular = await repository.create({ ...base, title: "Printer popular" });
+      await repository.create({ ...base, title: "Pritner newest typo" });
+      await database
+        .insert(ticketVotes)
+        .values({ ticketId: popular.id, userId: voter!.id, value: 1 });
+
+      const found = await repository.listRecent(10, null, undefined, all("printer"));
+
+      expect(found.map((item) => item.title)).toEqual([
+        popular.title,
+        quiet.title,
+        "Pritner newest typo"
+      ]);
+    });
+
+    it("applies the sort and limit after filtering and matches nothing without terms", async () => {
+      const repository = new PostgresTicketRepository(database);
+      await repository.create({ ...base, title: "Printer low", priority: "LOW" });
+      await repository.create({ ...base, title: "Laptop high", priority: "HIGH" });
+      await repository.create({ ...base, title: "Printer high", priority: "HIGH" });
+
+      const byPriority = await repository.listRecent(1, null, "priority", all("printer"));
+
+      expect(byPriority.map((item) => item.title)).toEqual(["Printer high"]);
+      expect(await repository.listRecent(10, null, "newest", any())).toEqual([]);
+      expect(await repository.listRecent(10, null, "newest", all())).toEqual([]);
+    });
   });
 
   it("sorts by priority then newest first before applying the limit", async () => {

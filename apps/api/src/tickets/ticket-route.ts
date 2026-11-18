@@ -31,6 +31,7 @@ import {
   endorseReplyBodySchema,
   endorsementUpdateResponseSchema,
   normalizeCreateTicketInput,
+  parseTicketSearch,
   replyEndorsementParamsSchema,
   replyListLimit,
   replyListResponseSchema,
@@ -56,7 +57,7 @@ import {
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
-  type TicketSort,
+  type TicketListQuery,
   type TicketParams,
   type UpdateTicketReplyStatusInput,
   type UpdateTicketStatusInput
@@ -373,22 +374,33 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     }
   );
 
-  app.get<{ Querystring: { sort?: TicketSort }; Reply: TicketList }>(
+  app.get<{ Querystring: TicketListQuery; Reply: TicketList | ApiError }>(
     "/api/tickets",
     {
       schema: {
         querystring: ticketListQuerySchema,
         response: {
           200: ticketListResponseSchema,
+          400: apiErrorResponseSchema,
           500: apiErrorResponseSchema
         }
       }
     },
     async (request, reply) => {
       reply.header("cache-control", "private, no-store");
+      const search = parseTicketSearch(request.query.q, request.query.match);
+      if (search && search.terms.length === 0) {
+        return { tickets: [] };
+      }
+
       const viewer = await currentUser(request, authRepository);
       const tickets = (
-        await ticketRepository.listRecent(ticketListLimit, viewer, request.query.sort)
+        await ticketRepository.listRecent(
+          request.query.limit ?? ticketListLimit,
+          viewer,
+          request.query.sort,
+          ...(search ? [search] : [])
+        )
       ).filter((ticket) => canAccessTicket(ticket, viewer));
       const states = await ticketRepository.listTicketVotes(
         tickets.map((ticket) => ticket.id),

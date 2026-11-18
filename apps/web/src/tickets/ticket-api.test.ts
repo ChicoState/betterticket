@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { updateTicketStatus } from "./ticket-api.js";
+import { ticketListUrl, updateTicketStatus } from "./ticket-api.js";
 
 const ticket = {
   id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -59,5 +59,24 @@ describe("updateTicketStatus", () => {
       status: 403,
       code: "FORBIDDEN"
     });
+  });
+});
+
+describe("ticketListUrl", () => {
+  it("omits default values", () => {
+    expect(ticketListUrl()).toBe("/api/tickets");
+    expect(ticketListUrl("votes", { query: "   ", match: "any" })).toBe("/api/tickets");
+  });
+
+  it("encodes the sort, trimmed query, match mode, and limit", () => {
+    expect(ticketListUrl("priority", { query: " wi-fi & vpn ", match: "all" })).toBe(
+      "/api/tickets?sort=priority&q=wi-fi+%26+vpn"
+    );
+    expect(ticketListUrl("votes", { query: "printer offline", match: "any", limit: 5 })).toBe(
+      "/api/tickets?q=printer+offline&match=any&limit=5"
+    );
+    expect(ticketListUrl("newest", { query: "printer" })).toBe(
+      "/api/tickets?sort=newest&q=printer"
+    );
   });
 });

@@ -167,12 +167,86 @@ export const ticketListResponseSchema = {
   }
 } as const;
 
+export const ticketSearchMaxLength = 200;
+export const ticketSearchMaxTerms = 8;
+export const ticketSearchMatches = ["all", "any"] as const;
+
+export type TicketSearchMatch = (typeof ticketSearchMatches)[number];
+
+export interface TicketListQuery {
+  sort?: TicketSort;
+  q?: string;
+  match?: TicketSearchMatch;
+  limit?: number;
+}
+
 export const ticketListQuerySchema = {
   type: "object",
   properties: {
-    sort: { type: "string", enum: ticketSorts, default: "votes" }
+    sort: { type: "string", enum: ticketSorts, default: "votes" },
+    q: { type: "string", maxLength: ticketSearchMaxLength },
+    match: { type: "string", enum: ticketSearchMatches, default: "all" },
+    limit: { type: "integer", minimum: 1, maximum: ticketListLimit, default: ticketListLimit }
   }
 } as const;
+
+/** Lower-case search terms and how they combine: every term (`all`) or at least one (`any`). */
+export interface TicketSearch {
+  terms: string[];
+  match: TicketSearchMatch;
+}
+
+const similarTicketMinTermLength = 3;
+
+// Words too common in ticket titles to say anything about which tickets are similar.
+const similarTicketStopWords = new Set([
+  "and",
+  "are",
+  "but",
+  "can",
+  "cannot",
+  "does",
+  "for",
+  "from",
+  "has",
+  "have",
+  "how",
+  "its",
+  "not",
+  "the",
+  "this",
+  "that",
+  "was",
+  "when",
+  "will",
+  "with",
+  "won't",
+  "wont"
+]);
+
+/**
+ * Turns the `q` query parameter into search terms. Returns `null` when there is no search text.
+ * In `any` mode, short and common words are dropped, so the result may have no terms; such a
+ * search matches nothing.
+ */
+export function parseTicketSearch(
+  q: string | undefined,
+  match: TicketSearchMatch = "all"
+): TicketSearch | null {
+  const words = (q ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return null;
+  }
+
+  const usable =
+    match === "any"
+      ? words.filter(
+          (word) => word.length >= similarTicketMinTermLength && !similarTicketStopWords.has(word)
+        )
+      : words;
+
+  return { terms: [...new Set(usable)].slice(0, ticketSearchMaxTerms), match };
+}
 
 export interface TicketParams {
   id: string;

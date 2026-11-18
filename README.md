@@ -80,6 +80,10 @@ Attachments inherit the ticket's visibility. Images are previewed on the ticket 
 
 The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
+## Ticket search
+
+The ticket list at `/tickets` has a search form, and the new-ticket form at `/new` has an "Already solved?" sidebar that shows tickets similar to the title being typed and lets visitors search without leaving the form. `GET /api/tickets` accepts optional `q` (up to 200 characters), `match` (`all` or `any`), and `limit` (1–100) query parameters. A search matches words, ignoring case, punctuation, and small misspellings (through the `pg_trgm` extension enabled by a migration), in a ticket's title, description, setup, additional information, and reply bodies; `match=all` requires every word, and `match=any` returns similar tickets ranked by how many words they share. Search only returns tickets the viewer could already see. See [the feature spec](docs/specs/ticket-search.md) and [ADR-015](docs/decisions/015-ticket-search.md).
+
 ## Ticket progress
 
 Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and technicians stop at `RESOLVED`; `COMPLETED` is reserved for the ticket owner's confirmation in a later issue #8 slice. See [the feature spec](docs/specs/ticket-progress.md), [ADR-007](docs/decisions/007-technician-status-updates.md), and [ADR-010](docs/decisions/010-technician-status-updates-and-owner-notifications.md).
@@ -176,7 +180,7 @@ Before enabling a release workflow, select the static host, API container host, 
 
 Signed-in users and technicians can upvote or downvote directly from each card in the Tickets list or from the bottom of a ticket detail page, and vote independently on replies. Both controls use thumbs-up and thumbs-down icons. Each account has one vote per ticket and one per reply; select the same direction to remove it or the other direction to switch. Visitors can see totals and sign in to vote. The API checks the session on every vote request.
 
-Apply migrations through `0012_merge_ticket_features` with `docker compose --profile tools run --rm toolchain pnpm db:migrate` before starting the updated application.
+Apply migrations through `0013_ticket_search_trigrams` with `docker compose --profile tools run --rm toolchain pnpm db:migrate` before starting the updated application.
 
 ## Troubleshooting
 

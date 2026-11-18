@@ -3,13 +3,14 @@ import type {
   ReplyKind,
   TicketPriority,
   TicketReplyStatus,
+  TicketSearch,
   TicketSort,
   TicketStatus
 } from "./ticket-contract.js";
 import type { TicketVisibility } from "./ticket-contract.js";
 
 export type { CreateTicketInput } from "./ticket-contract.js";
-export type { TicketPriority, TicketSort } from "./ticket-contract.js";
+export type { TicketPriority, TicketSearch, TicketSort } from "./ticket-contract.js";
 
 export interface TicketRecord {
   id: string;
@@ -127,10 +128,15 @@ export interface TicketRepository {
     userId: string,
     value: VoteValue | null
   ): Promise<SetTicketVoteResult>;
+  /**
+   * Lists the tickets the viewer may see. With `search`, only tickets whose text or reply bodies
+   * match are returned; an `any` search is ordered by matched terms instead of `sort`.
+   */
   listRecent(
     limit: number,
     viewer?: TicketViewer | null,
-    sort?: TicketSort
+    sort?: TicketSort,
+    search?: TicketSearch
   ): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
   /** Present on repositories used by the attachment routes; optional for focused legacy test fakes. */

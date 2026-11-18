@@ -283,8 +283,17 @@ main {
 
 .form-page {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(30rem, 1.2fr);
-  gap: clamp(2rem, 6vw, 6rem);
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  padding-top: clamp(2rem, 6vw, 4rem);
+}
+
+.form-panel h1 {
+  max-width: none;
+  margin-bottom: 1.5rem;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .auth-page {
@@ -460,6 +469,123 @@ main {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.ticket-search {
+  margin-bottom: 1.5rem;
+}
+
+.ticket-list[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.ticket-search-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.ticket-search-summary p {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.text-button {
+  border: 0;
+  background: none;
+  color: #0b5967;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.form-sidebar {
+  align-self: start;
+  position: sticky;
+  top: 2rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  /* Room for focus outlines inside the scrolling sidebar. */
+  margin: -0.4rem;
+  padding: 0.4rem;
+}
+
+.ticket-suggestions {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 0.25rem solid #9b4a12;
+  background: #ffffff;
+  padding: 1.25rem;
+  box-shadow: 0 0.5rem 1.5rem rgb(23 33 43 / 6%);
+}
+
+.ticket-suggestions h2,
+.ticket-suggestions h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.ticket-suggestions h3 {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.ticket-suggestions [role="status"]:empty {
+  display: none;
+}
+
+.suggestion-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.suggestion-list[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.suggestion-list li {
+  border-left: 0.2rem solid #d6dcda;
+  padding-left: 0.75rem;
+}
+
+.suggestion-list a,
+.suggestion-more {
+  color: #0b5967;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.suggestion-list .status-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+}
+
+.suggestion-list .ticket-excerpt {
+  margin: 0.25rem 0 0;
+  color: #53616a;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .ticket-sort-control {
@@ -1022,6 +1148,14 @@ footer p {
 
   .intro {
     position: static;
+  }
+
+  .form-sidebar {
+    /* Keep the search ahead of the long form on narrow screens. */
+    order: -1;
+    position: static;
+    max-height: none;
+    overflow-y: visible;
   }
 
   h1 {

@@ -1,4 +1,3 @@
-import { TicketVote } from "./TicketVote.js";
 import { useEffect, useState } from "react";
 
 import type { AuthenticatedUser } from "../auth/auth-api.js";
@@ -22,6 +21,8 @@ import {
   ticketProgress
 } from "./ticket-format.js";
 import { TicketReplies } from "./TicketReplies.js";
+import { TicketAttachments } from "./TicketAttachments.js";
+import { TicketVote } from "./TicketVote.js";
 
 type LoadState =
   | { type: "loading" }
@@ -274,6 +275,7 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
             </>
           ) : null}
         </dl>
+        <TicketAttachments ticketId={ticket.id} />
         <TicketVote
           key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
           ticketId={ticket.id}

@@ -1,6 +1,12 @@
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyServerOptions } from "fastify";
+
+import {
+  unavailableAttachmentStorage,
+  type AttachmentStorage
+} from "./attachments/attachment-storage.js";
 
 import { authRoutes } from "./auth/auth-route.js";
 import type { AuthRepository } from "./auth/auth-repository.js";
@@ -16,6 +22,7 @@ interface BuildAppOptions {
   ticketRepository: TicketRepository;
   notificationRepository: NotificationRepository;
   settingsRepository: SettingsRepository;
+  attachmentStorage?: AttachmentStorage;
   logger?: FastifyServerOptions["logger"];
 }
 
@@ -24,6 +31,7 @@ export function buildApp({
   ticketRepository,
   notificationRepository,
   settingsRepository,
+  attachmentStorage = unavailableAttachmentStorage,
   logger = true
 }: BuildAppOptions) {
   const app = Fastify({
@@ -90,9 +98,10 @@ export function buildApp({
   });
 
   void app.register(cookie);
+  void app.register(multipart);
   void app.register(rateLimit, { global: false });
   void app.register(authRoutes, { authRepository });
-  void app.register(ticketRoutes, { authRepository, ticketRepository });
+  void app.register(ticketRoutes, { authRepository, ticketRepository, attachmentStorage });
   void app.register(notificationRoutes, { authRepository, notificationRepository });
   void app.register(settingsRoutes, { authRepository, settingsRepository });
 

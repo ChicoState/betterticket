@@ -9,6 +9,12 @@ services:
     working_dir: /workspace
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-betterticket}:${POSTGRES_PASSWORD:-betterticket_local}@postgres:5432/${POSTGRES_DB:-betterticket}
+      OBJECT_STORAGE_ENDPOINT: http://object-storage:8333
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-betterticket-local}
+      OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-betterticket_local}
+      OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY:-betterticket_local_secret}
+      OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
+      OBJECT_STORAGE_AUTO_CREATE_BUCKET: "true"
     ports:
       - "127.0.0.1:3000:3000"
       - "127.0.0.1:5173:5173"

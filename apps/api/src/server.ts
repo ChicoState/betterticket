@@ -1,4 +1,5 @@
 import { buildApp } from "./app.js";
+import { createS3AttachmentStorageFromEnvironment } from "./attachments/s3-attachment-storage.js";
 import { createDatabase } from "./database/client.js";
 import { PostgresAuthRepository } from "./database/postgres-auth-repository.js";
 import { PostgresNotificationRepository } from "./database/postgres-notification-repository.js";
@@ -12,14 +13,20 @@ if (!databaseUrl) {
 }
 
 const { database, close } = createDatabase(databaseUrl);
+const attachmentStorage = createS3AttachmentStorageFromEnvironment();
+await attachmentStorage.ensureBucket();
 const app = buildApp({
   authRepository: new PostgresAuthRepository(database),
   ticketRepository: new PostgresTicketRepository(database),
   notificationRepository: new PostgresNotificationRepository(database),
-  settingsRepository: new PostgresSettingsRepository(database)
+  settingsRepository: new PostgresSettingsRepository(database),
+  attachmentStorage
 });
 
-app.addHook("onClose", close);
+app.addHook("onClose", async () => {
+  attachmentStorage.close();
+  await close();
+});
 
 await app.listen({
   host: "0.0.0.0",

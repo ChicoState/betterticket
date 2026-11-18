@@ -6,6 +6,7 @@ export interface CreateTicketInput {
   postAnonymously?: boolean;
   priority?: TicketPriority;
   visibility?: TicketVisibility;
+  attachments?: File[];
 }
 
 export const ticketPriorities = ["LOW", "MEDIUM", "HIGH"] as const;
@@ -43,10 +44,20 @@ function isCreatedTicket(value: unknown): value is CreatedTicket {
 }
 
 export async function createTicket(input: CreateTicketInput): Promise<CreatedTicket> {
+  const { attachments = [], ...ticketFields } = input;
+  const request: RequestInit =
+    attachments.length === 0
+      ? {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(ticketFields)
+        }
+      : {
+          method: "POST",
+          body: createTicketFormData(ticketFields, attachments)
+        };
   const response = await fetch("/api/tickets", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input)
+    ...request
   });
 
   if (!response.ok) {
@@ -59,6 +70,71 @@ export async function createTicket(input: CreateTicketInput): Promise<CreatedTic
   }
 
   return body;
+}
+
+function createTicketFormData(
+  input: Omit<CreateTicketInput, "attachments">,
+  attachments: File[]
+): FormData {
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) {
+      formData.append(key, String(value));
+    }
+  }
+  for (const attachment of attachments) {
+    formData.append("attachments", attachment);
+  }
+  return formData;
+}
+
+export interface TicketAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+function isTicketAttachment(value: unknown): value is TicketAttachment {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const attachment = value as Record<string, unknown>;
+  return (
+    typeof attachment.id === "string" &&
+    typeof attachment.fileName === "string" &&
+    typeof attachment.contentType === "string" &&
+    typeof attachment.sizeBytes === "number" &&
+    typeof attachment.createdAt === "string"
+  );
+}
+
+export async function listTicketAttachments(ticketId: string): Promise<TicketAttachment[]> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/attachments`);
+  if (!response.ok) {
+    throw new Error("Ticket attachments could not be loaded");
+  }
+  const body: unknown = await response.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("attachments" in body) ||
+    !Array.isArray(body.attachments) ||
+    !body.attachments.every(isTicketAttachment)
+  ) {
+    throw new Error("Ticket attachments returned an invalid response");
+  }
+  return body.attachments;
+}
+
+export function ticketAttachmentPath(
+  ticketId: string,
+  attachmentId: string,
+  preview = false
+): string {
+  const path = `/api/tickets/${encodeURIComponent(ticketId)}/attachments/${encodeURIComponent(attachmentId)}`;
+  return preview ? `${path}?preview=true` : path;
 }
 
 export interface Ticket {

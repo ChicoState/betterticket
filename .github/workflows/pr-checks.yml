@@ -25,6 +25,13 @@ jobs:
           --health-retries 12
     env:
       DATABASE_URL: postgresql://betterticket:betterticket_ci@localhost:5432/betterticket
+      OBJECT_STORAGE_ENDPOINT: http://localhost:8333
+      OBJECT_STORAGE_BUCKET: betterticket-ci
+      OBJECT_STORAGE_ACCESS_KEY: betterticket_local
+      OBJECT_STORAGE_SECRET_KEY: betterticket_local_secret
+      OBJECT_STORAGE_REGION: us-east-1
+      OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
+      OBJECT_STORAGE_AUTO_CREATE_BUCKET: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -38,10 +45,13 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: docker compose up --detach object-storage
       - run: pnpm db:migrate
       - run: pnpm test
       - run: pnpm coverage
       - run: pnpm build
+      - if: always()
+        run: docker compose stop object-storage
       - uses: actions/upload-artifact@v7
         if: always()
         with:

@@ -35,6 +35,9 @@ The `500` error message for all ticket routes is now `The ticket request could n
 
 - `/tickets`: ticket list with loading, empty, error-with-retry, and populated states. Each ticket shows its title as a link to its own page, status, short reference, submission time, creator label, and the first lines of its description.
 - `/tickets/:id`: one ticket with its title, status, short reference, submission time, creator label, description, setup, and additional information when present. It has loading, not-found, and error-with-retry states and a link back to the list. Both `400` and `404` responses show the not-found state.
+- Ticket detail pages also show the authorized metadata, image previews, and download links specified
+  in [ticket attachments](ticket-attachments.md). Attachment loading fails independently from the
+  ticket itself.
 - `/new`: the existing ticket form. Its confirmation links to the new ticket's page.
 
 Navigation uses plain links and the browser path; no routing dependency is added.

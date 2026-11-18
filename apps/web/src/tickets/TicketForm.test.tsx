@@ -151,6 +151,72 @@ describe("TicketForm", () => {
     });
   });
 
+  it("lets a signed-in user select an attachment and submits multipart data", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(ticketResponse), {
+        status: 201,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <TicketForm
+        currentUser={{
+          id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+          name: "Uma User",
+          username: "uma",
+          role: "USER"
+        }}
+      />
+    );
+
+    fillRequiredFields();
+    const file = new File([new Uint8Array([1, 2, 3])], "screen.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("Choose files"), { target: { files: [file] } });
+
+    expect(screen.getByText("screen.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Create ticket" }));
+
+    await screen.findByText("Your ticket has been created.");
+    const request = fetchMock.mock.calls[0];
+    expect(request?.[0]).toBe("/api/tickets");
+    expect(request?.[1]?.method).toBe("POST");
+    expect(request?.[1]?.headers).toBeUndefined();
+    expect(request?.[1]?.body).toBeInstanceOf(FormData);
+    expect((request?.[1]?.body as FormData).getAll("attachments")).toEqual([file]);
+  });
+
+  it("accepts dropped files and lets the user remove them", () => {
+    render(
+      <TicketForm
+        currentUser={{
+          id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+          name: "Uma User",
+          username: "uma",
+          role: "USER"
+        }}
+      />
+    );
+    const file = new File([new Uint8Array([1, 2, 3])], "dropped.png", {
+      type: "image/png"
+    });
+
+    fireEvent.drop(screen.getByText("Drop files here or").parentElement as HTMLElement, {
+      dataTransfer: { files: [file] }
+    });
+
+    expect(screen.getByText("dropped.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove dropped.png" }));
+    expect(screen.queryByText("dropped.png")).not.toBeInTheDocument();
+  });
+
+  it("tells anonymous visitors to sign in before attaching files", () => {
+    render(<TicketForm />);
+
+    expect(screen.getByText(/Sign in to attach screenshots or other files/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Choose files")).not.toBeInTheDocument();
+  });
+
   it("shows an accessible error and keeps the entered values", async () => {
     vi.stubGlobal(
       "fetch",

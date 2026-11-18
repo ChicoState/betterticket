@@ -139,6 +139,23 @@ export const ticketResponseSchema = {
 
 export const ticketListLimit = 100;
 
+export interface TicketHistory {
+  tickets: Ticket[];
+}
+
+export const ticketHistoryResponseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["tickets"],
+  properties: {
+    tickets: {
+      type: "array",
+      maxItems: ticketListLimit,
+      items: ticketResponseSchema
+    }
+  }
+} as const;
+
 export interface TicketList {
   tickets: Array<
     Ticket & { votes: { upvotes: number; downvotes: number; userVote: -1 | 1 | null } }

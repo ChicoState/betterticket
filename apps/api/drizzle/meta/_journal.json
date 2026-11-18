@@ -85,6 +85,13 @@
       "when": 1794251461910,
       "tag": "0011_ticket_and_reply_votes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794861996914,
+      "tag": "0012_repair_ticket_reply_status",
+      "breakpoints": true
     }
   ]
 }

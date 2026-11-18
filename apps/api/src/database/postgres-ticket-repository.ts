@@ -117,6 +117,18 @@ export class PostgresTicketRepository implements TicketRepository {
     return results.map(toTicketRecord);
   }
 
+  async listByCreator(creatorUserId: string, limit: number): Promise<TicketRecord[]> {
+    const results = await this.database
+      .select({ ...getTableColumns(tickets), creatorName: users.name })
+      .from(tickets)
+      .leftJoin(users, eq(tickets.creatorUserId, users.id))
+      .where(eq(tickets.creatorUserId, creatorUserId))
+      .orderBy(desc(tickets.createdAt), desc(tickets.id))
+      .limit(limit);
+
+    return results.map(toTicketRecord);
+  }
+
   async findById(id: string): Promise<TicketRecord | null> {
     return findTicket(this.database, id);
   }

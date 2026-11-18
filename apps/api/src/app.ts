@@ -74,10 +74,13 @@ export function buildApp({
       });
     }
 
-    request.log.error(
-      { errorType: error instanceof Error ? error.name : "UnknownError" },
-      "request failed"
-    );
+    const errorDetails =
+      process.env.NODE_ENV === "production"
+        ? { errorType: error instanceof Error ? error.name : "UnknownError" }
+        : error instanceof Error
+          ? { errorName: error.name, errorMessage: error.message, errorStack: error.stack }
+          : { errorName: "UnknownError", errorMessage: String(error) };
+    request.log.error(errorDetails, "request failed");
     const isTicketRequest = request.routeOptions.url?.startsWith("/api/tickets") ?? false;
     return reply.status(500).send({
       error: {

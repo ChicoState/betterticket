@@ -90,6 +90,7 @@ class FakeTicketRepository implements TicketRepository {
   readonly creators: Array<{ id: string; name: string } | null> = [];
   readonly listLimits: number[] = [];
   readonly listSorts: Array<"votes" | "newest" | "priority" | undefined> = [];
+  readonly historyRequests: Array<{ userId: string; limit: number }> = [];
   readonly createdReplies: Array<{ ticketId: string; body: string; kind?: ReplyKind }> = [];
   readonly replyListLimits: number[] = [];
   readonly endorsements: Array<{
@@ -143,6 +144,11 @@ class FakeTicketRepository implements TicketRepository {
 
   async findById(id: string): Promise<TicketRecord | null> {
     return this.stored.find((ticket) => ticket.id === id) ?? null;
+  }
+
+  async listByCreator(creatorUserId: string, limit: number): Promise<TicketRecord[]> {
+    this.historyRequests.push({ userId: creatorUserId, limit });
+    return this.stored.filter((ticket) => ticket.creatorUserId === creatorUserId);
   }
 
   async createReply(
@@ -962,6 +968,106 @@ describe("ticket visibility authorization", () => {
 
     expect(anonymousReply.statusCode).toBe(404);
     expect(ownerReply.statusCode).toBe(201);
+  });
+});
+
+describe("GET /api/tickets/history", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  it("returns only the authenticated user's tickets", async () => {
+    const userTicket = {
+      id: ticketId,
+      title: "My ticket",
+      description: "A user-owned ticket.",
+      setup: "Laptop",
+      additionalInformation: null,
+      status: "IN_PROGRESS" as const,
+      priority: "HIGH" as const,
+      visibility: "PRIVATE" as const,
+      creatorUserId: "bb97588e-0e8b-49e1-980b-4b9207121898",
+      assignedTechnicianId: null,
+      createdByName: "Uma User",
+      createdAt: new Date("2026-09-28T18:00:00.000Z"),
+      updatedAt: new Date("2026-09-29T18:00:00.000Z")
+    };
+    const otherTicket = {
+      ...userTicket,
+      id: "2f1c5b0e-6f0a-4c59-9a55-0f6f2f4c8f11",
+      creatorUserId: "cc086f3d-2c21-4c63-a4d4-5a5d0d3e7b9c"
+    };
+    const repository = new FakeTicketRepository([userTicket, otherTicket]);
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/tickets/history",
+      headers: { cookie: "betterticket_session=user-session" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(repository.historyRequests).toEqual([
+      { userId: "bb97588e-0e8b-49e1-980b-4b9207121898", limit: 100 }
+    ]);
+    expect(response.json().tickets).toHaveLength(1);
+    expect(response.json().tickets[0]).toMatchObject({
+      id: ticketId,
+      title: "My ticket",
+      description: "A user-owned ticket.",
+      status: "IN_PROGRESS",
+      createdAt: "2026-09-28T18:00:00.000Z",
+      updatedAt: "2026-09-29T18:00:00.000Z"
+    });
+  });
+
+  it("returns an empty history for a user with no tickets", async () => {
+    const app = buildApp({
+      authRepository,
+      ticketRepository: new FakeTicketRepository(),
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/tickets/history",
+      headers: { cookie: "betterticket_session=user-session" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ tickets: [] });
+  });
+
+  it("requires authentication", async () => {
+    const repository = new FakeTicketRepository();
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    const response = await app.inject({ method: "GET", url: "/api/tickets/history" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+    });
+    expect(repository.historyRequests).toEqual([]);
   });
 });
 

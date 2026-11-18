@@ -164,6 +164,38 @@ describe("App", () => {
     expect(fetch).toHaveBeenCalledWith("/api/tickets");
   });
 
+  it("shows the signed-in user's ticket history at /history", async () => {
+    window.history.pushState({}, "", "/history");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify(
+              path === "/api/sessions/current"
+                ? {
+                    id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
+                    name: "Uma User",
+                    username: "uma",
+                    role: "USER"
+                  }
+                : { tickets: [] }
+            ),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        )
+      )
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Ticket history" })
+    ).toBeInTheDocument();
+    expect(await screen.findByText("You haven't submitted any tickets yet.")).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith("/api/tickets/history");
+  });
+
   it("shows the ticket form at /new", () => {
     window.history.pushState({}, "", "/new");
     render(<App />);

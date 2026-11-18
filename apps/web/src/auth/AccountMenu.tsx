@@ -97,6 +97,11 @@ export function AccountMenu({ session, onLogout }: AccountMenuProps) {
             )}
           </div>
           {isAuthenticated ? (
+            <a className="account-menu-item" href="/history">
+              Ticket history
+            </a>
+          ) : null}
+          {isAuthenticated ? (
             <a className="account-menu-item" href="/settings">
               Settings
             </a>

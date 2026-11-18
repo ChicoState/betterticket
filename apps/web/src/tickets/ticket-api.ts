@@ -156,6 +156,27 @@ export async function listTickets(sort: TicketSort = "votes"): Promise<ListedTic
   return body.tickets;
 }
 
+export async function listTicketHistory(): Promise<Ticket[]> {
+  const response = await fetch("/api/tickets/history");
+
+  if (!response.ok) {
+    throw new Error("Ticket history failed");
+  }
+
+  const body: unknown = await response.json();
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("tickets" in body) ||
+    !Array.isArray(body.tickets) ||
+    !body.tickets.every(isTicket)
+  ) {
+    throw new Error("Ticket history returned an invalid response");
+  }
+
+  return body.tickets;
+}
+
 export function ticketPath(id: string): string {
   return `/tickets/${encodeURIComponent(id)}`;
 }

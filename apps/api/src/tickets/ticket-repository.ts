@@ -108,6 +108,7 @@ export interface TicketRepository {
     viewer?: TicketViewer | null,
     sort?: TicketSort
   ): Promise<TicketRecord[]>;
+  listByCreator?(creatorUserId: string, limit: number): Promise<TicketRecord[]>;
   findById(id: string): Promise<TicketRecord | null>;
   createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyCreationResult>;
   listRecentReplies(ticketId: string, limit: number, userId?: string): Promise<ReplyRecord[]>;

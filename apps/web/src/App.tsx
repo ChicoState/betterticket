@@ -7,18 +7,21 @@ import { NotificationPane } from "./notifications/NotificationPane.js";
 import { SettingsPage } from "./settings/SettingsPage.js";
 import { TicketDetail } from "./tickets/TicketDetail.js";
 import { TicketForm } from "./tickets/TicketForm.js";
+import { TicketHistory } from "./tickets/TicketHistory.js";
 import { TicketList } from "./tickets/TicketList.js";
 
 const newTicketPath = "/new";
 const ticketListPath = "/tickets";
 const settingsPath = "/settings";
+const historyPath = "/history";
 
 const pageTitles = {
   login: "Welcome",
   list: "Tickets",
   new: "Create a ticket",
   ticket: "Ticket details",
-  settings: "Settings"
+  settings: "Settings",
+  history: "Ticket history"
 };
 
 type Page =
@@ -26,6 +29,7 @@ type Page =
   | { type: "list" }
   | { type: "new" }
   | { type: "settings" }
+  | { type: "history" }
   | { type: "ticket"; ticketId: string };
 
 function readPage(pathname: string): Page {
@@ -42,6 +46,10 @@ function readPage(pathname: string): Page {
 
   if (path === settingsPath) {
     return { type: "settings" };
+  }
+
+  if (path === historyPath) {
+    return { type: "history" };
   }
 
   return path === newTicketPath ? { type: "new" } : { type: "login" };
@@ -141,6 +149,17 @@ export function App() {
         </main>
       ) : page.type === "settings" ? (
         <SettingsPage session={session} />
+      ) : page.type === "history" ? (
+        <main className="tickets-page">
+          <section className="tickets-intro" aria-labelledby="page-title">
+            <div>
+              <p className="eyebrow">Your account</p>
+              <h1 id="page-title">Ticket history</h1>
+              <p>Review tickets you have submitted and open one to see its details.</p>
+            </div>
+          </section>
+          <TicketHistory currentUser={session?.type === "authenticated" ? session.user : null} />
+        </main>
       ) : isNewTicketPage ? (
         <main className="form-page">
           <section className="intro" aria-labelledby="page-title">

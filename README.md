@@ -74,6 +74,14 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`, and the ticket form lives at `/new`. `GET /api/tickets` returns the 100 most recently created tickets as `{ "tickets": [...] }`, and `GET /api/tickets/:id` returns one ticket or a `404`. Everything a visitor submits is publicly visible. See [the feature spec](docs/specs/ticket-viewer.md) and [ADR-002](docs/decisions/002-anonymous-ticket-viewing.md) for scope and rationale.
 
+## Ticket history
+
+Signed-in users can open **Ticket history** from their account menu to review their own submitted
+tickets. `GET /api/tickets/history` requires the current session and returns up to 100 tickets
+created by that session user, ordered newest first. The API derives ownership from the session;
+no user ID is accepted from the browser. Each history entry links to the existing ticket detail
+page. See [the ticket history spec](docs/specs/ticket-history.md).
+
 ## Ticket progress
 
 Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and technicians stop at `RESOLVED`; `COMPLETED` is reserved for the ticket owner's confirmation in a later issue #8 slice. See [the feature spec](docs/specs/ticket-progress.md), [ADR-007](docs/decisions/007-technician-status-updates.md), and [ADR-010](docs/decisions/010-technician-status-updates-and-owner-notifications.md).

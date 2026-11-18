@@ -21,6 +21,7 @@ import {
   ticketListLimit,
   ticketListQuerySchema,
   ticketListResponseSchema,
+  ticketHistoryResponseSchema,
   ticketParamsSchema,
   ticketResponseSchema,
   updateTicketReplyStatusBodySchema,
@@ -37,6 +38,7 @@ import {
   type Ticket,
   type TicketAssignmentParams,
   type TicketList,
+  type TicketHistory,
   type TicketSort,
   type TicketParams,
   type UpdateTicketReplyStatusInput,
@@ -229,6 +231,34 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
           return { ...toTicket(ticket, viewer), votes };
         })
       };
+    }
+  );
+
+  app.get<{ Reply: TicketHistory | ApiError }>(
+    "/api/tickets/history",
+    {
+      schema: {
+        response: {
+          200: ticketHistoryResponseSchema,
+          401: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const user = await currentUser(request, authRepository);
+      if (!user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+      if (!ticketRepository.listByCreator) {
+        throw new Error("Ticket history repository is not configured");
+      }
+
+      reply.header("cache-control", "private, no-store");
+      const tickets = await ticketRepository.listByCreator(user.id, ticketListLimit);
+      return { tickets: tickets.map((ticket) => toTicket(ticket, user)) };
     }
   );
 

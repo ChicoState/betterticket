@@ -41,6 +41,16 @@ export interface AttachmentRecord extends NewAttachmentRecord {
   createdAt: Date;
 }
 
+export type VoteValue = -1 | 1;
+
+export interface VoteState {
+  upvotes: number;
+  downvotes: number;
+  userVote: VoteValue | null;
+}
+
+export type SetReplyVoteResult = { type: "updated"; vote: VoteState } | { type: "reply-not-found" };
+
 export interface EndorsementRecord {
   id: string;
   technicianId: string;
@@ -50,7 +60,7 @@ export interface EndorsementRecord {
   updatedAt: Date;
 }
 
-export interface ReplyRecord {
+export interface ReplyRecord extends VoteState {
   id: string;
   ticketId: string;
   kind: ReplyKind;
@@ -91,12 +101,25 @@ export type StatusUpdateResult =
   | { type: "ticket-not-found" }
   | { type: "invalid-transition" };
 
+export type SetTicketVoteResult =
+  { type: "updated"; vote: VoteState } | { type: "ticket-not-found" };
+
 export interface TicketRepository {
   create(
     input: CreateTicketInput,
     creator?: TicketCreator | null,
     attachments?: NewAttachmentRecord[]
   ): Promise<TicketRecord>;
+  listTicketVotes(
+    ticketIds: string[],
+    userId?: string
+  ): Promise<Array<VoteState & { ticketId: string }>>;
+  getTicketVote(ticketId: string, userId?: string): Promise<VoteState | null>;
+  setTicketVote(
+    ticketId: string,
+    userId: string,
+    value: VoteValue | null
+  ): Promise<SetTicketVoteResult>;
   listRecent(
     limit: number,
     viewer?: TicketViewer | null,
@@ -108,7 +131,13 @@ export interface TicketRepository {
   /** Present on repositories used by the attachment routes; optional for focused legacy test fakes. */
   findAttachment?(ticketId: string, attachmentId: string): Promise<AttachmentRecord | null>;
   createReply(ticketId: string, body: string, kind?: ReplyKind): Promise<ReplyCreationResult>;
-  listRecentReplies(ticketId: string, limit: number): Promise<ReplyRecord[]>;
+  listRecentReplies(ticketId: string, limit: number, userId?: string): Promise<ReplyRecord[]>;
+  setReplyVote(
+    ticketId: string,
+    replyId: string,
+    userId: string,
+    value: VoteValue | null
+  ): Promise<SetReplyVoteResult>;
   updateReplyStatus?(
     ticketId: string,
     ownerUserId: string,

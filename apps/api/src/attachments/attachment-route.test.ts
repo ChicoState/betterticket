@@ -80,11 +80,23 @@ class FakeTicketRepository implements TicketRepository {
   async listRecent() {
     return [];
   }
+  async listTicketVotes() {
+    return [];
+  }
+  async getTicketVote() {
+    return null;
+  }
+  async setTicketVote() {
+    return { type: "ticket-not-found" as const };
+  }
   async createReply() {
     return { type: "ticket-not-found" as const };
   }
   async listRecentReplies() {
     return [];
+  }
+  async setReplyVote() {
+    return { type: "reply-not-found" as const };
   }
   async assignTechnician() {
     return { type: "ticket-not-found" as const };

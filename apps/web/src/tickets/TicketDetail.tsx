@@ -21,6 +21,7 @@ import {
 } from "./ticket-format.js";
 import { TicketReplies } from "./TicketReplies.js";
 import { TicketAttachments } from "./TicketAttachments.js";
+import { TicketVote } from "./TicketVote.js";
 
 type LoadState =
   | { type: "loading" }
@@ -247,9 +248,16 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
           ) : null}
         </dl>
         <TicketAttachments ticketId={ticket.id} />
+        <TicketVote
+          key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
+          ticketId={ticket.id}
+          currentUser={currentUser}
+        />
       </article>
       <TicketReplies
+        key={`${ticket.id}:${currentUser?.id ?? "anonymous"}`}
         ticketId={ticket.id}
+        currentUser={currentUser}
         replyStatus={ticket.replyStatus ?? "OPEN"}
         onTicketClosed={retry}
         visibility={ticket.visibility}

@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { listTickets, ticketPath, type Ticket, type TicketSort } from "./ticket-api.js";
+import type { AuthenticatedUser } from "../auth/auth-api.js";
+import { VoteControls } from "./VoteControls.js";
+import {
+  listTickets,
+  setTicketVote,
+  ticketPath,
+  type ListedTicket,
+  type TicketSort
+} from "./ticket-api.js";
 import {
   formatCreatedAt,
   formatReplyStatus,
@@ -8,12 +16,16 @@ import {
   formatVisibility
 } from "./ticket-format.js";
 
-type LoadState = { type: "loading" } | { type: "loaded"; tickets: Ticket[] } | { type: "error" };
+type LoadState =
+  | { type: "loading" }
+  | { type: "loaded"; tickets: ListedTicket[]; viewerId: string | null }
+  | { type: "error" };
 
-export function TicketList() {
+export function TicketList({ currentUser = null }: { currentUser?: AuthenticatedUser | null }) {
+  const viewerId = currentUser?.id ?? null;
   const [load, setLoad] = useState<LoadState>({ type: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const [sort, setSort] = useState<TicketSort>("newest");
+  const [sort, setSort] = useState<TicketSort>("votes");
 
   useEffect(() => {
     let ignore = false;
@@ -21,7 +33,7 @@ export function TicketList() {
     listTickets(sort).then(
       (tickets) => {
         if (!ignore) {
-          setLoad({ type: "loaded", tickets });
+          setLoad({ type: "loaded", tickets, viewerId });
         }
       },
       () => {
@@ -34,7 +46,7 @@ export function TicketList() {
     return () => {
       ignore = true;
     };
-  }, [attempt, sort]);
+  }, [attempt, sort, viewerId]);
 
   function retry() {
     setLoad({ type: "loading" });
@@ -55,11 +67,12 @@ export function TicketList() {
           value={sort}
           onChange={(event) => changeSort(event.target.value as TicketSort)}
         >
+          <option value="votes">Most Votes</option>
           <option value="newest">Newest First</option>
           <option value="priority">Priority: High to Low</option>
         </select>
       </div>
-      {load.type === "loading" ? (
+      {load.type === "loading" || (load.type === "loaded" && load.viewerId !== viewerId) ? (
         <p className="list-message" role="status">
           Loading tickets…
         </p>
@@ -100,6 +113,16 @@ export function TicketList() {
                 </p>
 
                 <p className="ticket-text ticket-excerpt">{ticket.description}</p>
+                <VoteControls
+                  key={`${ticket.id}:${viewerId ?? "anonymous"}`}
+                  subject="ticket"
+                  initialState={{
+                    ...ticket.votes,
+                    userVote: currentUser ? ticket.votes.userVote : null
+                  }}
+                  canVote={currentUser !== null}
+                  saveVote={(value) => setTicketVote(ticket.id, value)}
+                />
               </article>
             </li>
           ))}

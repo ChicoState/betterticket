@@ -19,7 +19,7 @@
 
 body {
   margin: 0;
-  min-width: 20rem;
+  min-width: 0;
   min-height: 100vh;
 }
 
@@ -635,6 +635,19 @@ main {
 }
 
 @media (max-width: 42rem) {
+  .ticket-card-header {
+    flex-direction: column;
+  }
+
+  .ticket-badges,
+  .ticket-detail-header-actions {
+    justify-content: flex-start;
+  }
+
+  .ticket-detail h1 {
+    flex-basis: auto;
+  }
+
   .progress-timeline {
     grid-template-columns: 1fr;
   }
@@ -1111,6 +1124,35 @@ footer p {
   font-weight: 700;
 }
 
+.vote-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.vote-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d6dcda;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.vote-controls button[aria-pressed="true"] {
+  border-color: #0b5967;
+  background: #e7f3f1;
+  color: #0b5967;
+  font-weight: 700;
+}
+
 .ticket-attachments {
   margin-top: 1.5rem;
   border-top: 1px solid #d6dcda;
@@ -1158,4 +1200,19 @@ footer p {
 .attachment-status {
   color: #64727a;
   font-size: 0.875rem;
+}
+
+.vote-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.vote-icon {
+  flex: none;
+}
+.vote-icon-down {
+  transform: rotate(180deg);
+}
+.ticket-detail > .voting {
+  margin-top: 1.5rem;
 }

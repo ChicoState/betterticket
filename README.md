@@ -1,12 +1,12 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus signed-in ticket attachments, a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, per-user notification settings, and suggested solutions that IT technicians can endorse. Ticket data and attachment metadata are stored in PostgreSQL; attachment content is stored in S3-compatible object storage.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus signed-in ticket attachments, authenticated ticket and reply voting, a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, per-user notification settings, and suggested solutions that IT technicians can endorse. Ticket data, votes, and attachment metadata are stored in PostgreSQL; attachment content is stored in S3-compatible object storage.
 
 ## Repository map
 
 | Location                    | Purpose                                                               |
 | --------------------------- | --------------------------------------------------------------------- |
-| `apps/web`                  | React/Vite ticket, reply, endorsement, and creation frontend + tests. |
+| `apps/web`                  | React/Vite tickets, attachments, voting, settings, and tests.         |
 | `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.       |
 | `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services.  |
 | `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                 |
@@ -74,7 +74,7 @@ Anonymous visitors can submit a title, issue description, setup details, and opt
 
 Signed-in users can add as many as five screenshots or other supported files while creating a ticket by choosing files or dropping them below the visibility control. The server accepts PNG, JPEG, WebP, GIF, PDF, UTF-8 text/log, DOCX, XLSX, and PPTX files; each file is limited to 10 MiB and all files together to 25 MiB. Attachment content is inspected instead of trusting the browser-provided MIME type, and macro-enabled Office documents are rejected. The ticket and all attachment metadata are created atomically; uploaded objects are removed if persistence fails.
 
-Attachments inherit the ticket's visibility. Images are previewed on the ticket page, while every attachment has an authenticated download route protected by the same ticket-access check. Anonymous ticket creation still uses the existing JSON API and does not accept files. See [the attachment spec](docs/specs/ticket-attachments.md), [implementation plan](docs/plans/ticket-attachments.md), and [ADR-012](docs/decisions/012-ticket-attachment-storage-and-access.md).
+Attachments inherit the ticket's visibility. Images are previewed on the ticket page, while every attachment has an authenticated download route protected by the same ticket-access check. Anonymous ticket creation still uses the existing JSON API and does not accept files. See [the attachment spec](docs/specs/ticket-attachments.md), [implementation plan](docs/plans/ticket-attachments.md), and [ADR-014](docs/decisions/014-ticket-attachment-storage-and-access.md).
 
 ## Ticket viewer baseline
 
@@ -171,6 +171,12 @@ Docker image tags are deliberately pinned. Dependabot proposes updates; review a
 ## GitHub setup still required
 
 Before enabling a release workflow, select the static host, API container host, registry, PostgreSQL provider, object-storage provider, and release owner. Then configure protected `staging` and `production` environments and the named secrets/variables listed in `infrastructure_plan.md`—including `API_CONTAINER_REGISTRY_TOKEN`, `API_DEPLOY_TOKEN`, `FRONTEND_DEPLOY_TOKEN`, `DATABASE_URL`, object-storage settings, and `AUTH_SECRET`. No release workflow is present yet because these providers have not been selected.
+
+## Ticket and reply voting
+
+Signed-in users and technicians can upvote or downvote directly from each card in the Tickets list or from the bottom of a ticket detail page, and vote independently on replies. Both controls use thumbs-up and thumbs-down icons. Each account has one vote per ticket and one per reply; select the same direction to remove it or the other direction to switch. Visitors can see totals and sign in to vote. The API checks the session on every vote request.
+
+Apply migrations through `0012_merge_ticket_features` with `docker compose --profile tools run --rm toolchain pnpm db:migrate` before starting the updated application.
 
 ## Troubleshooting
 

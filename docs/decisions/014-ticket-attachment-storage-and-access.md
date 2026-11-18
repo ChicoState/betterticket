@@ -1,4 +1,4 @@
-# ADR-012: Store Ticket Attachments Privately and Authorize Reads Through the API
+# ADR-014: Store Ticket Attachments Privately and Authorize Reads Through the API
 
 ## Status
 

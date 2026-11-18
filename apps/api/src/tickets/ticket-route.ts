@@ -1,3 +1,5 @@
+import { ticketVoteRoutes } from "./ticket-vote-route.js";
+import { replyVoteRoutes } from "./reply-vote-route.js";
 import type { FastifyPluginAsync } from "fastify";
 
 import {
@@ -109,6 +111,9 @@ function toReply(reply: ReplyRecord, viewer: TicketViewer | null): Reply {
     kind: reply.kind,
     body: reply.body,
     createdAt: reply.createdAt.toISOString(),
+    upvotes: reply.upvotes,
+    downvotes: reply.downvotes,
+    userVote: reply.userVote,
     endorsements: reply.endorsements.map((endorsement) => ({
       id: endorsement.id,
       technicianName: endorsement.technicianName,
@@ -138,6 +143,9 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
   app,
   { authRepository, ticketRepository, attachmentStorage }
 ) => {
+  await app.register(replyVoteRoutes, { authRepository, ticketRepository });
+  await app.register(ticketVoteRoutes, { authRepository, ticketRepository });
+
   app.post<{ Body: CreateTicketInput; Reply: Ticket | ApiError }>(
     "/api/tickets",
     {
@@ -376,17 +384,23 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         }
       }
     },
-    async (request) => {
+    async (request, reply) => {
+      reply.header("cache-control", "private, no-store");
       const viewer = await currentUser(request, authRepository);
-      const tickets = await ticketRepository.listRecent(
-        ticketListLimit,
-        viewer,
-        request.query.sort
+      const tickets = (
+        await ticketRepository.listRecent(ticketListLimit, viewer, request.query.sort)
+      ).filter((ticket) => canAccessTicket(ticket, viewer));
+      const states = await ticketRepository.listTicketVotes(
+        tickets.map((ticket) => ticket.id),
+        viewer?.id
       );
+      const votesByTicket = new Map(states.map(({ ticketId, ...votes }) => [ticketId, votes]));
       return {
-        tickets: tickets
-          .filter((ticket) => canAccessTicket(ticket, viewer))
-          .map((ticket) => toTicket(ticket, viewer))
+        tickets: tickets.map((ticket) => {
+          const votes = votesByTicket.get(ticket.id);
+          if (!votes) throw new Error("Listed ticket votes could not be read");
+          return { ...toTicket(ticket, viewer), votes };
+        })
       };
     }
   );
@@ -437,7 +451,12 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
         return reply.status(404).send(ticketNotFound);
       }
 
-      const replies = await ticketRepository.listRecentReplies(ticket.id, replyListLimit);
+      reply.header("cache-control", "private, no-store");
+      const replies = await ticketRepository.listRecentReplies(
+        ticket.id,
+        replyListLimit,
+        viewer?.id
+      );
 
       return { replies: replies.map((stored) => toReply(stored, viewer)) };
     }

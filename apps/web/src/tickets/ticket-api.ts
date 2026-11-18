@@ -89,6 +89,17 @@ export class TicketStatusUpdateError extends Error {
   }
 }
 
+export class TicketPriorityUpdateError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string | undefined
+  ) {
+    super(message);
+    this.name = "TicketPriorityUpdateError";
+  }
+}
+
 export function isTicketStatus(value: unknown): value is TicketStatus {
   return typeof value === "string" && ticketStatuses.includes(value as TicketStatus);
 }
@@ -224,6 +235,29 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
   const body: unknown = await response.json();
   if (!isTicket(body)) {
     throw new Error("Ticket status update returned an invalid response");
+  }
+
+  return body;
+}
+
+export async function updateTicketPriority(
+  ticketId: string,
+  priority: TicketPriority
+): Promise<Ticket> {
+  const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/priority`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ priority })
+  });
+
+  if (!response.ok) {
+    const { code, message } = await readApiError(response, "Ticket priority update failed");
+    throw new TicketPriorityUpdateError(message, response.status, code);
+  }
+
+  const body: unknown = await response.json();
+  if (!isTicket(body)) {
+    throw new Error("Ticket priority update returned an invalid response");
   }
 
   return body;

@@ -1,6 +1,6 @@
 # BetterTicket
 
-BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician-assignment and status-update backend, ticket status notifications, and per-user notification settings, and suggested solutions that IT technicians can endorse. Tickets, replies, endorsements, users, notifications, notification settings, and server-side sessions are stored in PostgreSQL.
+BetterTicket is a public ticketing web application. It supports anonymous ticket creation, viewing, and replies through a React frontend and Fastify API, plus a minimal provisioned-user login, technician assignment, technician-managed ticket priority and progress status, ticket status notifications, per-user notification settings, and suggested solutions that IT technicians can endorse. Tickets, replies, endorsements, users, notifications, notification settings, and server-side sessions are stored in PostgreSQL.
 
 ## Repository map
 
@@ -77,6 +77,10 @@ The anonymous ticket list is at `/tickets`, each ticket opens at `/tickets/:id`,
 ## Ticket progress
 
 Ticket detail pages show the current public status, a five-stage progress timeline, and the ticket's last-updated time. New tickets start `OPEN` and the approved forward-only lifecycle is `OPEN` → `UNDER_REVIEW` → `IN_PROGRESS` → `RESOLVED` → `COMPLETED`. Authenticated users with the existing `TECHNICIAN` role can advance any ticket one adjacent stage at a time through `PATCH /api/tickets/:ticketId/status` with `{"status":"UNDER_REVIEW"}`. Regular users and anonymous visitors cannot change status, and technicians stop at `RESOLVED`; `COMPLETED` is reserved for the ticket owner's confirmation in a later issue #8 slice. See [the feature spec](docs/specs/ticket-progress.md), [ADR-007](docs/decisions/007-technician-status-updates.md), and [ADR-010](docs/decisions/010-technician-status-updates-and-owner-notifications.md).
+
+## Ticket priority
+
+Ticket creators choose `LOW`, `MEDIUM`, or `HIGH` priority, defaulting to `MEDIUM`. Priority is shown on ticket lists and detail pages, and `GET /api/tickets?sort=priority` orders current values from high to low. Signed-in technicians can change the same priority after creation from the ticket detail page or through `PATCH /api/tickets/:ticketId/priority` with `{"priority":"HIGH"}`. Regular users and anonymous visitors can see priority but cannot change it. A changed priority refreshes the ticket's last-updated time, while selecting the current value is a no-op. See [the feature spec](docs/specs/ticket-priority.md), [ADR-009](docs/decisions/009-ticket-priority.md), and [ADR-014](docs/decisions/014-technician-managed-ticket-priority.md).
 
 ## Ticket status notifications
 

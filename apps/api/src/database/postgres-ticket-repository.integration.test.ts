@@ -368,6 +368,135 @@ describe("PostgresTicketRepository", () => {
     ).toEqual({ type: "ticket-not-found" });
   });
 
+  it("persists repeated priority changes without modifying unrelated ticket fields", async () => {
+    const [owner, technician] = await database
+      .insert(users)
+      .values([
+        {
+          name: "Uma User",
+          username: "priority.owner",
+          passwordHash: "not-used",
+          role: "USER"
+        },
+        {
+          name: "Terry Technician",
+          username: "priority.technician",
+          passwordHash: "not-used",
+          role: "TECHNICIAN"
+        }
+      ])
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const created = await repository.create(
+      {
+        title: "Private completed ticket",
+        description: "Description",
+        setup: "Setup",
+        additionalInformation: "Keep this text",
+        priority: "MEDIUM",
+        visibility: "PRIVATE"
+      },
+      owner!
+    );
+    const initialUpdatedAt = new Date("2026-09-01T12:00:00.000Z");
+    await database
+      .update(tickets)
+      .set({
+        status: "COMPLETED",
+        replyStatus: "CLOSED",
+        assignedTechnicianId: technician!.id,
+        updatedAt: initialUpdatedAt
+      })
+      .where(eq(tickets.id, created.id));
+
+    const high = await repository.updatePriority(created.id, "HIGH");
+    const low = await repository.updatePriority(created.id, "LOW");
+    const stored = await repository.findById(created.id);
+
+    expect(high).toMatchObject({ type: "updated", ticket: { priority: "HIGH" } });
+    expect(low).toMatchObject({ type: "updated", ticket: { priority: "LOW" } });
+    expect(stored).toMatchObject({
+      id: created.id,
+      priority: "LOW",
+      status: "COMPLETED",
+      replyStatus: "CLOSED",
+      visibility: "PRIVATE",
+      creatorUserId: owner!.id,
+      assignedTechnicianId: technician!.id,
+      createdByName: "Uma User",
+      additionalInformation: "Keep this text"
+    });
+    expect(stored?.updatedAt.getTime()).toBeGreaterThan(initialUpdatedAt.getTime());
+  });
+
+  it("supports every direct priority transition", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const created = await repository.create({
+      title: "Priority transitions",
+      description: "Description",
+      setup: "Setup",
+      priority: "LOW"
+    });
+
+    for (const priority of ["MEDIUM", "HIGH", "MEDIUM", "LOW", "HIGH", "LOW"] as const) {
+      await expect(repository.updatePriority(created.id, priority)).resolves.toMatchObject({
+        type: "updated",
+        ticket: { priority }
+      });
+    }
+  });
+
+  it("treats the current priority as idempotent without changing updatedAt", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const created = await repository.create({
+      title: "No-op priority",
+      description: "Description",
+      setup: "Setup",
+      priority: "HIGH"
+    });
+    const updatedAt = new Date("2026-09-01T12:00:00.000Z");
+    await database.update(tickets).set({ updatedAt }).where(eq(tickets.id, created.id));
+
+    const result = await repository.updatePriority(created.id, "HIGH");
+
+    expect(result).toMatchObject({ type: "unchanged", ticket: { priority: "HIGH" } });
+    if (result.type !== "unchanged") {
+      throw new Error("Expected an unchanged priority update");
+    }
+    expect(result.ticket.updatedAt).toEqual(updatedAt);
+  });
+
+  it("sorts tickets by their updated priority", async () => {
+    const repository = new PostgresTicketRepository(database);
+    const low = await repository.create({
+      title: "Initially low",
+      description: "Description",
+      setup: "Setup",
+      priority: "LOW"
+    });
+    const high = await repository.create({
+      title: "Initially high",
+      description: "Description",
+      setup: "Setup",
+      priority: "HIGH"
+    });
+
+    await repository.updatePriority(low.id, "HIGH");
+    await repository.updatePriority(high.id, "LOW");
+
+    expect(
+      (await repository.listRecent(2, null, "priority")).map((ticket) => ticket.title)
+    ).toEqual(["Initially low", "Initially high"]);
+  });
+
+  it("reports an unknown ticket when updating priority", async () => {
+    const repository = new PostgresTicketRepository(database);
+
+    await expect(
+      repository.updatePriority("00000000-0000-4000-8000-000000000000", "HIGH")
+    ).resolves.toEqual({ type: "ticket-not-found" });
+  });
+
   it("finds a ticket by ID and returns null for an unknown ID", async () => {
     const repository = new PostgresTicketRepository(database);
     const created = await repository.create({

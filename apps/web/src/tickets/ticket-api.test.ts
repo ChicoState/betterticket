@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { updateTicketStatus } from "./ticket-api.js";
+import { updateTicketPriority, updateTicketStatus } from "./ticket-api.js";
 
 const ticket = {
   id: "cc04d84c-9aee-4d35-8af3-999d861aaed6",
@@ -56,6 +56,45 @@ describe("updateTicketStatus", () => {
 
     await expect(updateTicketStatus(ticket.id, "UNDER_REVIEW")).rejects.toMatchObject({
       name: "TicketStatusUpdateError",
+      status: 403,
+      code: "FORBIDDEN"
+    });
+  });
+});
+
+describe("updateTicketPriority", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends the priority request and validates the ticket response", async () => {
+    const updated = { ...ticket, priority: "HIGH" };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(updated));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(updateTicketPriority(ticket.id, "HIGH")).resolves.toEqual(updated);
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticket.id}/priority`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ priority: "HIGH" })
+    });
+  });
+
+  it("exposes API failures for priority-update feedback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(
+            { error: { code: "FORBIDDEN", message: "Technician access is required" } },
+            403
+          )
+        )
+    );
+
+    await expect(updateTicketPriority(ticket.id, "HIGH")).rejects.toMatchObject({
+      name: "TicketPriorityUpdateError",
       status: 403,
       code: "FORBIDDEN"
     });

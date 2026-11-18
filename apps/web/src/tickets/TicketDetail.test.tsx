@@ -175,6 +175,124 @@ describe("TicketDetail", () => {
     expect(screen.queryByRole("button", { name: /Move to/ })).not.toBeInTheDocument();
   });
 
+  it("shows the current priority editor only to technicians", async () => {
+    vi.stubGlobal("fetch", ticketFetch(ticket));
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    const select = await screen.findByRole("combobox", { name: "Ticket priority" });
+    expect(select).toHaveValue("HIGH");
+    expect(screen.getByRole("button", { name: "Save priority" })).toBeDisabled();
+  });
+
+  it.each([
+    ["an anonymous visitor", null],
+    ["a regular user", { ...technician, role: "USER" as const, name: "Uma User", username: "uma" }]
+  ])("keeps priority read-only for %s", async (_viewer, currentUser) => {
+    vi.stubGlobal("fetch", ticketFetch(ticket));
+    render(<TicketDetail ticketId={ticketId} currentUser={currentUser} />);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Ticket priority" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save priority" })).not.toBeInTheDocument();
+  });
+
+  it("updates the displayed priority after a technician saves", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
+      if (url.endsWith("/replies")) return Promise.resolve(jsonResponse({ replies: [] }));
+      if (url.endsWith("/priority") && init?.method === "PATCH") {
+        return Promise.resolve(
+          jsonResponse({
+            ...ticket,
+            priority: "LOW",
+            updatedAt: "2026-11-18T20:00:00.000Z"
+          })
+        );
+      }
+      return Promise.resolve(jsonResponse(ticket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "Ticket priority" }), {
+      target: { value: "LOW" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save priority" }));
+
+    expect(await screen.findByText("Ticket priority updated to Low.")).toHaveAttribute(
+      "role",
+      "status"
+    );
+    expect(screen.getByText("Low", { selector: ".priority-badge" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Ticket priority" })).toHaveValue("LOW");
+    expect(fetchMock).toHaveBeenCalledWith(`/api/tickets/${ticketId}/priority`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ priority: "LOW" })
+    });
+  });
+
+  it("disables priority controls while saving and prevents duplicate requests", async () => {
+    let resolveUpdate: (response: Response) => void = () => undefined;
+    const update = new Promise<Response>((resolve) => {
+      resolveUpdate = resolve;
+    });
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
+      if (url.endsWith("/replies")) return Promise.resolve(jsonResponse({ replies: [] }));
+      if (url.endsWith("/priority") && init?.method === "PATCH") return update;
+      return Promise.resolve(jsonResponse(ticket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    const select = await screen.findByRole("combobox", { name: "Ticket priority" });
+    fireEvent.change(select, { target: { value: "LOW" } });
+    const save = screen.getByRole("button", { name: "Save priority" });
+    fireEvent.click(save);
+    fireEvent.click(save);
+
+    expect(screen.getByRole("button", { name: "Saving priority…" })).toBeDisabled();
+    expect(select).toBeDisabled();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/priority"))).toHaveLength(
+      1
+    );
+
+    resolveUpdate(jsonResponse({ ...ticket, priority: "LOW" }));
+    expect(await screen.findByText("Ticket priority updated to Low.")).toBeInTheDocument();
+  });
+
+  it("preserves the confirmed priority and reports a failed update", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.endsWith("/vote"))
+        return Promise.resolve(jsonResponse({ upvotes: 0, downvotes: 0, userVote: null }));
+      if (url.endsWith("/replies")) return Promise.resolve(jsonResponse({ replies: [] }));
+      if (url.endsWith("/priority") && init?.method === "PATCH") {
+        return Promise.resolve(
+          jsonResponse({ error: { code: "INTERNAL_ERROR", message: "Request failed" } }, 500)
+        );
+      }
+      return Promise.resolve(jsonResponse(ticket));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<TicketDetail ticketId={ticketId} currentUser={technician} />);
+
+    fireEvent.change(await screen.findByRole("combobox", { name: "Ticket priority" }), {
+      target: { value: "LOW" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save priority" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "We couldn't update the ticket priority. Please try again."
+    );
+    expect(screen.getByText("High", { selector: ".priority-badge" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Ticket priority" })).toHaveValue("HIGH");
+    expect(screen.getByRole("button", { name: "Save priority" })).toBeDisabled();
+  });
+
   it.each(["RESOLVED", "COMPLETED"])(
     "does not show a status control for a %s ticket",
     async (status) => {

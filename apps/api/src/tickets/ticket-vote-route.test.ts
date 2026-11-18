@@ -43,6 +43,7 @@ function setup(role: "USER" | "TECHNICIAN" = "USER") {
     listRecentReplies: vi.fn().mockResolvedValue([]),
     assignTechnician: vi.fn(),
     updateStatus: vi.fn(),
+    updatePriority: vi.fn(),
     endorseReply: vi.fn(),
     withdrawEndorsement: vi.fn(),
     listTicketVotes: vi.fn(),

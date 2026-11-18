@@ -24,6 +24,9 @@ repository query before `LIMIT`.
 
 Priority is creation-only; it does not change status or technician assignment.
 
+> **Amended by ADR-014:** ticket creation remains user-controlled, while
+> authenticated technicians may subsequently change the same stored priority.
+
 ## Alternatives Considered
 
 - Numeric priority was rejected because the named enum is the API contract.

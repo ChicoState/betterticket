@@ -202,6 +202,10 @@ class FakeTicketRepository implements TicketRepository {
     throw new Error("not used");
   }
 
+  async updatePriority(): Promise<never> {
+    throw new Error("not used");
+  }
+
   async endorseReply(
     ticketId: string,
     replyId: string,
@@ -487,6 +491,7 @@ describe("POST /api/tickets", () => {
       setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
+      updatePriority: vi.fn(),
       endorseReply: vi.fn(),
       withdrawEndorsement: vi.fn()
     };
@@ -718,6 +723,7 @@ describe("GET /api/tickets", () => {
       setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
+      updatePriority: vi.fn(),
       endorseReply: vi.fn(),
       withdrawEndorsement: vi.fn()
     };
@@ -1046,6 +1052,7 @@ describe("GET /api/tickets/:id", () => {
       setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
+      updatePriority: vi.fn(),
       endorseReply: vi.fn(),
       withdrawEndorsement: vi.fn()
     };
@@ -1078,6 +1085,7 @@ describe("GET /api/tickets/:id", () => {
       setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn(),
+      updatePriority: vi.fn(),
       endorseReply: vi.fn(),
       withdrawEndorsement: vi.fn()
     };
@@ -1126,6 +1134,7 @@ describe("PATCH /api/tickets/:ticketId/assignment", () => {
       setReplyVote: vi.fn(),
       assignTechnician: vi.fn().mockResolvedValue(result),
       updateStatus: vi.fn(),
+      updatePriority: vi.fn(),
       endorseReply: vi.fn(),
       withdrawEndorsement: vi.fn()
     };
@@ -1285,6 +1294,7 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
       setReplyVote: vi.fn(),
       assignTechnician: vi.fn(),
       updateStatus: vi.fn().mockResolvedValue(result),
+      updatePriority: vi.fn(),
       endorseReply: vi.fn(),
       withdrawEndorsement: vi.fn()
     };
@@ -1426,6 +1436,243 @@ describe("PATCH /api/tickets/:ticketId/status", () => {
   );
 });
 
+describe("PATCH /api/tickets/:ticketId/priority", () => {
+  const apps: Array<ReturnType<typeof buildApp>> = [];
+  const baseTicket: TicketRecord = {
+    id: ticketId,
+    title: "Laptop will not start",
+    description: "The power light flashes once.",
+    setup: "Framework Laptop 13, Fedora 42",
+    additionalInformation: "Only happens on battery power.",
+    status: "COMPLETED",
+    replyStatus: "CLOSED",
+    priority: "HIGH",
+    visibility: "PRIVATE",
+    creatorUserId: "bb97588e-0e8b-49e1-980b-4b9207121898",
+    assignedTechnicianId: technicianId,
+    createdByName: "Uma User",
+    createdAt: new Date("2026-09-28T18:00:00.000Z"),
+    updatedAt: new Date("2026-10-08T18:00:00.000Z")
+  };
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  function buildPriorityApp(
+    result: { type: "updated" | "unchanged"; ticket: TicketRecord } | { type: "ticket-not-found" },
+    sessionRepository: AuthRepository = authRepository
+  ) {
+    const updatePriority = vi.fn().mockResolvedValue(result);
+    const repository = {
+      create: vi.fn(),
+      listRecent: vi.fn(),
+      findById: vi.fn(),
+      createReply: vi.fn(),
+      listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn(),
+      updatePriority,
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
+    } as TicketRepository;
+    const app = buildApp({
+      authRepository: sessionRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+    return { app, updatePriority };
+  }
+
+  it("requires authentication", async () => {
+    const { app, updatePriority } = buildPriorityApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/priority`,
+      payload: { priority: "HIGH" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(updatePriority).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid or expired session", async () => {
+    const { app, updatePriority } = buildPriorityApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/priority`,
+      headers: { cookie: "betterticket_session=expired-session" },
+      payload: { priority: "HIGH" }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(updatePriority).not.toHaveBeenCalled();
+  });
+
+  it("rejects authenticated regular users", async () => {
+    const { app, updatePriority } = buildPriorityApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/priority`,
+      headers: { cookie: "betterticket_session=user-session" },
+      payload: { priority: "HIGH" }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(updatePriority).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["LOW", "HIGH"],
+    ["HIGH", "LOW"],
+    ["MEDIUM", "LOW"],
+    ["MEDIUM", "HIGH"]
+  ] as const)("allows a technician to change %s to %s", async (_from, priority) => {
+    const updatedTicket = { ...baseTicket, priority };
+    const { app, updatePriority } = buildPriorityApp({
+      type: "updated",
+      ticket: updatedTicket
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/priority`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { priority }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(updatePriority).toHaveBeenCalledWith(ticketId, priority);
+    expect(response.json()).toEqual({
+      id: ticketId,
+      title: baseTicket.title,
+      description: baseTicket.description,
+      setup: baseTicket.setup,
+      additionalInformation: baseTicket.additionalInformation,
+      status: "COMPLETED",
+      replyStatus: "CLOSED",
+      canManageReplyStatus: false,
+      priority,
+      visibility: "PRIVATE",
+      canReply: false,
+      assignedTechnicianId: technicianId,
+      createdByName: "Uma User",
+      createdAt: baseTicket.createdAt.toISOString(),
+      updatedAt: baseTicket.updatedAt.toISOString()
+    });
+  });
+
+  it("allows a technician to update a ticket more than once", async () => {
+    const updatePriority = vi
+      .fn()
+      .mockResolvedValueOnce({ type: "updated", ticket: { ...baseTicket, priority: "LOW" } })
+      .mockResolvedValueOnce({ type: "updated", ticket: { ...baseTicket, priority: "HIGH" } });
+    const repository = {
+      create: vi.fn(),
+      listRecent: vi.fn(),
+      findById: vi.fn(),
+      createReply: vi.fn(),
+      listRecentReplies: vi.fn(),
+      listTicketVotes: vi.fn(),
+      getTicketVote: vi.fn(),
+      setTicketVote: vi.fn(),
+      setReplyVote: vi.fn(),
+      assignTechnician: vi.fn(),
+      updateStatus: vi.fn(),
+      updatePriority,
+      endorseReply: vi.fn(),
+      withdrawEndorsement: vi.fn()
+    } as TicketRepository;
+    const app = buildApp({
+      authRepository,
+      ticketRepository: repository,
+      notificationRepository,
+      settingsRepository: unusedSettingsRepository,
+      logger: false
+    });
+    apps.push(app);
+
+    for (const priority of ["LOW", "HIGH"] as const) {
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/tickets/${ticketId}/priority`,
+        headers: { cookie: "betterticket_session=technician-session" },
+        payload: { priority }
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ priority });
+    }
+
+    expect(updatePriority).toHaveBeenNthCalledWith(1, ticketId, "LOW");
+    expect(updatePriority).toHaveBeenNthCalledWith(2, ticketId, "HIGH");
+  });
+
+  it("returns an unchanged ticket for an idempotent priority update", async () => {
+    const { app, updatePriority } = buildPriorityApp({
+      type: "unchanged",
+      ticket: baseTicket
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/priority`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { priority: "HIGH" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(updatePriority).toHaveBeenCalledWith(ticketId, "HIGH");
+    expect(response.json()).toMatchObject({ priority: "HIGH" });
+  });
+
+  it("returns not found for an unknown ticket", async () => {
+    const { app } = buildPriorityApp({ type: "ticket-not-found" });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/tickets/${ticketId}/priority`,
+      headers: { cookie: "betterticket_session=technician-session" },
+      payload: { priority: "HIGH" }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: { code: "NOT_FOUND", message: "The ticket was not found" }
+    });
+  });
+
+  it.each([{ priority: "URGENT" }, { priority: "HIGH", extra: true }, {}])(
+    "rejects invalid request bodies: %j",
+    async (payload) => {
+      const { app, updatePriority } = buildPriorityApp({
+        type: "updated",
+        ticket: baseTicket
+      });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/tickets/${ticketId}/priority`,
+        headers: { cookie: "betterticket_session=technician-session" },
+        payload
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+      expect(updatePriority).not.toHaveBeenCalled();
+    }
+  );
+});
+
 describe("canTechnicianChangeStatus", () => {
   it.each([
     ["OPEN", "UNDER_REVIEW", true],
@@ -1536,6 +1783,7 @@ describe("ticket replies", () => {
         setReplyVote: vi.fn(),
         assignTechnician: vi.fn(),
         updateStatus: vi.fn(),
+        updatePriority: vi.fn(),
         endorseReply: vi.fn(),
         withdrawEndorsement: vi.fn()
       };
@@ -1663,6 +1911,7 @@ describe("ticket replies", () => {
         setReplyVote: vi.fn(),
         assignTechnician: vi.fn(),
         updateStatus: vi.fn(),
+        updatePriority: vi.fn(),
         endorseReply: vi.fn(),
         withdrawEndorsement: vi.fn()
       };

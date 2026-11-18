@@ -88,6 +88,11 @@ export type StatusUpdateResult =
   | { type: "ticket-not-found" }
   | { type: "invalid-transition" };
 
+export type PriorityUpdateResult =
+  | { type: "updated"; ticket: TicketRecord }
+  | { type: "unchanged"; ticket: TicketRecord }
+  | { type: "ticket-not-found" };
+
 export type SetTicketVoteResult =
   { type: "updated"; vote: VoteState } | { type: "ticket-not-found" };
 
@@ -132,6 +137,7 @@ export interface TicketRepository {
     status: TicketStatus,
     actorUserId: string
   ): Promise<StatusUpdateResult>;
+  updatePriority(ticketId: string, priority: TicketPriority): Promise<PriorityUpdateResult>;
   /**
    * Creates or replaces a technician's endorsement of a solution. With `markResolved`, the
    * ticket is moved to RESOLVED through the status rule in the same transaction.

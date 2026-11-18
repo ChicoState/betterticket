@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import type { AuthenticatedUser } from "../auth/auth-api.js";
 import {
   getTicket,
+  ticketPriorities,
   TicketStatusUpdateError,
+  updateTicketPriority,
   updateTicketReplyStatus,
   updateTicketStatus,
   type Ticket,
+  type TicketPriority,
   type TicketReplyStatus,
   type TicketStatus
 } from "./ticket-api.js";
@@ -34,9 +37,94 @@ type StatusUpdateState =
   | { type: "success"; status: TicketStatus }
   | { type: "error"; message: string };
 
+type PriorityUpdateState =
+  | { type: "idle" }
+  | { type: "saving" }
+  | { type: "success"; priority: TicketPriority }
+  | { type: "error" };
+
 interface TicketDetailProps {
   ticketId: string;
   currentUser?: AuthenticatedUser | null;
+}
+
+function formatPriority(priority: TicketPriority): string {
+  return priority[0] + priority.slice(1).toLowerCase();
+}
+
+interface TicketPriorityEditorProps {
+  ticket: Ticket;
+  onTicketUpdated: (ticket: Ticket) => void;
+}
+
+function TicketPriorityEditor({ ticket, onTicketUpdated }: TicketPriorityEditorProps) {
+  const [selectedPriority, setSelectedPriority] = useState(ticket.priority);
+  const [update, setUpdate] = useState<PriorityUpdateState>({ type: "idle" });
+  const inputId = `ticket-priority-${ticket.id}`;
+  const messageId = `${inputId}-message`;
+  const saving = update.type === "saving";
+  const unchanged = selectedPriority === ticket.priority;
+
+  useEffect(() => {
+    setSelectedPriority(ticket.priority);
+  }, [ticket.id, ticket.priority]);
+
+  async function savePriority(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving || unchanged) {
+      return;
+    }
+
+    setUpdate({ type: "saving" });
+    try {
+      const updatedTicket = await updateTicketPriority(ticket.id, selectedPriority);
+      setSelectedPriority(updatedTicket.priority);
+      setUpdate({ type: "success", priority: updatedTicket.priority });
+      onTicketUpdated(updatedTicket);
+    } catch {
+      setSelectedPriority(ticket.priority);
+      setUpdate({ type: "error" });
+    }
+  }
+
+  return (
+    <form className="priority-editor" onSubmit={(event) => void savePriority(event)}>
+      <label htmlFor={inputId}>Ticket priority</label>
+      <div className="priority-editor-controls">
+        <select
+          id={inputId}
+          aria-describedby={messageId}
+          disabled={saving}
+          value={selectedPriority}
+          onChange={(event) => {
+            setSelectedPriority(event.target.value as TicketPriority);
+            setUpdate({ type: "idle" });
+          }}
+        >
+          {ticketPriorities.map((priority) => (
+            <option key={priority} value={priority}>
+              {formatPriority(priority)}
+            </option>
+          ))}
+        </select>
+        <button className="submit-button" type="submit" disabled={saving || unchanged}>
+          {saving ? "Saving priority…" : "Save priority"}
+        </button>
+      </div>
+      <div id={messageId} className="submission-message" aria-live="polite">
+        {update.type === "success" ? (
+          <p className="success-message" role="status">
+            Ticket priority updated to {formatPriority(update.priority)}.
+          </p>
+        ) : null}
+      </div>
+      {update.type === "error" ? (
+        <p className="error-message" role="alert">
+          We couldn&apos;t update the ticket priority. Please try again.
+        </p>
+      ) : null}
+    </form>
+  );
 }
 
 export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps) {
@@ -163,12 +251,20 @@ export function TicketDetail({ ticketId, currentUser = null }: TicketDetailProps
               </button>
             ) : null}
           </div>
-          <span className="ticket-badges">
-            <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
-            <span className="priority-badge">
-              {ticket.priority[0] + ticket.priority.slice(1).toLowerCase()}
+          <div className="ticket-priority-area">
+            <span className="ticket-badges">
+              <span className="visibility-badge">{formatVisibility(ticket.visibility)}</span>
+              <span className="priority-badge">{formatPriority(ticket.priority)}</span>
             </span>
-          </span>
+            {currentUser?.role === "TECHNICIAN" ? (
+              <TicketPriorityEditor
+                ticket={ticket}
+                onTicketUpdated={(updatedTicket) =>
+                  setLoad({ type: "loaded", ticket: updatedTicket })
+                }
+              />
+            ) : null}
+          </div>
         </header>
         {replyStatusUpdate === "error" ? (
           <p className="error-message" role="alert">

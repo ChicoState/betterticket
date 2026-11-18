@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, ne, or, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import {
@@ -13,6 +13,7 @@ import {
 import {
   canTechnicianChangeStatus,
   type ReplyKind,
+  type TicketPriority,
   type TicketStatus
 } from "../tickets/ticket-contract.js";
 import type {
@@ -28,6 +29,7 @@ import type {
   ReplyCreationResult,
   TicketCreator,
   ReplyRecord,
+  PriorityUpdateResult,
   StatusUpdateResult,
   TicketRecord,
   TicketRepository,
@@ -404,6 +406,21 @@ export class PostgresTicketRepository implements TicketRepository {
       }
       return { type: result, ticket };
     });
+  }
+
+  async updatePriority(ticketId: string, priority: TicketPriority): Promise<PriorityUpdateResult> {
+    const [updated] = await this.database
+      .update(tickets)
+      .set({ priority, updatedAt: new Date() })
+      .where(and(eq(tickets.id, ticketId), ne(tickets.priority, priority)))
+      .returning({ id: tickets.id });
+
+    const ticket = await this.findById(ticketId);
+    if (!ticket) {
+      return { type: "ticket-not-found" };
+    }
+
+    return { type: updated ? "updated" : "unchanged", ticket };
   }
 }
 

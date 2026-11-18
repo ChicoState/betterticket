@@ -35,6 +35,7 @@ const ticketRepository: TicketRepository = {
   setTicketVote: vi.fn(),
   assignTechnician: vi.fn(),
   updateStatus: vi.fn(),
+  updatePriority: vi.fn(),
   endorseReply: vi.fn(),
   withdrawEndorsement: vi.fn()
 };

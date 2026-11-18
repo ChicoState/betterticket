@@ -441,6 +441,50 @@ main {
   gap: 0.35rem;
 }
 
+.ticket-priority-area {
+  display: grid;
+  justify-items: end;
+  gap: 0.65rem;
+}
+
+.priority-editor {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  color: #53616a;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.priority-editor-controls {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 0.5rem;
+}
+
+.priority-editor select {
+  min-height: 2.5rem;
+  border: 1px solid #9aa6aa;
+  border-radius: 0.25rem;
+  background: #ffffff;
+  color: #17212b;
+  padding: 0.45rem 2rem 0.45rem 0.65rem;
+  font: inherit;
+}
+
+.priority-editor .submit-button {
+  min-width: auto;
+  padding: 0.65rem 0.8rem;
+  white-space: nowrap;
+}
+
+.priority-editor .submission-message,
+.priority-editor .success-message,
+.priority-editor .error-message {
+  margin: 0;
+}
+
 .visibility-badge {
   border: 1px solid #b7c9d5;
   border-radius: 999px;
@@ -635,6 +679,22 @@ main {
 }
 
 @media (max-width: 42rem) {
+  .ticket-detail > .ticket-card-header {
+    flex-direction: column;
+  }
+
+  .ticket-detail-header-actions,
+  .ticket-priority-area,
+  .priority-editor {
+    justify-content: start;
+    justify-items: start;
+  }
+
+  .priority-editor-controls {
+    flex-wrap: wrap;
+    justify-content: start;
+  }
+
   .progress-timeline {
     grid-template-columns: 1fr;
   }
@@ -893,6 +953,7 @@ textarea {
 }
 
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 a:focus-visible {

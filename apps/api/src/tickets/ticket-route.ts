@@ -24,6 +24,7 @@ import {
   ticketParamsSchema,
   ticketResponseSchema,
   updateTicketReplyStatusBodySchema,
+  updateTicketPriorityBodySchema,
   updateTicketStatusBodySchema,
   type ApiError,
   type CreateReplyInput,
@@ -40,6 +41,7 @@ import {
   type TicketSort,
   type TicketParams,
   type UpdateTicketReplyStatusInput,
+  type UpdateTicketPriorityInput,
   type UpdateTicketStatusInput
 } from "./ticket-contract.js";
 import type {
@@ -194,6 +196,44 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
             message: "Technicians can only advance a ticket one stage, up to resolved"
           }
         });
+      }
+
+      return reply.status(200).send(toTicket(result.ticket, access.user));
+    }
+  );
+
+  app.patch<{
+    Params: TicketAssignmentParams;
+    Body: UpdateTicketPriorityInput;
+    Reply: Ticket | ApiError;
+  }>(
+    "/api/tickets/:ticketId/priority",
+    {
+      schema: {
+        params: ticketAssignmentParamsSchema,
+        body: updateTicketPriorityBodySchema,
+        response: {
+          200: ticketResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const access = await requireTechnician(authRepository, request);
+      if (access.type === "denied") {
+        return reply.status(access.statusCode).send(access.body);
+      }
+
+      const result = await ticketRepository.updatePriority(
+        request.params.ticketId,
+        request.body.priority
+      );
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
       }
 
       return reply.status(200).send(toTicket(result.ticket, access.user));

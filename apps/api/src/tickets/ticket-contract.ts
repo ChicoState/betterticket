@@ -76,6 +76,10 @@ export interface UpdateTicketStatusInput {
   status: TicketStatus;
 }
 
+export interface UpdateTicketPriorityInput {
+  priority: TicketPriority;
+}
+
 const requiredText = (maxLength: number) => ({
   type: "string",
   minLength: 1,
@@ -321,6 +325,15 @@ export const updateTicketStatusBodySchema = {
   required: ["status"],
   properties: {
     status: { type: "string", enum: ticketStatuses }
+  }
+} as const;
+
+export const updateTicketPriorityBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["priority"],
+  properties: {
+    priority: { type: "string", enum: ticketPriorities }
   }
 } as const;
 

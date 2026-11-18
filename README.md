@@ -4,16 +4,16 @@ BetterTicket is a public ticketing web application. It supports anonymous ticket
 
 ## Repository map
 
-| Location                    | Purpose                                                               |
-| --------------------------- | --------------------------------------------------------------------- |
-| `apps/web`                  | React/Vite tickets, attachments, voting, settings, and tests.         |
-| `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.       |
-| `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services.  |
-| `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                 |
-| `.github/workflows/`        | Pull-request checks and scheduled CodeQL analysis.                    |
-| `.agents/skills/`           | Repository-specific Codex skills.                                     |
-| `docs/`                     | Product specs, implementation plans, and architecture decisions.      |
-| `infrastructure_plan.md`    | Approved infrastructure decisions and deferred product decisions.     |
+| Location                    | Purpose                                                              |
+| --------------------------- | -------------------------------------------------------------------- |
+| `apps/web`                  | React/Vite tickets, attachments, voting, settings, and tests.        |
+| `apps/api`                  | Fastify API, Drizzle schema/migrations, and API/database tests.      |
+| `docker/` and `compose.yml` | Pinned Docker toolchain and local PostgreSQL/S3-compatible services. |
+| `scripts/smoke.sh`          | Disposable infrastructure smoke test.                                |
+| `.github/workflows/`        | Pull-request checks and scheduled CodeQL analysis.                   |
+| `.agents/skills/`           | Repository-specific Codex skills.                                    |
+| `docs/`                     | Product specs, implementation plans, and architecture decisions.     |
+| `infrastructure_plan.md`    | Approved infrastructure decisions and deferred product decisions.    |
 
 ## Getting started
 

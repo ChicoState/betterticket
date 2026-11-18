@@ -499,6 +499,62 @@ describe("PostgresTicketRepository", () => {
     });
   });
 
+  it("lets only the stored owner confirm a resolved ticket as completed", async () => {
+    const [owner, other] = await database
+      .insert(users)
+      .values([
+        { name: "Uma User", username: "uma", passwordHash: "not-used", role: "USER" },
+        { name: "Oliver Other", username: "oliver", passwordHash: "not-used", role: "USER" }
+      ])
+      .returning();
+    const repository = new PostgresTicketRepository(database);
+    const ticket = await repository.create(
+      { title: "Title", description: "Description", setup: "Setup" },
+      owner!
+    );
+    const anonymous = await repository.create({
+      title: "Anonymous",
+      description: "Description",
+      setup: "Setup"
+    });
+
+    expect(await repository.completeTicket(ticket.id, owner!.id)).toEqual({
+      type: "invalid-transition"
+    });
+
+    const resolvedAt = new Date("2026-09-01T12:00:00.000Z");
+    await database
+      .update(tickets)
+      .set({ status: "RESOLVED", updatedAt: resolvedAt })
+      .where(eq(tickets.id, ticket.id));
+
+    expect(await repository.completeTicket(ticket.id, other!.id)).toEqual({ type: "not-owner" });
+    expect(await repository.completeTicket(anonymous.id, owner!.id)).toEqual({
+      type: "not-owner"
+    });
+    expect(
+      await repository.completeTicket("00000000-0000-4000-8000-000000000000", owner!.id)
+    ).toEqual({ type: "ticket-not-found" });
+
+    const completed = await repository.completeTicket(ticket.id, owner!.id);
+    expect(completed).toMatchObject({
+      type: "updated",
+      ticket: { status: "COMPLETED", replyStatus: "OPEN" }
+    });
+    if (completed.type !== "updated") {
+      throw new Error("Expected the ticket to be completed");
+    }
+    expect(completed.ticket.updatedAt.getTime()).toBeGreaterThan(resolvedAt.getTime());
+
+    expect(await repository.completeTicket(ticket.id, owner!.id)).toMatchObject({
+      type: "unchanged",
+      ticket: { status: "COMPLETED", updatedAt: completed.ticket.updatedAt }
+    });
+    expect(await repository.updateStatus(ticket.id, "RESOLVED", actorId)).toEqual({
+      type: "invalid-transition"
+    });
+  });
+
   it("assigns, reassigns, and unassigns technicians without changing status", async () => {
     const [firstTechnician, secondTechnician] = await database
       .insert(users)

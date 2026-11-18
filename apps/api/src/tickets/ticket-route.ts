@@ -379,6 +379,54 @@ export const ticketRoutes: FastifyPluginAsync<TicketRoutesOptions> = async (
     }
   );
 
+  app.post<{ Params: TicketParams; Reply: Ticket | ApiError }>(
+    "/api/tickets/:id/complete",
+    {
+      schema: {
+        params: ticketParamsSchema,
+        response: {
+          200: ticketResponseSchema,
+          400: apiErrorResponseSchema,
+          401: apiErrorResponseSchema,
+          403: apiErrorResponseSchema,
+          404: apiErrorResponseSchema,
+          500: apiErrorResponseSchema
+        }
+      }
+    },
+    async (request, reply) => {
+      const user = await currentUser(request, authRepository);
+      if (!user) {
+        return reply.status(401).send({
+          error: { code: "AUTHENTICATION_REQUIRED", message: "Authentication is required" }
+        });
+      }
+      if (!ticketRepository.completeTicket) {
+        throw new Error("Ticket completion is not supported by this repository");
+      }
+
+      const result = await ticketRepository.completeTicket(request.params.id, user.id);
+      if (result.type === "ticket-not-found") {
+        return reply.status(404).send(ticketNotFound);
+      }
+      if (result.type === "not-owner") {
+        return reply.status(403).send({
+          error: { code: "FORBIDDEN", message: "Only the ticket owner can confirm completion" }
+        });
+      }
+      if (result.type === "invalid-transition") {
+        return reply.status(400).send({
+          error: {
+            code: "INVALID_STATUS_TRANSITION",
+            message: "Only a resolved ticket can be confirmed as completed"
+          }
+        });
+      }
+
+      return reply.status(200).send(toTicket(result.ticket, user));
+    }
+  );
+
   app.put<{
     Params: ReplyEndorsementParams;
     Body: EndorseReplyInput;

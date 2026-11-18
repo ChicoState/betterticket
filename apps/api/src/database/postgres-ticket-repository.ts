@@ -11,12 +11,14 @@ import {
   users
 } from "./schema.js";
 import {
+  canOwnerCompleteTicket,
   canTechnicianChangeStatus,
   type ReplyKind,
   type TicketStatus
 } from "../tickets/ticket-contract.js";
 import type {
   AssignmentResult,
+  CompleteTicketResult,
   VoteValue,
   SetReplyVoteResult,
   SetTicketVoteResult,
@@ -385,6 +387,43 @@ export class PostgresTicketRepository implements TicketRepository {
     }
 
     return { type: "updated", ticket: updatedTicket };
+  }
+
+  async completeTicket(ticketId: string, ownerUserId: string): Promise<CompleteTicketResult> {
+    return this.database.transaction(async (transaction) => {
+      // Lock the row so a concurrent status change cannot race the RESOLVED check.
+      const [existing] = await transaction
+        .select({ status: tickets.status, creatorUserId: tickets.creatorUserId })
+        .from(tickets)
+        .where(eq(tickets.id, ticketId))
+        .for("update")
+        .limit(1);
+
+      if (!existing) {
+        return { type: "ticket-not-found" };
+      }
+      if (existing.creatorUserId === null || existing.creatorUserId !== ownerUserId) {
+        return { type: "not-owner" };
+      }
+
+      let type: "updated" | "unchanged" = "unchanged";
+      if (existing.status !== "COMPLETED") {
+        if (!canOwnerCompleteTicket(existing.status)) {
+          return { type: "invalid-transition" };
+        }
+        await transaction
+          .update(tickets)
+          .set({ status: "COMPLETED", updatedAt: new Date() })
+          .where(eq(tickets.id, ticketId));
+        type = "updated";
+      }
+
+      const ticket = await findTicket(transaction, ticketId);
+      if (!ticket) {
+        throw new Error("Ticket completion could not be read");
+      }
+      return { type, ticket };
+    });
   }
 
   async updateStatus(

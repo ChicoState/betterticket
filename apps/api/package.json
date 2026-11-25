@@ -21,7 +21,7 @@
     "@fastify/multipart": "^10.1.8",
     "@fastify/rate-limit": "^11.2.1",
     "argon2": "^0.45.1",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "fastify": "catalog:",
     "file-type": "^22.3.0",
     "pg": "^8.0.0"
